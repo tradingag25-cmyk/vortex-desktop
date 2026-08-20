@@ -1,0 +1,45 @@
+name: Compilar Vortex (Windows)
+
+# Se dispara al publicar un tag "vX.Y.Z" (o manualmente desde la pestaña Actions).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache de Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Compilar app + publicar instalador
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Vortex ${{ github.ref_name }}"
+          releaseBody: "Instalador de Vortex — Sistema de Gestión Integral."
+          releaseDraft: false
+          prerelease: false

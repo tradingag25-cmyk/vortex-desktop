@@ -1,0 +1,12 @@
+{
+  "name": "vortex-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Vortex — Sistema de Gestión Integral (app de escritorio)",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
