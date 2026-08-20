@@ -1,6 +1,6 @@
 [package]
 name = "vortex"
-version = "1.0.0"
+version = "1.0.1"
 description = "Vortex — Sistema de Gestión Integral"
 authors = ["Vortex"]
 edition = "2021"
