@@ -41,7 +41,7 @@ jobs:
           PW="$(openssl rand -base64 24)"
           # Genera el par de llaves del updater (privada cifrada con PW)
           npx -y @tauri-apps/cli@latest signer generate -w ./vtx.key --password "$PW" --force
-          PUB="$(base64 -w0 ./vtx.key.pub)"
+          PUB="$(cat ./vtx.key.pub)"
 
           # Guarda los secretos de firma (se usan al compilar cada release)
           gh secret set TAURI_SIGNING_PRIVATE_KEY --repo "$REPO" < ./vtx.key
