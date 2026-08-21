@@ -1907,21 +1907,27 @@
   function renderDashboard(view){
     const kpi=(l,v,s,ic)=>`<div class="card kpi"><div class="kpi-l">${svg(I[ic])} ${l}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`;
     const qa=(ic,t,d,id)=>`<div class="qa" onclick="go('${id}')"><div class="qa-ic">${svg(I[ic])}</div><div><div style="font-weight:600;font-size:14px;">${t}</div><div style="font-size:12px;color:var(--text-muted);">${d}</div></div></div>`;
+    const FAC = (typeof FACTURAS!=='undefined'?FACTURAS:[]);
+    const todayIso = new Date().toISOString().slice(0,10);
+    const hoy = FAC.filter(f=>String(f.dateISO||'').slice(0,10)===todayIso);
+    const ventasHoy = hoy.reduce((a,f)=>a+(f.totalBs||0),0);
+    const ivaHoy = hoy.reduce((a,f)=>a+(f.iva||0),0);
+    const baseHoy = hoy.reduce((a,f)=>a+(f.base_gr||0),0);
+    const igtfHoy = hoy.reduce((a,f)=>a+(f.igtf||0),0);
+    const recientes = FAC.slice(-4).reverse();
+    const CXCL = (typeof CXC!=='undefined'?CXC:[]);
     view.innerHTML=`
       <div class="kgrid">
-        ${kpi('Ventas de hoy',money(48250.75),usd(48250.75/RATE),'coin')}
-        ${kpi('IVA débito fiscal',money(6120.10),'Base gravada '+money(38250.63),'receipt')}
-        ${kpi('IGTF cobrado',money(430.55),'3% sobre divisas','coin')}
-        ${(()=>{const p=CXC.filter(x=>cxcSaldo(x)>0);const tot=p.reduce((a,x)=>a+cxcSaldo(x),0);const nv=p.filter(x=>cxcDias(x)>0).length;return kpi('Por cobrar',money(tot),usd(tot/RATE)+(nv?' · '+nv+' vencida'+(nv>1?'s':''):''),'warn');})()}
+        ${kpi('Ventas de hoy',money(ventasHoy),usd(ventasHoy/RATE),'coin')}
+        ${kpi('IVA débito fiscal',money(ivaHoy),'Base gravada '+money(baseHoy),'receipt')}
+        ${kpi('IGTF cobrado',money(igtfHoy),'3% sobre divisas','coin')}
+        ${(()=>{const p=CXCL.filter(x=>cxcSaldo(x)>0);const tot=p.reduce((a,x)=>a+cxcSaldo(x),0);const nv=p.filter(x=>cxcDias(x)>0).length;return kpi('Por cobrar',money(tot),usd(tot/RATE)+(nv?' · '+nv+' vencida'+(nv>1?'s':''):''),'warn');})()}
       </div>
       <div class="row2">
         <div class="card">
           <div class="card-head"><div class="card-title">${svg(I.invoice)} Actividad reciente</div></div>
           <div class="overflow-x"><table style="min-width:520px;"><thead><tr><th>Documento</th><th>Cliente</th><th class="num">Total</th><th>Estado</th></tr></thead><tbody>
-            <tr><td class="mono">F-000482</td><td>Comercial El Sol</td><td class="num">${money(12480.50)}</td><td><span class="tag gen">Pagada</span></td></tr>
-            <tr><td class="mono">F-000481</td><td>Inversiones MPZ</td><td class="num">${money(3260)}</td><td><span class="tag gen">Pagada</span></td></tr>
-            <tr><td class="mono">F-000480</td><td>Bodegón La 5ta</td><td class="num">${money(8890.25)}</td><td><span class="tag" style="background:var(--warn-soft);color:var(--warn)">Pendiente</span></td></tr>
-            <tr><td class="mono">NC-000021</td><td>Comercial El Sol</td><td class="num">${money(-640)}</td><td><span class="tag">Borrador</span></td></tr>
+            ${recientes.length ? recientes.map(f=>{const st=f.status||'Emitida';const pag=(st==='Pagada');return `<tr><td class="mono">${f.num||''}</td><td>${f.cli||''}</td><td class="num">${money(f.totalBs||0)}</td><td>${pag?'<span class="tag gen">Pagada</span>':'<span class="tag">'+st+'</span>'}</td></tr>`;}).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:22px">Sin actividad todavía</td></tr>`}
           </tbody></table></div>
         </div>
         <div class="card">
@@ -2620,7 +2626,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.0.7";
+  var CURRENT_FALLBACK = "1.0.8";
   window.__VTX_VER = CURRENT_FALLBACK;
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
   function cmp(a,b){var pa=(a||"0").split(".").map(Number),pb=(b||"0").split(".").map(Number);for(var i=0;i<3;i++){var d=(pa[i]||0)-(pb[i]||0);if(d)return d>0?1:-1;}return 0;}
@@ -2741,9 +2747,23 @@
     try{ if(cfg && cfg.companyName){ var el=document.querySelector(".login-co"); if(el) el.textContent=cfg.companyName; } }catch(e){}
     try{ if(cfg && cfg.settings && Array.isArray(cfg.settings.modules)){ enabledMods=cfg.settings.modules; applyModules(); } }catch(e){}
   }
-  async function validate(key){
-    try{ var url = BASE+encodeURIComponent(key)+"&device="+encodeURIComponent(deviceId())+"&os="+encodeURIComponent(deviceOs()); var r = await fetch(url,{cache:"no-store"}); return await r.json(); }
+  async function validate(key, mode){
+    try{ var url = BASE+encodeURIComponent(key)+"&device="+encodeURIComponent(deviceId())+"&os="+encodeURIComponent(deviceOs())+(mode==="check"?"&mode=check":""); var r = await fetch(url,{cache:"no-store"}); return await r.json(); }
     catch(e){ return {network:true}; }
+  }
+  // ── Revalidación en vivo (cada 45s): detecta liberar/bloquear/cambios sin reiniciar ──
+  var pollTimer=null;
+  function startPolling(){ if(pollTimer) return; pollTimer=setInterval(poll, 45000); }
+  function stopPolling(){ if(pollTimer){ clearInterval(pollTimer); pollTimer=null; } }
+  async function poll(){
+    var stored=null; try{ stored=localStorage.getItem(K_KEY); }catch(e){}
+    if(!stored){ stopPolling(); return; }
+    var j = await validate(stored, "check");
+    if(!j || j.network) return;                 // sin conexión → no bloquear
+    if(j.valid){ applyConfig(j.config); return; } // aplica módulos/datos del panel en vivo
+    stopPolling();
+    try{ localStorage.removeItem(K_KEY); }catch(e){}
+    openGate(j.reason || "Tu licencia ya no es válida.");
   }
   async function activate(){
     var key=(input.value||"").trim().toUpperCase();
@@ -2751,7 +2771,7 @@
     clearErr(); btn.disabled=true; btn.textContent="Validando…";
     var j = await validate(key);
     btn.disabled=false; btn.textContent="Activar";
-    if(j && j.valid){ localStorage.setItem(K_KEY,key); applyConfig(j.config); if(blankFirstTime()){ location.reload(); return; } closeGate(); }
+    if(j && j.valid){ localStorage.setItem(K_KEY,key); applyConfig(j.config); if(blankFirstTime()){ location.reload(); return; } closeGate(); startPolling(); }
     else if(j && j.network){ showErr("Sin conexión. Conéctate a internet para activar."); }
     else { showErr((j && j.reason) || "Licencia no válida."); }
   }
@@ -2761,9 +2781,9 @@
     var stored=null; try{ stored=localStorage.getItem(K_KEY); }catch(e){}
     try{ var c=localStorage.getItem(K_CFG); if(c) applyConfig(JSON.parse(c)); }catch(e){}
     if(!stored){ openGate(); try{input.focus();}catch(e){} return; }
-    var j = await validate(stored);
-    if(j && j.network) return;                 // sin internet → permite usar (offline)
-    if(j && j.valid){ applyConfig(j.config); return; }
+    var j = await validate(stored, "check");
+    if(j && j.network){ startPolling(); return; }   // sin internet → permite usar (offline)
+    if(j && j.valid){ applyConfig(j.config); startPolling(); return; }
     try{ localStorage.removeItem(K_KEY); }catch(e){}
     openGate((j && j.reason) || "Tu licencia ya no es válida.");
   })();
