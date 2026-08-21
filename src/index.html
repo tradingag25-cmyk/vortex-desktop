@@ -2608,7 +2608,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.0.2";
+  var CURRENT_FALLBACK = "1.0.3";
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
   function cmp(a,b){var pa=(a||"0").split(".").map(Number),pb=(b||"0").split(".").map(Number);for(var i=0;i<3;i++){var d=(pa[i]||0)-(pb[i]||0);if(d)return d>0?1:-1;}return 0;}
   function getCurrent(){ try{ return (T.app&&T.app.getVersion)?T.app.getVersion():Promise.resolve(CURRENT_FALLBACK);}catch(e){return Promise.resolve(CURRENT_FALLBACK);} }
@@ -2629,5 +2629,65 @@
       }).catch(function(){});
     });
   }, 2500);
+})();
+</script>
+
+<!-- Activación por licencia (solo en la app de escritorio) -->
+<div id="vtx-lic" style="display:none;position:fixed;inset:0;z-index:2147483600;background:radial-gradient(120% 90% at 50% 30%,#0e2422,#070f0e);color:#eaf6f6;align-items:center;justify-content:center;padding:24px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif">
+  <div style="max-width:430px;width:100%;background:#0f2327;border:1px solid #1c3a3f;border-radius:18px;padding:34px 30px;box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center">
+    <svg width="54" height="54" viewBox="0 0 48 48" style="margin-bottom:8px"><defs><linearGradient id="lgk" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse"><stop stop-color="#a6f0f7"/><stop offset="1" stop-color="#1a8f9b"/></linearGradient></defs><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="url(#lgk)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="url(#lgk)" opacity=".78" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="url(#lgk)" opacity=".56" transform="rotate(240 24 24)"/></svg>
+    <h1 style="font-size:22px;font-weight:800;margin:6px 0 0">Activa Vortex</h1>
+    <p id="vtx-lic-sub" style="color:#a6c2c4;font-size:14px;margin:8px 0 20px">Ingresa la clave de licencia que te entregaron.</p>
+    <input id="vtx-lic-key" placeholder="VTX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" style="width:100%;background:#0c1c1f;border:1px solid #254a50;border-radius:10px;padding:13px 14px;color:#eaf6f6;font-size:15px;text-align:center;letter-spacing:1px;font-family:ui-monospace,monospace;box-sizing:border-box"/>
+    <div id="vtx-lic-err" style="display:none;color:#ef7671;font-size:13px;margin-top:12px"></div>
+    <button id="vtx-lic-btn" style="width:100%;margin-top:18px;background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">Activar</button>
+    <p style="color:#6f8f92;font-size:12px;margin-top:16px">¿No tienes clave? Adquiere Vortex con tu proveedor.</p>
+  </div>
+</div>
+<script>
+(function(){
+  var T = window.__TAURI__;
+  if(!T) return; // solo en la app de escritorio
+  var BASE = "https://vortex-platform-murex.vercel.app/api/license/activate?key=";
+  var K_KEY = "vortex_license_key", K_CFG = "vortex_license_cfg";
+  var gate = document.getElementById("vtx-lic");
+  var input = document.getElementById("vtx-lic-key");
+  var btn = document.getElementById("vtx-lic-btn");
+  var errEl = document.getElementById("vtx-lic-err");
+  var subEl = document.getElementById("vtx-lic-sub");
+  function showErr(m){ errEl.textContent=m; errEl.style.display="block"; }
+  function clearErr(){ errEl.style.display="none"; }
+  function openGate(sub){ if(sub) subEl.textContent=sub; gate.style.display="flex"; }
+  function closeGate(){ gate.style.display="none"; }
+  function applyConfig(cfg){
+    try{ if(cfg) localStorage.setItem(K_CFG, JSON.stringify(cfg)); }catch(e){}
+    try{ if(cfg && cfg.companyName){ var el=document.querySelector(".login-co"); if(el) el.textContent=cfg.companyName; } }catch(e){}
+  }
+  async function validate(key){
+    try{ var r = await fetch(BASE+encodeURIComponent(key),{cache:"no-store"}); return await r.json(); }
+    catch(e){ return {network:true}; }
+  }
+  async function activate(){
+    var key=(input.value||"").trim().toUpperCase();
+    if(!key){ showErr("Ingresa tu clave de licencia."); return; }
+    clearErr(); btn.disabled=true; btn.textContent="Validando…";
+    var j = await validate(key);
+    btn.disabled=false; btn.textContent="Activar";
+    if(j && j.valid){ localStorage.setItem(K_KEY,key); applyConfig(j.config); closeGate(); }
+    else if(j && j.network){ showErr("Sin conexión. Conéctate a internet para activar."); }
+    else { showErr((j && j.reason) || "Licencia no válida."); }
+  }
+  btn.onclick = activate;
+  input.addEventListener("keydown", function(e){ if(e.key==="Enter") activate(); });
+  (async function(){
+    var stored=null; try{ stored=localStorage.getItem(K_KEY); }catch(e){}
+    try{ var c=localStorage.getItem(K_CFG); if(c) applyConfig(JSON.parse(c)); }catch(e){}
+    if(!stored){ openGate(); try{input.focus();}catch(e){} return; }
+    var j = await validate(stored);
+    if(j && j.network) return;                 // sin internet → permite usar (offline)
+    if(j && j.valid){ applyConfig(j.config); return; }
+    try{ localStorage.removeItem(K_KEY); }catch(e){}
+    openGate((j && j.reason) || "Tu licencia ya no es válida.");
+  })();
 })();
 </script>
