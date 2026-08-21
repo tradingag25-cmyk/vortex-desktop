@@ -1,0 +1,56 @@
+name: Configurar firma (una sola vez)
+
+# Ejecutar UNA vez desde la pestaña Actions (Run workflow).
+# Requiere un secreto SETUP_PAT (token de GitHub con permisos de Secrets:write
+# y Contents:write sobre este repo). Genera la llave de firma del updater,
+# guarda los secretos de firma y coloca la clave pública en tauri.conf.json.
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SETUP_PAT }}
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generar llave y configurar
+        env:
+          GH_TOKEN: ${{ secrets.SETUP_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          PW="$(openssl rand -base64 24)"
+          # Genera el par de llaves del updater (privada cifrada con PW)
+          npx -y @tauri-apps/cli@latest signer generate -w ./vtx.key --password "$PW" --force
+          PUB="$(base64 -w0 ./vtx.key.pub)"
+
+          # Guarda los secretos de firma (se usan al compilar cada release)
+          gh secret set TAURI_SIGNING_PRIVATE_KEY --repo "$REPO" < ./vtx.key
+          printf '%s' "$PW" | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD --repo "$REPO"
+
+          # Coloca la clave pública en la configuración
+          PUB="$PUB" node -e "const fs=require('fs');const p='src-tauri/tauri.conf.json';let c=fs.readFileSync(p,'utf8');if(c.indexOf('PUBKEY_PLACEHOLDER')<0){console.log('Ya estaba configurada, no se cambia.');process.exit(0);}c=c.split('PUBKEY_PLACEHOLDER').join(process.env.PUB);fs.writeFileSync(p,c);"
+
+          # Limpia las llaves del runner
+          rm -f ./vtx.key ./vtx.key.pub
+
+          # Commit de la clave pública (si cambió)
+          git config user.name "Vortex"
+          git config user.email "vortexsistemadegestionintegral@gmail.com"
+          if ! git diff --quiet -- src-tauri/tauri.conf.json; then
+            git add src-tauri/tauri.conf.json
+            git commit -m "chore: configurar clave pública del updater firmado"
+            git push
+          fi
+
+          echo "## ✅ Firma configurada" >> "$GITHUB_STEP_SUMMARY"
+          echo "Se guardaron los secretos de firma y se colocó la clave pública." >> "$GITHUB_STEP_SUMMARY"
+          echo "Ya puedes borrar el secreto SETUP_PAT. Publica una nueva versión (tag) para probar la auto-actualización." >> "$GITHUB_STEP_SUMMARY"
