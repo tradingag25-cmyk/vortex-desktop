@@ -716,7 +716,7 @@
     return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Comprobante de retención IVA</span><div class="p-num">${c.retNum}</div><div class="p-mut" style="margin-top:6px">${fmtC(new Date(c.date+'T00:00:00'))}</div></div></div>
       <div class="p-body">
         <div class="p-parts">
-          <div class="p-box"><div class="pk">Agente de retención</div><div class="pn">Distribuidora Andina, C.A.</div><div class="p-mut">RIF J-40558877-1</div></div>
+          <div class="p-box"><div class="pk">Agente de retención</div><div class="pn">${CO.name}</div><div class="p-mut">RIF ${CO.rif}</div></div>
           <div class="p-box"><div class="pk">Sujeto retenido (proveedor)</div><div class="pn">${c.prov}</div><div class="p-mut">${c.rif||''}</div></div>
         </div>
         <table><thead><tr><th>Factura</th><th>Fecha</th><th class="num">Base</th><th class="num">IVA</th><th class="num">% Ret.</th><th class="num">IVA retenido</th></tr></thead>
@@ -727,7 +727,7 @@
         ${c.retIslr>0?`<tr class="rr"><td>ISLR retenido (${c.islrPct}%)</td><td class="val">${money(c.retIslr*RATE)}</td></tr>`:''}
         <tr class="gg"><td>Total retenido</td><td class="val">${money((c.retIva+c.retIslr)*RATE)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>Comprobante de retención de IVA · Período fiscal ${period} · conforme a la Providencia SENIAT sobre retenciones. Válido para el Libro de Compras. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Comprobante de retención de IVA · Período fiscal ${period} · conforme a la Providencia SENIAT sobre retenciones. Válido para el Libro de Compras. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function printCompraRet(id){const c=COMPRAS.find(x=>x.id===id);if(!c)return;document.getElementById('paper').innerHTML=compraRetHtml(c);document.getElementById('printOverlay').classList.add('show');}
   function deleteCompra(id){const c=COMPRAS.find(x=>x.id===id);if(!c)return;if(!confirm('¿Eliminar la factura de compra '+c.provInvoice+' de '+c.prov+'? No revierte el inventario ya ingresado.'))return;COMPRAS=COMPRAS.filter(x=>x.id!==id);saveCompras();go('compras');toast('Factura de compra eliminada',true);}
@@ -830,7 +830,7 @@
         <tr><td class="lab">Monto pagado</td><td class="val">${money(eg.amt)}</td></tr>
         <tr class="gg"><td>Saldo pendiente</td><td class="val">${money(eg.saldoDespues)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>Comprobante de egreso — documento interno no fiscal; soporte del pago realizado al proveedor. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Comprobante de egreso — documento interno no fiscal; soporte del pago realizado al proveedor. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function deudaProvHtml(provName){
     const docs=CXP.filter(d=>d.prov===provName&&cxpSaldo(d)>0).sort((a,b)=>cxpVenc(a)-cxpVenc(b));
@@ -840,7 +840,7 @@
       <div class="p-body"><div class="p-parts"><div class="p-box"><div class="pk">Proveedor</div><div class="pn">${provName}</div>${rif?`<div class="p-mut">${rif}</div>`:''}</div><div class="p-box"><div class="pk">Documentos pendientes</div><div class="pn">${docs.length}</div></div></div>
         <table><thead><tr><th>Documento</th><th>Emisión</th><th>Vencimiento</th><th class="num">Total</th><th class="num">Abonado</th><th class="num">Saldo</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div class="p-tt"><table><tr class="gg"><td>Total adeudado</td><td class="val">${money(total)}</td></tr></table></div>
-      <div class="p-foot"><div class="p-qr"></div>Estado de cuenta con el proveedor — documento informativo no fiscal; refleja el saldo pendiente a la fecha. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Estado de cuenta con el proveedor — documento informativo no fiscal; refleja el saldo pendiente a la fecha. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function printDeudaProv(id){const x=CXP.find(d=>d.id===id);if(!x)return;document.getElementById('paper').innerHTML=deudaProvHtml(x.prov);document.getElementById('printOverlay').classList.add('show');}
   function editCxp(id){
@@ -896,7 +896,7 @@
         <tr><td class="lab">IVA</td><td class="val">${money(t.iv*RATE)}</td></tr>
         <tr class="gg"><td>Total estimado</td><td class="val">${money(t.total*RATE)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>Orden de compra — solicitud de mercancía al proveedor; montos estimados a la tasa BCV ${money(RATE)}/USD, sujetos a variación. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Orden de compra — solicitud de mercancía al proveedor; montos estimados a la tasa BCV ${money(RATE)}/USD, sujetos a variación. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function renderOrdenes(view){
     const pend=ORDENES.filter(o=>ordenEstado(o).k==='Pendiente');
@@ -1012,7 +1012,7 @@
         <tr><td class="lab">IVA</td><td class="val">${money(t.iv*RATE)}</td></tr>
         <tr class="gg"><td>Total estimado</td><td class="val">${money(t.total*RATE)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>Cotización — documento informativo no fiscal; no genera obligación tributaria. Precios en Bs. a la tasa BCV ${money(RATE)}/USD, sujetos a variación. Válida hasta ${venc}. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Cotización — documento informativo no fiscal; no genera obligación tributaria. Precios en Bs. a la tasa BCV ${money(RATE)}/USD, sujetos a variación. Válida hasta ${venc}. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function renderCotiz(view){
     const vig=COTIZ.filter(c=>cotizEstado(c).k==='Vigente');
@@ -1117,7 +1117,7 @@
         <tr><td class="lab">IVA</td><td class="val">${money(t.iv*RATE)}</td></tr>
         <tr class="gg"><td>Total</td><td class="val">${money(t.total*RATE)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>Nota de entrega — ampara el despacho de mercancía; <b>no es documento fiscal</b> y no genera obligación tributaria. La factura fiscal se emite por separado. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Nota de entrega — ampara el despacho de mercancía; <b>no es documento fiscal</b> y no genera obligación tributaria. La factura fiscal se emite por separado. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function renderNotas(view){
     const desp=NOTAS.filter(n=>notaEstado(n).k==='Despachada');
@@ -1219,7 +1219,7 @@
         <tr><td class="lab">IVA (${isNC?'−':'+'} débito fiscal)</td><td class="val">${money(t.iva*RATE)}</td></tr>
         <tr class="gg"><td>${isNC?'Total a favor del cliente':'Total a cargo del cliente'}</td><td class="val">${money(t.total*RATE)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>${isNC?'Nota de crédito — disminuye el débito fiscal de la factura indicada y se registra en el Libro de Ventas.':'Nota de débito — incrementa el débito fiscal de la factura indicada y se registra en el Libro de Ventas.'} Documento fiscal conforme a la Providencia SENIAT. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>${isNC?'Nota de crédito — disminuye el débito fiscal de la factura indicada y se registra en el Libro de Ventas.':'Nota de débito — incrementa el débito fiscal de la factura indicada y se registra en el Libro de Ventas.'} Documento fiscal conforme a la Providencia SENIAT. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function renderDev(view){
     const totNC=DEVOL.filter(d=>d.tipo==='NC').reduce((a,d)=>a+(d.totalBs||0),0);
@@ -1340,7 +1340,7 @@
         <tr><td class="lab">Monto recibido</td><td class="val">${money(rec.amt)}</td></tr>
         <tr class="gg"><td>Saldo pendiente</td><td class="val">${money(rec.saldoDespues)}</td></tr>
       </table></div>
-      <div class="p-foot"><div class="p-qr"></div>Recibo de cobro — documento no fiscal; comprobante del pago recibido, no sustituye la factura. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Recibo de cobro — documento no fiscal; comprobante del pago recibido, no sustituye la factura. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   window.addCxc=function(doc){CXC.unshift({id:cxcUid++,...doc});saveCxc();};
   const cxcVenc=x=>{const d=new Date(x.emit+'T00:00:00');d.setDate(d.getDate()+(x.term||0));return d;};
@@ -1524,7 +1524,7 @@
         <table><thead><tr><th>Documento</th><th>Emisión</th><th>Vencimiento</th><th class="num">Total</th><th class="num">Abonado</th><th class="num">Saldo</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
       <div class="p-tt"><table><tr class="gg"><td>Total adeudado</td><td class="val">${money(total)}</td></tr></table></div>
-      <div class="p-foot"><div class="p-qr"></div>Estado de cuenta — documento informativo no fiscal; refleja el saldo pendiente del cliente a la fecha. No sustituye las facturas. Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot"><div class="p-qr"></div>Estado de cuenta — documento informativo no fiscal; refleja el saldo pendiente del cliente a la fecha. No sustituye las facturas. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function printDeuda(id){const x=CXC.find(d=>d.id===id);if(!x)return;document.getElementById('paper').innerHTML=deudaHtml(x.cli);document.getElementById('printOverlay').classList.add('show');}
   window.printDeuda=printDeuda;
@@ -1609,9 +1609,9 @@
       bodyRows=rows.map(r=>`<tr><td>${fmtF(r.iso)}</td><td>${r.doc}</td><td>${r.prov}</td><td>${r.rif}</td><td class="num">${money(r.total)}</td><td class="num">${money(r.gr)}</td><td class="num">${money(r.iva)}</td><td class="num">${money(r.retIva)}</td><td class="num">${money(r.retIslr)}</td></tr>`).join('');
       tot=`<tr class="gg"><td colspan="4">TOTALES</td><td class="num">${money(T.total)}</td><td class="num">${money(T.gr)}</td><td class="num">${money(T.iva)}</td><td class="num">${money(T.retIva)}</td><td class="num">${money(T.retIslr)}</td></tr>`;
     }
-    document.getElementById('paper').innerHTML=`<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">${isV?'Libro de Ventas':'Libro de Compras'}</span><div class="p-num" style="font-size:13px">${monthLabel(libroMonth)}</div><div class="p-mut" style="margin-top:6px">RIF J-40558877-1</div></div></div>
+    document.getElementById('paper').innerHTML=`<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">${isV?'Libro de Ventas':'Libro de Compras'}</span><div class="p-num" style="font-size:13px">${monthLabel(libroMonth)}</div><div class="p-mut" style="margin-top:6px">RIF ${CO.rif}</div></div></div>
       <div class="p-body"><table style="font-size:10px">${head.replace('<tr>','<thead><tr>').replace('</tr>','</tr></thead>')}<tbody>${bodyRows||'<tr><td colspan="9" style="text-align:center;padding:14px;color:#777">Sin movimientos en el período.</td></tr>'}${bodyRows?('<tfoot style="font-weight:800">'+tot+'</tfoot>'):''}</tbody></table></div>
-      <div class="p-foot">Relación de ${isV?'ventas':'compras'} del período ${monthLabel(libroMonth)} conforme a la Ley del IVA y su Reglamento (SENIAT). Distribuidora Andina, C.A. · Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot">Relación de ${isV?'ventas':'compras'} del período ${monthLabel(libroMonth)} conforme a la Ley del IVA y su Reglamento (SENIAT). ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
     document.getElementById('printOverlay').classList.add('show');
   }
   window.renderLVentas=renderLVentas;window.renderLCompras=renderLCompras;window.setLibroMonth=setLibroMonth;window.exportVentasCsv=exportVentasCsv;window.exportComprasCsv=exportComprasCsv;window.printLibro=printLibro;
@@ -1933,8 +1933,20 @@
       </div>`;
   }
 
+  // Datos del emisor — se toman de la licencia del cliente; si no hay, usa el demo.
+  const CO_DEF={name:'Distribuidora Andina, C.A.',rif:'J-40558877-1',addr:'Av. Principal, Caracas',phone:'0212-555-1234',email:'ventas@andina.com.ve'};
+  function readCfgCompany(){
+    try{ var c=JSON.parse(localStorage.getItem('vortex_license_cfg')||'null'); if(c){ var s=c.settings||{}; return {name:(c.companyName||CO_DEF.name),rif:(c.companyRif||CO_DEF.rif),addr:(s.addr||CO_DEF.addr),phone:(s.phone||CO_DEF.phone),email:(s.email||CO_DEF.email)}; } }catch(e){}
+    return Object.assign({},CO_DEF);
+  }
+  let CO=readCfgCompany();
+  const EMISOR_SVG=`<svg width="34" height="34" viewBox="0 0 48 48" fill="none"><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#12433f"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#12433f" opacity=".72" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#12433f" opacity=".5" transform="rotate(240 24 24)"/></svg>`;
   // Emisor (tinta oscura) para documentos impresos
-  const EMISOR_INK=`<div class="p-em"><svg width="34" height="34" viewBox="0 0 48 48" fill="none"><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#12433f"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#12433f" opacity=".72" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#12433f" opacity=".5" transform="rotate(240 24 24)"/></svg><div><h1>Distribuidora Andina, C.A.</h1><div class="p-mut">RIF J-40558877-1 · Av. Principal, Caracas<br>Tlf. 0212-555-1234 · ventas@andina.com.ve</div></div></div>`;
+  function buildEmisor(){ return `<div class="p-em">${EMISOR_SVG}<div><h1>${CO.name}</h1><div class="p-mut">RIF ${CO.rif} · ${CO.addr}<br>Tlf. ${CO.phone} · ${CO.email}</div></div></div>`; }
+  let EMISOR_INK=buildEmisor();
+  function refreshCompany(){ CO=readCfgCompany(); EMISOR_INK=buildEmisor(); try{var t=document.querySelector('.tenant'); if(t) t.textContent=CO.name+' · '+CO.rif;}catch(e){} try{var lc=document.querySelector('.login-co'); if(lc) lc.textContent=CO.name;}catch(e){} }
+  window.__vtxRefreshCompany=refreshCompany;
+  try{ if(localStorage.getItem('vortex_license_cfg')) setTimeout(refreshCompany,0); }catch(e){}
   function closePrint(){document.getElementById('printOverlay').classList.remove('show');}
   window.closePrint=closePrint;
   function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
@@ -2608,7 +2620,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.0.4";
+  var CURRENT_FALLBACK = "1.0.5";
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
   function cmp(a,b){var pa=(a||"0").split(".").map(Number),pb=(b||"0").split(".").map(Number);for(var i=0;i<3;i++){var d=(pa[i]||0)-(pb[i]||0);if(d)return d>0?1:-1;}return 0;}
   function getCurrent(){ try{ return (T.app&&T.app.getVersion)?T.app.getVersion():Promise.resolve(CURRENT_FALLBACK);}catch(e){return Promise.resolve(CURRENT_FALLBACK);} }
@@ -2671,6 +2683,7 @@
   }
   function applyConfig(cfg){
     try{ if(cfg) localStorage.setItem(K_CFG, JSON.stringify(cfg)); }catch(e){}
+    try{ if(window.__vtxRefreshCompany) window.__vtxRefreshCompany(); }catch(e){}
     try{ if(cfg && cfg.companyName){ var el=document.querySelector(".login-co"); if(el) el.textContent=cfg.companyName; } }catch(e){}
     try{ if(cfg && cfg.settings && Array.isArray(cfg.settings.modules)){ enabledMods=cfg.settings.modules; applyModules(); } }catch(e){}
   }
