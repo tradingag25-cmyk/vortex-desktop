@@ -1,20 +1,31 @@
 name: Configurar firma (una sola vez)
 
 # Ejecutar UNA vez desde la pestaña Actions (Run workflow).
-# Requiere un secreto SETUP_PAT (token de GitHub con permisos de Secrets:write
-# y Contents:write sobre este repo). Genera la llave de firma del updater,
+# Requiere un secreto SETUP_PAT (token de GitHub con permisos de
+# Secrets:write sobre este repo). Genera la llave de firma del updater,
 # guarda los secretos de firma y coloca la clave pública en tauri.conf.json.
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
+      - name: Verificar token
+        env:
+          SETUP_PAT: ${{ secrets.SETUP_PAT }}
+        run: |
+          if [ -z "$SETUP_PAT" ]; then
+            echo "::error::Falta el secreto SETUP_PAT (o está vacío). Créalo en Settings -> Secrets and variables -> Actions -> New repository secret, con el nombre EXACTO: SETUP_PAT"
+            exit 1
+          fi
+          echo "Token presente."
+
       - name: Descargar código
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.SETUP_PAT }}
 
       - name: Instalar Node
         uses: actions/setup-node@v4
@@ -42,7 +53,7 @@ jobs:
           # Limpia las llaves del runner
           rm -f ./vtx.key ./vtx.key.pub
 
-          # Commit de la clave pública (si cambió)
+          # Commit de la clave pública (si cambió) usando el GITHUB_TOKEN del checkout
           git config user.name "Vortex"
           git config user.email "vortexsistemadegestionintegral@gmail.com"
           if ! git diff --quiet -- src-tauri/tauri.conf.json; then
@@ -51,6 +62,6 @@ jobs:
             git push
           fi
 
-          echo "## ✅ Firma configurada" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Firma configurada" >> "$GITHUB_STEP_SUMMARY"
           echo "Se guardaron los secretos de firma y se colocó la clave pública." >> "$GITHUB_STEP_SUMMARY"
-          echo "Ya puedes borrar el secreto SETUP_PAT. Publica una nueva versión (tag) para probar la auto-actualización." >> "$GITHUB_STEP_SUMMARY"
+          echo "Ya puedes borrar el secreto SETUP_PAT. Avisa para publicar la primera versión con auto-actualización." >> "$GITHUB_STEP_SUMMARY"
