@@ -606,7 +606,7 @@
     {name:'Distribuidora Nacional, C.A.',rif:'J-30887766-0',tipo:'ORDINARIO'},
     {name:'Importadora Andes, C.A.',rif:'J-40556677-8',tipo:'ORDINARIO'},
   ].map(x=>({id:provUid++,...x}));
-  try{const s=localStorage.getItem('vortex_prov');if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length){PROV=a;provUid=a.reduce((m,x)=>Math.max(m,x.id||0),0)+1;}}}catch(e){}
+  try{const s=localStorage.getItem('vortex_prov');if(s){const a=JSON.parse(s);if(Array.isArray(a)){PROV=a;provUid=a.reduce((m,x)=>Math.max(m,x.id||0),0)+1;}}}catch(e){}
   const saveProv=()=>{try{localStorage.setItem('vortex_prov',JSON.stringify(PROV));}catch(e){}};
   let compraUid=1;
   let COMPRAS=[
@@ -2025,7 +2025,7 @@
     const PAYCONDS=['Contado','Crédito 15 días','Crédito 30 días','Crédito 60 días'];
     const PREFIX={RIF:['J','V','E','G','P','C'],CI:['V','E']};
     // Persistencia local (maqueta): recuerda clientes creados entre recargas.
-    try{const s=localStorage.getItem('vortex_cli');if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)CLI=a;}}catch(e){}
+    try{const s=localStorage.getItem('vortex_cli');if(s){const a=JSON.parse(s);if(Array.isArray(a))CLI=a;}}catch(e){}
     const saveCli=()=>{try{localStorage.setItem('vortex_cli',JSON.stringify(CLI));}catch(e){}};
     // Campos de detalle por método de pago (uso común en Venezuela).
     const PAY_FIELDS={
@@ -2361,7 +2361,7 @@
       {id:7,sku:'PAN-050',name:'Pan de sándwich',unit:'UND',iva:'GENERAL',p:1.30,cost:0.90,min:50,st:{PRIN:0,SUC:0,DEP:0},kx:[{t:'in',d:'09/07',q:60,b:60},{t:'out',d:'17/07',q:-60,b:0}]},
     ];
     let pUid=100;
-    try{const s=localStorage.getItem('vortex_prods');if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length){prods=a;pUid=prods.reduce((m,p)=>Math.max(m,p.id||0),0)+1;}}}catch(e){}
+    try{const s=localStorage.getItem('vortex_prods');if(s){const a=JSON.parse(s);if(Array.isArray(a)){prods=a;pUid=prods.reduce((m,p)=>Math.max(m,p.id||0),0)+1;}}}catch(e){}
     const saveProds=()=>{try{localStorage.setItem('vortex_prods',JSON.stringify(prods));}catch(e){}};
     prods.forEach(p=>{if(!p.cat)p.cat=/^MED/.test(p.sku)?'Medicinas':/^LIC/.test(p.sku)?'Licores':/^SRV/.test(p.sku)?'Servicios':'Alimentos';});
     let view='list',filter='ALL',q='',dep='ALL',catF='ALL',sel=null,container=null;
@@ -2620,7 +2620,8 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.0.6";
+  var CURRENT_FALLBACK = "1.0.7";
+  window.__VTX_VER = CURRENT_FALLBACK;
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
   function cmp(a,b){var pa=(a||"0").split(".").map(Number),pb=(b||"0").split(".").map(Number);for(var i=0;i<3;i++){var d=(pa[i]||0)-(pb[i]||0);if(d)return d>0?1:-1;}return 0;}
   function getCurrent(){ try{ return (T.app&&T.app.getVersion)?T.app.getVersion():Promise.resolve(CURRENT_FALLBACK);}catch(e){return Promise.resolve(CURRENT_FALLBACK);} }
@@ -2653,6 +2654,13 @@
     <input id="vtx-lic-key" placeholder="VTX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" style="width:100%;background:#0c1c1f;border:1px solid #254a50;border-radius:10px;padding:13px 14px;color:#eaf6f6;font-size:15px;text-align:center;letter-spacing:1px;font-family:ui-monospace,monospace;box-sizing:border-box"/>
     <div id="vtx-lic-err" style="display:none;color:#ef7671;font-size:13px;margin-top:12px"></div>
     <button id="vtx-lic-btn" style="width:100%;margin-top:18px;background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">Activar</button>
+    <div id="vtx-lic-help" style="display:none;margin-top:16px;padding:14px;background:#0c1c1f;border:1px solid #23464b;border-radius:12px">
+      <div style="font-size:13px;color:#cfe6e8;margin-bottom:10px">¿Problemas para activar? Escríbenos y te asistimos:</div>
+      <div style="display:flex;gap:8px">
+        <button id="vtx-help-wa" style="flex:1;background:#1f7a54;color:#eafff5;border:none;border-radius:9px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">💬 WhatsApp</button>
+        <button id="vtx-help-mail" style="flex:1;background:#1b3a40;color:#cfe6e8;border:1px solid #2c565d;border-radius:9px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">✉️ Correo</button>
+      </div>
+    </div>
     <p style="color:#6f8f92;font-size:12px;margin-top:16px">¿No tienes clave? Adquiere Vortex con tu proveedor.</p>
   </div>
 </div>
@@ -2671,13 +2679,37 @@
     }catch(e){ return ""; }
   }
   function deviceOs(){ try{ return (navigator.platform||navigator.userAgent||"").slice(0,40); }catch(e){ return ""; } }
+  // ── Soporte / asistencia directa ──
+  // Cambia estos datos por los tuyos (número de WhatsApp con código de país, sin +).
+  var SUPPORT = { whatsapp: "580697141", email: "vortexsistemadegestionintegral@gmail.com" };
+  function openExt(url){
+    try{ var T=window.__TAURI__; if(T&&T.core&&T.core.invoke){ T.core.invoke("plugin:opener|open_url",{url:url}); return; } }catch(e){}
+    try{ window.open(url,"_blank"); }catch(e){}
+  }
+  function supportMsg(reason){
+    var k=""; try{ k=(input&&input.value||localStorage.getItem(K_KEY)||"").trim(); }catch(e){}
+    var dev=""; try{ dev=(localStorage.getItem(K_DEV)||"").slice(0,8); }catch(e){}
+    return "Hola, necesito ayuda con Vortex.\n"+
+           "Problema: "+(reason||"No puedo activar")+"\n"+
+           "Clave: "+(k||"(sin clave)")+"\n"+
+           "Equipo: "+(dev||"-")+"\n"+
+           "Versión: "+(window.__VTX_VER||"");
+  }
+
   var gate = document.getElementById("vtx-lic");
   var input = document.getElementById("vtx-lic-key");
   var btn = document.getElementById("vtx-lic-btn");
   var errEl = document.getElementById("vtx-lic-err");
   var subEl = document.getElementById("vtx-lic-sub");
-  function showErr(m){ errEl.textContent=m; errEl.style.display="block"; }
-  function clearErr(){ errEl.style.display="none"; }
+  var helpEl = document.getElementById("vtx-lic-help");
+  var lastReason = "";
+  function showErr(m){ errEl.textContent=m; errEl.style.display="block"; lastReason=m; if(helpEl) helpEl.style.display="block"; }
+  function clearErr(){ errEl.style.display="none"; if(helpEl) helpEl.style.display="none"; }
+  try{
+    var waBtn=document.getElementById("vtx-help-wa"), mailBtn=document.getElementById("vtx-help-mail");
+    if(waBtn) waBtn.addEventListener("click", function(){ openExt("https://wa.me/"+SUPPORT.whatsapp+"?text="+encodeURIComponent(supportMsg(lastReason))); });
+    if(mailBtn) mailBtn.addEventListener("click", function(){ openExt("mailto:"+SUPPORT.email+"?subject="+encodeURIComponent("Soporte Vortex")+"&body="+encodeURIComponent(supportMsg(lastReason))); });
+  }catch(e){}
   function openGate(sub){ if(sub) subEl.textContent=sub; gate.style.display="flex"; }
   function closeGate(){ gate.style.display="none"; }
   var DATA_KEYS=["vortex_cierre","vortex_cli","vortex_cobros","vortex_compras","vortex_cotiz","vortex_cxc","vortex_cxp","vortex_egresos","vortex_facturas","vortex_ncnd","vortex_notas","vortex_ordenes","vortex_prods","vortex_prov","vortex_soportadas"];
@@ -2685,7 +2717,20 @@
   var enabledMods=null;
   function applyModules(){
     if(!enabledMods) return;
-    try{ document.querySelectorAll(".nav[data-nav]").forEach(function(n){ var id=n.getAttribute("data-nav"); n.style.display=(ALWAYS.indexOf(id)>=0||enabledMods.indexOf(id)>=0)?"":"none"; }); }catch(e){}
+    try{
+      var nav=document.getElementById("nav"); if(!nav) return;
+      // Oculta los botones de módulos que el cliente no tiene habilitados.
+      nav.querySelectorAll(".nav-i").forEach(function(n){
+        var id=n.dataset.id||n.getAttribute("data-id"); if(!id) return;
+        n.style.display=(ALWAYS.indexOf(id)>=0||enabledMods.indexOf(id)>=0)?"":"none";
+      });
+      // Oculta el título de un grupo si todos sus módulos quedaron ocultos.
+      nav.querySelectorAll(".nav-g").forEach(function(g){
+        var vis=false, s=g.nextElementSibling;
+        while(s && !s.classList.contains("nav-g")){ if(s.classList.contains("nav-i") && s.style.display!=="none"){ vis=true; break; } s=s.nextElementSibling; }
+        g.style.display=vis?"":"none";
+      });
+    }catch(e){}
   }
   function blankFirstTime(){
     try{ if(localStorage.getItem("vortex_blank_done")) return false; DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); localStorage.setItem("vortex_blank_done","1"); return true; }catch(e){ return false; }
