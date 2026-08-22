@@ -2664,7 +2664,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.1.6";
+  var CURRENT_FALLBACK = "1.1.7";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -2863,7 +2863,17 @@
     clearErr(); btn.disabled=true; btn.textContent="Validando…";
     var j = await validate(key);
     btn.disabled=false; btn.textContent="Activar";
-    if(j && j.valid){ localStorage.setItem(K_KEY,key); var demo=isDemoResp(j); applyConfig(j.config); applyDemoMode(demo); if(!demo && blankFirstTime()){ location.reload(); return; } closeGate(); startPolling(); }
+    if(j && j.valid){
+      var wasDemo = false; try{ wasDemo = (localStorage.getItem("vortex_is_demo")==="1"); }catch(e){}
+      localStorage.setItem(K_KEY,key);
+      var demo=isDemoResp(j);
+      applyConfig(j.config); applyDemoMode(demo);
+      if(!demo){
+        if(wasDemo){ try{ localStorage.setItem("vortex_blank_done","1"); }catch(e){} location.reload(); return; } // demo→pago: conserva los datos, solo personaliza
+        else if(blankFirstTime()){ location.reload(); return; } // instalación nueva pagada: entrega en blanco
+      }
+      closeGate(); startPolling();
+    }
     else if(j && j.network){ showErr("Sin conexión. Conéctate a internet para activar."); }
     else { showErr((j && j.reason) || "Licencia no válida."); }
   }
