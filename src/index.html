@@ -2659,7 +2659,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.1.4";
+  var CURRENT_FALLBACK = "1.1.5";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -2807,7 +2807,21 @@
   // Datos de ejemplo / vaciar (solo desde Configuración del administrador).
   // Cargar ejemplo: borra las claves para que el sistema use los datos demo del código.
   window.__vtxLoadSample = function(){ try{ DATA_KEYS.forEach(function(k){ localStorage.removeItem(k); }); }catch(e){} location.reload(); };
-  window.__vtxClearAll = function(){ try{ DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); }catch(e){} location.reload(); };
+  window.__vtxClearAll = function(){ if(window.__VTX_DEMO){ try{alert("No disponible en el modo demo. Los datos de ejemplo no se pueden borrar en la prueba.");}catch(e){} return; } try{ DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); }catch(e){} location.reload(); };
+  // ── Modo demo ──
+  function isDemoResp(j){ return !!(j && j.license && j.license.type === "DEMO"); }
+  function applyDemoMode(isDemo){
+    window.__VTX_DEMO = !!isDemo;
+    try{ if(isDemo) localStorage.setItem("vortex_is_demo","1"); else localStorage.removeItem("vortex_is_demo"); }catch(e){}
+    var b=document.getElementById("vtx-demo");
+    if(isDemo && !b){
+      b=document.createElement("div"); b.id="vtx-demo";
+      b.style.cssText="position:fixed;top:9px;left:50%;transform:translateX(-50%);z-index:2147483200;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;padding:7px 16px;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap;pointer-events:none";
+      b.textContent="🎮 MODO DEMO · versión de prueba (se bloquea en 2 días)";
+      document.body.appendChild(b);
+    }
+    if(b) b.style.display = isDemo ? "block" : "none";
+  }
   function applyConfig(cfg){
     try{ if(cfg) localStorage.setItem(K_CFG, JSON.stringify(cfg)); }catch(e){}
     try{ if(window.__vtxRefreshCompany) window.__vtxRefreshCompany(); }catch(e){}
@@ -2827,7 +2841,7 @@
     if(!stored){ stopPolling(); return; }
     var j = await validate(stored, "check");
     if(!j || j.network) return;                 // sin conexión → no bloquear
-    if(j.valid){ applyConfig(j.config); return; } // aplica módulos/datos del panel en vivo
+    if(j.valid){ applyConfig(j.config); applyDemoMode(isDemoResp(j)); return; } // aplica módulos/datos del panel en vivo
     stopPolling();
     try{ localStorage.removeItem(K_KEY); }catch(e){}
     openGate(j.reason || "Tu licencia ya no es válida.");
@@ -2838,7 +2852,7 @@
     clearErr(); btn.disabled=true; btn.textContent="Validando…";
     var j = await validate(key);
     btn.disabled=false; btn.textContent="Activar";
-    if(j && j.valid){ localStorage.setItem(K_KEY,key); applyConfig(j.config); if(blankFirstTime()){ location.reload(); return; } closeGate(); startPolling(); }
+    if(j && j.valid){ localStorage.setItem(K_KEY,key); var demo=isDemoResp(j); applyConfig(j.config); applyDemoMode(demo); if(!demo && blankFirstTime()){ location.reload(); return; } closeGate(); startPolling(); }
     else if(j && j.network){ showErr("Sin conexión. Conéctate a internet para activar."); }
     else { showErr((j && j.reason) || "Licencia no válida."); }
   }
@@ -2846,11 +2860,12 @@
   input.addEventListener("keydown", function(e){ if(e.key==="Enter") activate(); });
   (async function(){
     var stored=null; try{ stored=localStorage.getItem(K_KEY); }catch(e){}
+    try{ applyDemoMode(localStorage.getItem("vortex_is_demo")==="1"); }catch(e){}
     try{ var c=localStorage.getItem(K_CFG); if(c) applyConfig(JSON.parse(c)); }catch(e){}
     if(!stored){ openGate(); try{input.focus();}catch(e){} return; }
     var j = await validate(stored, "check");
     if(j && j.network){ startPolling(); return; }   // sin internet → permite usar (offline)
-    if(j && j.valid){ applyConfig(j.config); startPolling(); return; }
+    if(j && j.valid){ applyConfig(j.config); applyDemoMode(isDemoResp(j)); startPolling(); return; }
     try{ localStorage.removeItem(K_KEY); }catch(e){}
     openGate((j && j.reason) || "Tu licencia ya no es válida.");
   })();
