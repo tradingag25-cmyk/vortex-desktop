@@ -1921,6 +1921,11 @@
       <div class="card" style="padding:20px 22px;max-width:720px">
         <div class="card-title" style="margin-bottom:6px">${svg(I.cog)} Configuración</div>
         <p style="color:var(--text-muted);font-size:14px;margin:0 0 18px">Ajustes generales de Vortex y gestión de datos de este equipo.</p>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Licencia</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">¿Ya adquiriste tu plan o quieres cambiar de licencia? Ingrésala aquí, <b>sin reinstalar el programa</b>.</p>
+          <button class="btn primary" onclick="if(window.__vtxOpenLicense)window.__vtxOpenLicense()">🔑 Ya tengo mi licencia · Activar</button>
+        </div>
         ${admin ? `
         <div style="border-top:1px solid var(--border);padding-top:16px">
           <div style="font-weight:700;font-size:14px;margin-bottom:4px">Datos de prueba (solo administrador)</div>
@@ -2659,7 +2664,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.1.5";
+  var CURRENT_FALLBACK = "1.1.6";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -2719,6 +2724,7 @@
     <input id="vtx-lic-key" placeholder="VTX-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" style="width:100%;background:#0c1c1f;border:1px solid #254a50;border-radius:10px;padding:13px 14px;color:#eaf6f6;font-size:15px;text-align:center;letter-spacing:1px;font-family:ui-monospace,monospace;box-sizing:border-box"/>
     <div id="vtx-lic-err" style="display:none;color:#ef7671;font-size:13px;margin-top:12px"></div>
     <button id="vtx-lic-btn" style="width:100%;margin-top:18px;background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit">Activar</button>
+    <button id="vtx-lic-cancel" style="display:none;width:100%;margin-top:10px;background:transparent;color:#a6c2c4;border:1px solid #254a50;border-radius:11px;padding:11px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit">Cancelar</button>
     <div id="vtx-lic-help" style="display:none;margin-top:16px;padding:14px;background:#0c1c1f;border:1px solid #23464b;border-radius:12px">
       <div style="font-size:13px;color:#cfe6e8;margin-bottom:10px">¿Problemas para activar? Escríbenos y te asistimos:</div>
       <div style="display:flex;gap:8px">
@@ -2779,8 +2785,12 @@
     if(waBtn) waBtn.addEventListener("click", function(){ openExt("https://wa.me/"+SUPPORT.whatsapp+"?text="+encodeURIComponent(supportMsg(lastReason))); });
     if(mailBtn) mailBtn.addEventListener("click", function(){ openExt("mailto:"+SUPPORT.email+"?subject="+encodeURIComponent("Soporte Vortex")+"&body="+encodeURIComponent(supportMsg(lastReason))); });
   }catch(e){}
-  function openGate(sub){ if(sub) subEl.textContent=sub; gate.style.display="flex"; }
+  var cancelBtn = document.getElementById("vtx-lic-cancel");
+  function openGate(sub, closable){ if(sub) subEl.textContent=sub; if(cancelBtn) cancelBtn.style.display = closable ? "block" : "none"; gate.style.display="flex"; }
   function closeGate(){ gate.style.display="none"; }
+  if(cancelBtn) cancelBtn.addEventListener("click", closeGate);
+  // Abrir la activación desde el programa (para pasar de demo/otra clave a la nueva licencia).
+  window.__vtxOpenLicense = function(){ try{ input.value=""; }catch(e){} try{ clearErr(); }catch(e){} openGate("Ingresa la clave de tu licencia para activar tu plan.", true); try{ input.focus(); }catch(e){} };
   var DATA_KEYS=["vortex_cierre","vortex_cli","vortex_cobros","vortex_compras","vortex_cotiz","vortex_cxc","vortex_cxp","vortex_egresos","vortex_facturas","vortex_ncnd","vortex_notas","vortex_ordenes","vortex_prods","vortex_prov","vortex_soportadas"];
   var ALWAYS=["dashboard","config","ayuda"];
   var enabledMods=null;
@@ -2816,11 +2826,12 @@
     var b=document.getElementById("vtx-demo");
     if(isDemo && !b){
       b=document.createElement("div"); b.id="vtx-demo";
-      b.style.cssText="position:fixed;top:9px;left:50%;transform:translateX(-50%);z-index:2147483200;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;padding:7px 16px;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap;pointer-events:none";
-      b.textContent="🎮 MODO DEMO · versión de prueba (se bloquea en 2 días)";
+      b.style.cssText="position:fixed;top:9px;left:50%;transform:translateX(-50%);z-index:2147483200;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;padding:6px 8px 6px 16px;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap";
+      b.innerHTML='<span>🎮 MODO DEMO · versión de prueba (se bloquea en 2 días)</span><button id="vtx-demo-lic" style="background:#fff;color:#3a46b8;border:none;border-radius:20px;padding:4px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">✓ Ya tengo mi licencia</button>';
       document.body.appendChild(b);
+      try{ b.querySelector("#vtx-demo-lic").addEventListener("click", function(){ if(window.__vtxOpenLicense) window.__vtxOpenLicense(); }); }catch(e){}
     }
-    if(b) b.style.display = isDemo ? "block" : "none";
+    if(b) b.style.display = isDemo ? "flex" : "none";
   }
   function applyConfig(cfg){
     try{ if(cfg) localStorage.setItem(K_CFG, JSON.stringify(cfg)); }catch(e){}
