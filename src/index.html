@@ -514,6 +514,12 @@
     return cur;
   }
   window.autoBcv=autoBcv;
+  // ── Cajero de turno (persistente, compartido entre Facturación y Cierre) ──
+  let CAJEROS=(function(){try{const j=JSON.parse(localStorage.getItem('vortex_cajeros')||'null');if(Array.isArray(j)&&j.length)return j;}catch(e){}return['José Márquez','Ana Rodríguez','Luis Pérez'];})();
+  function saveCajerosList(){try{localStorage.setItem('vortex_cajeros',JSON.stringify(CAJEROS));}catch(e){}}
+  function loadCajero(){try{return localStorage.getItem('vortex_cajero')||CAJEROS[0];}catch(e){return CAJEROS[0];}}
+  function saveCajero(n){try{localStorage.setItem('vortex_cajero',n||CAJEROS[0]);}catch(e){}}
+  window.saveCajero=saveCajero;window.loadCajero=loadCajero;
   function toast(msg,ok){const el=document.getElementById('toast');el.style.background=ok?'var(--good)':'var(--crit)';el.innerHTML=svg(ok?I.check:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',2.2)+'<span>'+msg+'</span>';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2500);}
 
   // Configuración tributaria (refleja src/lib/fiscal/tax-config.ts)
@@ -630,7 +636,7 @@
     view.innerHTML=`
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
         <div class="field"><label>Fecha</label><input class="selm" type="date" value="${todayISO()}"></div>
-        <div class="field"><label>Cajero</label><select class="selm"><option>José Márquez</option><option>Ana Rodríguez</option></select></div>
+        <div class="field"><label>Cajero de turno</label><select class="selm" onchange="saveCajero(this.value)">${CAJEROS.map(v=>`<option value="${v}" ${v===loadCajero()?'selected':''}>${v}</option>`).join('')}</select></div>
         <div style="flex:1"></div>
         <button class="btn" onclick="printCierre()">${svg('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="7"/>')} Imprimir / PDF</button>
         <button class="btn primary" onclick="toast('Caja cerrada del día · reporte Z generado',true)">${svg(I.receipt)} Cerrar caja del día</button>
@@ -2126,7 +2132,7 @@
     const dEl=document.querySelector('.view input[type="date"]');
     const fecha=dEl&&dEl.value?dEl.value:todayISO();
     const cEl=document.querySelector('.view select.selm');
-    const cajero=cEl?cEl.value:'—';
+    const cajero=(cEl&&cEl.value)||loadCajero()||'—';
     const eur=v=>'€ '+v.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
     const groups={};
     CIERRE.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,usd:0,eur:0};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur==='USD')groups[k].usd+=x.amt;if(x.cur==='EUR')groups[k].eur+=x.amt;});
@@ -2207,6 +2213,7 @@
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
         <div style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Factura <b class="mono" style="color:var(--text)">${docNum()}</b> · <span>Nº control</span><input class="cin mono" style="width:110px;border:1px solid var(--border);padding:5px 8px;" value="${ctrlNum}" oninput="FA.setCtrl(this.value)"> · Borrador</div>
         <button class="btn sm" onclick="FA.enterTouch()" title="Modo táctil a pantalla completa (POS)" style="gap:7px;background:linear-gradient(120deg,#2fc0ce,#1a8f9b);color:#042220;border:none;font-weight:700">🖐️ Modo Touch</button>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)" title="Cajero de turno — se registra en la factura y el cierre">${svg(I.user)}<span>Cajero</span><select class="selm" id="fa-cajero" onchange="FA.setCajeroTurno(this.value)" style="padding:5px 8px">${CAJEROS.map(v=>`<option value="${v}" ${v===loadCajero()?'selected':''}>${v}</option>`).join('')}<option value="__add__">➕ Otro cajero…</option></select></div>
         <div class="spacer" style="flex:1"></div>
         <div class="rateBox" title="Tasa BCV del dólar — editable manualmente (auto 9am)">BCV<input id="fa-rate" type="number" step="0.01" value="${rate}" oninput="FA.setRate(this.value)"><span>Bs./USD</span></div>
         <div class="rateBox" style="background:var(--accent-soft);color:var(--accent)" title="Tasa BCV del euro — editable manualmente (auto 9am)">BCV<input id="fa-reur" type="number" step="0.01" value="${rateEur.toFixed(2)}" style="color:var(--accent)" oninput="FA.setRateEur(this.value)"><span>Bs./EUR</span></div>
@@ -2326,6 +2333,25 @@
         const ident=kind==='CI'?prefix+'-'+digits:(digits.length>=9?prefix+'-'+digits.slice(0,8)+'-'+digits.slice(8):prefix+'-'+digits);
         toast('Cliente nuevo · complétalo para registrarlo',true);
         FA.openNewClient({kind:kind,prefix:prefix,digits:digits,name:nom,ident:ident});
+      },
+      // Cajero de turno: cambia quién atiende la caja (se registra en factura y cierre).
+      setCajeroTurno(v){
+        if(v==='__add__'){const s=document.getElementById('fa-cajero');if(s)s.value=loadCajero();FA.addCajero();return;}
+        saveCajero(v);toast('Cajero de turno · '+v,true);
+      },
+      addCajero(){
+        document.getElementById('modal').innerHTML=`
+          <div class="modal-head"><div class="modal-title">Nuevo cajero</div><button class="modal-x" onclick="closeModal()">✕</button></div>
+          <div class="modal-body"><div class="field"><label>Nombre del cajero</label><input id="cajNew" placeholder="Nombre y apellido" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.commitCajero();}"></div></div>
+          <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="FA.commitCajero()">Agregar y usar</button></div>`;
+        document.getElementById('modalOverlay').classList.add('show');
+        setTimeout(function(){const i=document.getElementById('cajNew');if(i)i.focus();},30);
+      },
+      commitCajero(){
+        const i=document.getElementById('cajNew');const nm=((i&&i.value)||'').trim();
+        if(!nm){toast('Escribe el nombre del cajero',false);if(i)i.focus();return;}
+        if(!CAJEROS.includes(nm)){CAJEROS.push(nm);saveCajerosList();}
+        saveCajero(nm);closeModal();go('facturacion');toast('Cajero de turno · '+nm,true);
       },
       cycleCli(){ci=(ci+1)%CLI.length;go('facturacion');},
       clients(){return CLI.map(c=>({name:c.name,rif:c.rif,vendor:c.vendor,payCond:c.payCond}));},
@@ -2516,7 +2542,7 @@
           <div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Factura · digital SENIAT</span><div class="p-num">${num}</div><div class="p-ctrl">Nº control ${ctrlNum}</div><div class="p-mut" style="margin-top:6px">${todayDMY()} · ${nowTime()}</div></div></div>
           <div class="p-body"><div class="p-parts">
             <div class="p-box"><div class="pk">Cliente</div><div class="pn">${c.name}</div><div class="p-mut">${c.idKind==='CI'?'C.I. ':''}${c.rif}${c.addr&&c.addr!=='—'?' · '+c.addr:''}<br><span class="p-chip">${tipo}</span> · ${credito?('Crédito '+credDias+' días'):'Contado'}${c.vendor&&c.vendor!=='—'?` · Vend.: ${c.vendor}`:''}</div></div>
-            <div class="p-box"><div class="pk">Referencia cambiaria</div><div class="pn">Bs. ${r.toFixed(2)} / USD</div><div class="p-mut">Total en divisa: ${usd(t.total)}</div></div>
+            <div class="p-box"><div class="pk">Referencia cambiaria</div><div class="pn">Bs. ${r.toFixed(2)} / USD</div><div class="p-mut">Total en divisa: ${usd(t.total)}<br>Cajero: ${loadCajero()}</div></div>
           </div>
           <table><thead><tr><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio</th><th>IVA</th><th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table></div>
           <div class="p-tt"><table>
@@ -2529,7 +2555,7 @@
           ${payBlock}
           <div class="p-foot"><div class="p-qr"></div>Documento generado electrónicamente conforme a la Providencia SENIAT sobre emisión de facturas y otros documentos. Representación impresa de factura digital.</div>`;
         document.getElementById('paper').innerHTML=paperHtml;
-        if(window.recordFactura)window.recordFactura({num,cli:c.name,rif:c.rif,date:todayDMY(),dateISO:todayISO(),ctrl:ctrlNum,totalUsd:t.total,totalBs:t.total*r,base_ex:t.ex*r,base_gr:t.gr*r,iva:t.iv*r,igtf:t.ig*r,neto:t.neto*r,methods:pays.filter(p=>p.a>0).map(p=>PL[p.m]),status:'Emitida',html:paperHtml});
+        if(window.recordFactura)window.recordFactura({num,cli:c.name,rif:c.rif,cajero:loadCajero(),date:todayDMY(),dateISO:todayISO(),ctrl:ctrlNum,totalUsd:t.total,totalBs:t.total*r,base_ex:t.ex*r,base_gr:t.gr*r,iva:t.iv*r,igtf:t.ig*r,neto:t.neto*r,methods:pays.filter(p=>p.a>0).map(p=>PL[p.m]),status:'Emitida',html:paperHtml});
         // Venta a crédito con saldo pendiente → generar cuenta por cobrar
         try{
           if(credito&&window.addCxc){
@@ -2835,7 +2861,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.10";
+  var CURRENT_FALLBACK = "1.2.11";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
