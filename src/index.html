@@ -2441,6 +2441,7 @@
             <div class="field"><label>Vendedor asignado</label><select id="n-vendor">${VENDORS.map(v=>`<option>${v}</option>`).join('')}</select></div>
           </div>
           <div class="modal-foot"><button class="btn" onclick="FA.openClientPicker()">Cancelar</button><button class="btn primary" onclick="FA.saveClient()">Guardar cliente</button></div>`;
+        document.getElementById('modalOverlay').classList.add('show'); // mostrar la ventana (funciona llamado directo o desde el selector)
         this.onDocType();
         if(prefill){
           const dt=document.getElementById('n-doctype');if(dt&&prefill.kind){dt.value=prefill.kind;this.onDocType();}
@@ -2828,7 +2829,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.7";
+  var CURRENT_FALLBACK = "1.2.8";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
