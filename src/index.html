@@ -485,8 +485,33 @@
   const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const todayDMY=()=>new Date().toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});
   const nowTime=()=>new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
-  const RATE=737.23;    // BCV USD 22/07/2026
-  const RATE_EUR=840.85;// BCV EUR 22/07/2026
+  const RATE=737.23;    // BCV USD 22/07/2026 (respaldo si no hay tasa en vivo)
+  const RATE_EUR=840.85;// BCV EUR 22/07/2026 (respaldo)
+  // ── Tasa BCV en vivo (USD y EUR) ──
+  function getBcv(){try{const j=JSON.parse(localStorage.getItem('vortex_bcv')||'null');if(j&&j.usd>0)return j;}catch(e){}return null;}
+  function saveBcv(usd,eur){try{localStorage.setItem('vortex_bcv',JSON.stringify({usd:usd,eur:eur,date:todayISO(),ts:Date.now()}));}catch(e){}}
+  async function fetchBcv(){
+    // 1) pydolarve (página BCV: trae USD y EUR oficiales del día)
+    try{
+      const r=await fetch('https://pydolarve.org/api/v1/dollar?page=bcv',{cache:'no-store'});
+      if(r.ok){const j=await r.json();const m=(j&&j.monitors)||{};const usd=(m.usd&&+m.usd.price)||0;const eur=(m.eur&&+m.eur.price)||0;if(usd>0)return{usd:usd,eur:eur>0?eur:null};}
+    }catch(e){}
+    // 2) respaldo: dolarapi (USD oficial)
+    try{
+      const r=await fetch('https://ve.dolarapi.com/v1/dolares/oficial',{cache:'no-store'});
+      if(r.ok){const j=await r.json();const usd=+(j.promedio||j.price||0);if(usd>0)return{usd:usd,eur:null};}
+    }catch(e){}
+    return null;
+  }
+  // Actualiza en segundo plano (una vez al día salvo force) y refresca Facturación si está abierta.
+  async function autoBcv(force){
+    const cur=getBcv();
+    if(!force && cur && cur.date===todayISO()){ if(window.FA&&FA.applyRate)FA.applyRate(cur.usd,cur.eur); return cur; }
+    const res=await fetchBcv();
+    if(res&&res.usd){const eur=res.eur||(cur&&cur.eur)||RATE_EUR;saveBcv(res.usd,eur);if(window.FA&&FA.applyRate)FA.applyRate(res.usd,eur);return{usd:res.usd,eur:eur};}
+    return cur;
+  }
+  window.autoBcv=autoBcv;
   function toast(msg,ok){const el=document.getElementById('toast');el.style.background=ok?'var(--good)':'var(--crit)';el.innerHTML=svg(ok?I.check:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',2.2)+'<span>'+msg+'</span>';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2500);}
 
   // Configuración tributaria (refleja src/lib/fiscal/tax-config.ts)
@@ -701,7 +726,12 @@
         </div>
         ${d.cond==='Crédito'?`<div class="field"><label>Plazo de pago (días)</label><input id="cmp-term" type="number" min="1" value="${d.term||30}" onchange="compraDraft.term=parseInt(this.value,10)||30" style="max-width:200px"></div>`:''}
         ${d.agente?`<div class="g2"><div class="field"><label>Retención IVA</label><select id="cmp-riva" onchange="setCompraRiva(this.value)"><option value="75" ${d.retIvaPct==75?'selected':''}>75% del IVA</option><option value="100" ${d.retIvaPct==100?'selected':''}>100% del IVA</option></select></div><div class="field"><label>Retención ISLR (% sobre base)</label><input id="cmp-islr" type="number" min="0" step="0.1" value="${d.islrPct}" onchange="setCompraIslr(this.value)" placeholder="0"></div></div>`:''}
-        <div class="field"><label>Agregar producto recibido</label><div style="display:flex;gap:8px"><select id="cmp-prod" style="flex:1">${cat.map(p=>`<option value="${p.sku}">${p.name} · costo ${usd(p.cost||0)}</option>`).join('')}</select><button class="btn sm primary" type="button" onclick="addCompraItem()">Agregar</button></div></div>
+        ${d.newProd
+          ? `<div class="field" style="border:1px dashed var(--border);border-radius:10px;padding:12px;background:var(--surface-2,transparent)"><label>Producto nuevo — entra al inventario</label>
+              <div class="g2"><input id="cmp-npn" placeholder="Nombre del producto" value="${(d._np&&d._np.name||'').replace(/"/g,'&quot;')}" oninput="compraDraft._np.name=this.value"><input id="cmp-npc" type="number" min="0" step="0.01" placeholder="Costo $" value="${d._np&&d._np.cost||''}" oninput="compraDraft._np.cost=this.value"></div>
+              <div class="g2" style="margin-top:8px"><select id="cmp-npi" onchange="compraDraft._np.iva=this.value">${[['GENERAL','IVA General 16%'],['REDUCIDA','Reducida 8%'],['ADICIONAL','Suntuaria 31%'],['EXENTO','Exento']].map(([k,l])=>`<option value="${k}" ${d._np&&d._np.iva===k?'selected':''}>${l}</option>`).join('')}</select>
+                <div style="display:flex;gap:8px"><button class="btn sm primary" type="button" onclick="createCompraProduct()">Crear y agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=false;renderCompraModal()">Cancelar</button></div></div></div>`
+          : `<div class="field"><label>Agregar producto recibido</label><div style="display:flex;gap:8px"><select id="cmp-prod" style="flex:1">${cat.length?cat.map(p=>`<option value="${p.sku}">${p.name} · costo ${usd(p.cost||0)}</option>`).join(''):'<option value="">— Sin productos en inventario —</option>'}</select><button class="btn sm primary" type="button" onclick="addCompraItem()">Agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=true;compraDraft._np={name:'',cost:'',iva:'GENERAL'};renderCompraModal()">➕ Nuevo</button></div></div>`}
         <div class="overflow-x"><table style="min-width:440px"><thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Costo $</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:13px">
           <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>Base imponible</span><span>${usd(t.gr+t.ex)} · ${money((t.gr+t.ex)*RATE)}</span></div>
@@ -722,7 +752,16 @@
   function setCompraIslr(v){compraDraft.islrPct=parseFloat(v)||0;renderCompraModal();}
   function setCompraQty(idx,v){if(compraDraft.items[idx]){compraDraft.items[idx].qty=Math.max(1,parseInt(v,10)||1);renderCompraModal();}}
   function setCompraCost(idx,v){if(compraDraft.items[idx]){compraDraft.items[idx].cost=Math.max(0,parseFloat(v)||0);renderCompraModal();}}
-  function addCompraItem(){const sku=document.getElementById('cmp-prod').value;const p=((window.IN&&IN.catalog)?IN.catalog():[]).find(x=>x.sku===sku);if(!p)return;const ex=compraDraft.items.find(i=>i.sku===sku);if(ex)ex.qty++;else compraDraft.items.push({sku:p.sku,name:p.name,qty:1,cost:p.cost||0,iva:p.iva});renderCompraModal();}
+  function addCompraItem(){const el=document.getElementById('cmp-prod');const sku=el?el.value:'';if(!sku){toast('No hay productos en inventario. Usa “➕ Nuevo”.',false);return;}const p=((window.IN&&IN.catalog)?IN.catalog():[]).find(x=>x.sku===sku);if(!p)return;const ex=compraDraft.items.find(i=>i.sku===sku);if(ex)ex.qty++;else compraDraft.items.push({sku:p.sku,name:p.name,qty:1,cost:p.cost||0,iva:p.iva});renderCompraModal();}
+  function createCompraProduct(){
+    const np=compraDraft._np||{};const name=(np.name||'').trim();
+    if(!name){toast('Indica el nombre del producto',false);const f=document.getElementById('cmp-npn');if(f)f.focus();return;}
+    const created=(window.IN&&IN.addQuick)?IN.addQuick({name:name,cost:np.cost,iva:np.iva||'GENERAL'}):null;
+    if(!created){toast('No se pudo crear el producto (¿nombre repetido?)',false);return;}
+    compraDraft.items.push({sku:created.sku,name:created.name,qty:1,cost:created.cost||(parseFloat(np.cost)||0),iva:created.iva});
+    compraDraft.newProd=false;compraDraft._np=null;renderCompraModal();
+    toast('Producto “'+created.name+'” creado y agregado',true);
+  }
   function rmCompraItem(idx){compraDraft.items.splice(idx,1);renderCompraModal();}
   function saveCompra(){
     const d=compraDraft;
@@ -759,7 +798,7 @@
   }
   function printCompraRet(id){const c=COMPRAS.find(x=>x.id===id);if(!c)return;document.getElementById('paper').innerHTML=compraRetHtml(c);document.getElementById('printOverlay').classList.add('show');}
   function deleteCompra(id){const c=COMPRAS.find(x=>x.id===id);if(!c)return;if(!confirm('¿Eliminar la factura de compra '+c.provInvoice+' de '+c.prov+'? No revierte el inventario ya ingresado.'))return;COMPRAS=COMPRAS.filter(x=>x.id!==id);saveCompras();go('compras');toast('Factura de compra eliminada',true);}
-  window.renderCompras=renderCompras;window.setCompraClient=setCompraClient;window.openCompraEditor=openCompraEditor;window.setCompraProv=setCompraProv;window.compraUseExisting=compraUseExisting;window.setCompraCond=setCompraCond;window.setCompraAgente=setCompraAgente;window.setCompraRiva=setCompraRiva;window.setCompraIslr=setCompraIslr;window.setCompraQty=setCompraQty;window.setCompraCost=setCompraCost;window.addCompraItem=addCompraItem;window.rmCompraItem=rmCompraItem;window.saveCompra=saveCompra;window.printCompraRet=printCompraRet;window.deleteCompra=deleteCompra;
+  window.renderCompras=renderCompras;window.setCompraClient=setCompraClient;window.openCompraEditor=openCompraEditor;window.setCompraProv=setCompraProv;window.compraUseExisting=compraUseExisting;window.setCompraCond=setCompraCond;window.setCompraAgente=setCompraAgente;window.setCompraRiva=setCompraRiva;window.setCompraIslr=setCompraIslr;window.setCompraQty=setCompraQty;window.setCompraCost=setCompraCost;window.addCompraItem=addCompraItem;window.createCompraProduct=createCompraProduct;window.rmCompraItem=rmCompraItem;window.saveCompra=saveCompra;window.printCompraRet=printCompraRet;window.deleteCompra=deleteCompra;
 
   // ══════════════ CUENTAS POR PAGAR ══════════════
   const CXP_TODAY=new Date();
@@ -2149,7 +2188,8 @@
     };
     // Próximo número de factura: uno más que el mayor ya emitido (persistido en FACTURAS). Evita números repetidos entre sesiones.
     function nextDocSeq(){let mx=482;try{(FACTURAS||[]).forEach(f=>{const m=/(\d+)/.exec(f.num||'');if(m)mx=Math.max(mx,parseInt(m[1],10));});}catch(e){}return mx+1;}
-    let cur='USD',rate=RATE,rateEur=RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum='00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
+    const _b0=getBcv()||{};
+    let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum='00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
     const docNum=()=>'F-'+String(docCounter).padStart(6,'0');
     const pUsd=p=>p.cur==='USD'?p.a:p.cur==='EUR'?(p.a*rateEur)/rate:p.a/rate; // pago → unidades USD
     const showN=u=>cur==='USD'?usd(u):money(u*rate);
@@ -2175,6 +2215,11 @@
         <div class="fcol">
           <div class="card">
             <div class="card-head"><div class="card-title">${svg(I.user)} Cliente</div><button class="btn sm ghost" onclick="FA.openClientPicker()">${svg(I.search)} Cambiar / nuevo</button></div>
+            <div style="display:flex;gap:8px;align-items:center;padding:0 14px 10px;flex-wrap:wrap">
+              <input id="fa-cedula" class="mono" placeholder="C.I. / RIF (ej. V-12345678)" style="flex:1;min-width:150px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.quickCedula();}">
+              <input id="fa-cednom" placeholder="Nombre (opcional)" style="flex:1;min-width:150px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.quickCedula();}">
+              <button class="btn sm primary" type="button" onclick="FA.quickCedula()">Usar cédula</button>
+            </div>
             <div class="cli"><div class="cli-av">${c.c}</div><div style="flex:1"><div class="cli-name">${c.name}</div>
               <div class="cli-meta"><span class="mono">${c.idKind==='CI'?'C.I. ':''}${c.rif}</span> · ${c.addr} · ${c.tipo==='ESPECIAL'?'<span class="badge esp">Contribuyente especial</span>':c.tipo==='ORDINARIO'?'<span class="badge">Contribuyente ordinario</span>':c.tipo==='FORMAL'?'<span class="badge muted">Contribuyente formal</span>':'<span class="badge muted">Consumidor final</span>'}</div>
               <div class="cli-meta" style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;"><span class="chip">${c.payCond||'Contado'}</span><span class="chip">Vend.: ${c.vendor||'—'}</span>${(c.limit>0)?`<span class="chip">Límite: ${money(c.limit)}</span>`:''}</div></div></div>
@@ -2202,6 +2247,7 @@
       se.addEventListener('input',e=>doSearch(e.target.value));
       se.addEventListener('keydown',onKey);
       renderItems();renderTotals();renderPays();
+      try{ autoBcv(false); }catch(e){} // refresca la tasa BCV del día en segundo plano
     }
     function seed(){[0,1,4].forEach(i=>lines.push({id:uid++,sku:CAT[i].sku,name:CAT[i].name,qty:1,p:CAT[i].p,disc:0,iva:CAT[i].iva}));lines[0].qty=10;lines[1].qty=12;lines[2].qty=5;}
     function renderItems(){
@@ -2249,7 +2295,24 @@
       setCredDias(v){credDias=parseInt(v,10)||30;const ve=document.getElementById('fa-credvence');if(ve)ve.textContent=credVenceTxt();renderBal();},
       setRate(v){rate=parseFloat(v)||1;renderItems();renderTotals();},
       setRateEur(v){rateEur=parseFloat(v)||1;renderTotals();},
-      liveRate(btn){const orig=btn.textContent;btn.textContent='Actualizando…';btn.disabled=true;setTimeout(function(){rate=RATE;rateEur=RATE_EUR;const ri=document.getElementById('fa-rate');if(ri)ri.value=rate;const re=document.getElementById('fa-reur');if(re)re.value=rateEur.toFixed(2);renderItems();renderTotals();btn.textContent=orig;btn.disabled=false;toast('Tasa BCV actualizada · USD '+rate.toFixed(2)+' · EUR '+rateEur.toFixed(2),true);},700);},
+      // Refresca los campos de tasa con un valor recibido (auto-actualización).
+      applyRate(usd,eur){if(usd>0)rate=usd;if(eur>0)rateEur=eur;const ri=document.getElementById('fa-rate');if(ri)ri.value=(+rate).toFixed(2);const re=document.getElementById('fa-reur');if(re)re.value=(+rateEur).toFixed(2);try{renderItems();renderTotals();}catch(e){}},
+      // Consulta la tasa BCV real del día (pydolarve/dolarapi) y la aplica.
+      async liveRate(btn){const orig=btn?btn.textContent:'';if(btn){btn.textContent='Actualizando…';btn.disabled=true;}
+        const res=await fetchBcv();
+        if(res&&res.usd>0){const eur=res.eur||rateEur;rate=res.usd;rateEur=eur;saveBcv(rate,eur);const ri=document.getElementById('fa-rate');if(ri)ri.value=(+rate).toFixed(2);const re=document.getElementById('fa-reur');if(re)re.value=(+rateEur).toFixed(2);renderItems();renderTotals();toast('Tasa BCV del día · USD '+rate.toFixed(2)+(res.eur?' · EUR '+eur.toFixed(2):''),true);}
+        else{toast('No se pudo obtener la tasa BCV. Revisa tu conexión a Internet.',false);}
+        if(btn){btn.textContent=orig;btn.disabled=false;}},
+      quickCedula(){
+        const ce=document.getElementById('fa-cedula');const no=document.getElementById('fa-cednom');
+        const ced=((ce&&ce.value)||'').trim().toUpperCase();const nom=((no&&no.value)||'').trim();
+        if(!ced){toast('Escribe la cédula o el RIF del cliente',false);if(ce)ce.focus();return;}
+        const kind=/^[JG]/.test(ced)?'RIF':'CI';
+        const quick={c:(nom?nom.slice(0,2):'CF').toUpperCase(),name:nom,idKind:kind,rif:ced,addr:'—',tipo:'NO',payCond:'Contado',vendor:'—',limit:0};
+        CLI.push(quick);ci=CLI.length-1; // transitorio: no se persiste (walk-in)
+        if(touchOn){FA.renderTouch();}else{go('facturacion');}
+        toast('Cliente por '+(kind==='RIF'?'RIF':'cédula')+' listo'+(nom?'':' · nombre en blanco'),true);
+      },
       cycleCli(){ci=(ci+1)%CLI.length;go('facturacion');},
       clients(){return CLI.map(c=>({name:c.name,rif:c.rif,vendor:c.vendor,payCond:c.payCond}));},
       loadFrom(cliName,items){const idx=CLI.findIndex(c=>c.name===cliName);if(idx>=0)ci=idx;lines=(items||[]).map(it=>({id:uid++,sku:it.sku,name:it.name,qty:it.qty,p:it.p,disc:0,iva:it.iva}));pays=[];seeded=true;go('facturacion');},
@@ -2593,6 +2656,16 @@
     function deleteProduct(id){if(prods.length<=1){toast('Debe existir al menos un producto',false);return;}prods=prods.filter(p=>p.id!==id);saveProds();close();render(container);toast('Producto eliminado del sistema',true);}
     return {render,open,close,move,newProduct,saveProduct,deleteProduct,
       catalog(){return prods.map(p=>({sku:p.sku,name:p.name,p:p.p,iva:p.iva,cost:p.cost,unit:p.unit,cat:p.cat,img:p.img||''}));},
+      // Alta rápida de producto (desde factura de compra). Entra al inventario y devuelve el producto.
+      addQuick(o){o=o||{};const name=(o.name||'').trim();if(!name)return null;
+        let sku=(o.sku||'').trim().toUpperCase();
+        if(!sku){let n=prods.length+1;do{sku='PRD-'+String(n++).padStart(3,'0');}while(prods.some(p=>p.sku.toUpperCase()===sku));}
+        if(prods.some(p=>p.sku.toUpperCase()===sku))return null;
+        const cost=Math.max(0,parseFloat(o.cost)||0);const iva=o.iva||'GENERAL';
+        const price=(o.price!=null&&o.price!=='')?Math.max(0,parseFloat(o.price)||0):(cost>0?+(cost/0.7).toFixed(2):0);
+        const p={id:pUid++,sku,name,unit:o.unit||'UND',iva,cat:o.cat||'General',p:price,cost,min:0,img:'',st:{PRIN:0,SUC:0,DEP:0},kx:[]};
+        prods.push(p);saveProds();if(container)render(container);
+        return {sku:p.sku,name:p.name,cost:p.cost,iva:p.iva,p:p.p,unit:p.unit,cat:p.cat,img:''};},
       receive(items){(items||[]).forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;const ot=Object.values(p.st).reduce((a,b)=>a+b,0);const cost=(it.cost>0?it.cost:p.cost);p.cost=(ot+it.qty)>0?(ot*p.cost+it.qty*cost)/(ot+it.qty):cost;p.st.PRIN=(p.st.PRIN||0)+it.qty;p.kx.push({t:'in',d:'23/07',q:it.qty,b:ot+it.qty});});saveProds();},
       summary(){const c=counts();return {val:c.val,low:c.low,out:c.out,ex:c.ex,count:prods.length};},
       stockOf(sku){const p=prods.find(x=>x.sku===sku);return p?Object.values(p.st).reduce((a,b)=>a+b,0):null;},
@@ -2658,6 +2731,7 @@
     document.getElementById('avatar').textContent=currentRole==='ADMIN'?'AD':'CA';
     document.getElementById('ownerTools').style.display=currentRole==='ADMIN'?'inline-flex':'none';
     buildNav();
+    try{ autoBcv(true); }catch(e){} // tasa BCV del día al iniciar sesión
     go(currentRole==='CAJERO'?'facturacion':'dashboard');
   }
   window.doLogin=doLogin;
@@ -2732,7 +2806,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.4";
+  var CURRENT_FALLBACK = "1.2.5";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
