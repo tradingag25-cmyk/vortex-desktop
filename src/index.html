@@ -2043,11 +2043,30 @@
     const inner=document.getElementById('paper').innerHTML;
     return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Factura — Vortex</title><style>'+PAPER_CSS+'body{background:#e9edec;}.bar{position:sticky;top:0;display:flex;gap:10px;justify-content:center;padding:14px;background:#fff;border-bottom:1px solid #ddd;box-shadow:0 1px 4px rgba(0,0,0,.06);}.bar button{font-family:system-ui,sans-serif;font-size:14px;font-weight:600;padding:10px 20px;border-radius:9px;border:1px solid #0f6f78;background:#0f6f78;color:#fff;cursor:pointer;}.hint{font-size:12px;color:#777;text-align:center;padding:8px;}.sheet{max-width:760px;margin:18px auto;background:#fff;box-shadow:0 6px 28px rgba(0,0,0,.14);}@media print{.bar,.hint{display:none!important;}body{background:#fff;}.sheet{box-shadow:none;margin:0;max-width:100%;}}</style></head><body onload="setTimeout(function(){window.print();},500)"><div class="bar"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div><div class="hint">Pulsa el botón (o Ctrl+P). En destino elige "Guardar como PDF".</div><div class="sheet"><div class="paper">'+inner+'</div></div></body></html>';
   }
+  // Imprime la hoja del overlay con un iframe oculto que contiene SOLO el papel.
+  // Es lo más confiable dentro de la app de escritorio (WebView2): dispara el
+  // diálogo del sistema con "Guardar como PDF" y no deja páginas en blanco.
+  // (window.open está bloqueado en WebView2, por eso no funcionaba antes.)
   function printPaper(){
-    const w=window.open('','_blank');
-    if(!w){downloadPaper();return;}
-    w.document.write(buildPaperDoc());
-    w.document.close();
+    const inner=document.getElementById('paper').innerHTML;
+    const doc='<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Vortex</title><style>'+PAPER_CSS+'</style></head><body><div class="paper">'+inner+'</div></body></html>';
+    let ifr=document.getElementById('vtx-print-frame');
+    if(ifr) ifr.remove();
+    ifr=document.createElement('iframe');
+    ifr.id='vtx-print-frame';
+    ifr.setAttribute('aria-hidden','true');
+    ifr.style.cssText='position:fixed;left:-10000px;top:0;width:820px;height:1160px;border:0;opacity:0';
+    document.body.appendChild(ifr);
+    const go=function(){
+      if(ifr._done) return; ifr._done=1;
+      try{ ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+      catch(e){ try{ window.print(); }catch(_){ downloadPaper(); } }
+    };
+    ifr.onload=function(){ setTimeout(go,120); };
+    const d=ifr.contentWindow.document;
+    d.open(); d.write(doc); d.close();
+    // Respaldo por si onload no dispara (algunos webviews escriben de forma síncrona).
+    setTimeout(go,600);
   }
   window.printPaper=printPaper;
   // Abre cualquier documento (reporte, cierre, libro) como hoja imprimible en el
@@ -2713,7 +2732,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.3";
+  var CURRENT_FALLBACK = "1.2.4";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
