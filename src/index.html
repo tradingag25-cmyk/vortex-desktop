@@ -455,7 +455,7 @@
     <div class="print-actions">
       <button class="btn" onclick="closePrint()">Cerrar</button>
       <button class="btn primary" onclick="printPaper()">Imprimir / PDF</button>
-      <button class="btn" onclick="FA.reset()">Nueva factura</button>
+      <button class="btn" id="pa-new" onclick="FA.reset()">Nueva factura</button>
     </div>
     <div style="text-align:center;font-size:11.5px;color:rgba(255,255,255,.9);margin:-4px 0 4px">Al imprimir se abre el documento listo para imprimir. Elige tu impresora o <b>Guardar como PDF</b> en el destino.</div>
     <div class="paper" id="paper"></div>
@@ -1622,38 +1622,20 @@
       <div class="panel" style="margin-top:16px"><div class="overflow-x"><table style="min-width:980px"><thead><tr><th>Fecha</th><th>Factura</th><th>Proveedor</th><th>RIF</th><th class="num">Total</th><th class="num">Base gravable</th><th class="num">IVA crédito</th><th class="num">Ret. IVA</th><th class="num">Ret. ISLR</th></tr></thead><tbody>${body}</tbody>
         <tfoot><tr style="font-weight:750"><td colspan="4" style="padding:11px 12px;border-top:2px solid var(--border-strong)">TOTALES · ${monthLabel(libroMonth)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.total)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.gr)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.iva)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.retIva)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.retIslr)}</td></tr></tfoot></table></div></div>`;
   }
-  // Abre la carpeta de Descargas (o revela el archivo) en el explorador.
-  async function openDownloadsFolder(name){
-    var T=window.__TAURI__; if(!T||!T.core){ return false; }
-    var dir=null;
-    try{ if(T.path&&T.path.downloadDir) dir=await T.path.downloadDir(); }catch(e){}
-    try{
-      if(dir){
-        var sep=dir.indexOf('\\')>=0?'\\':'/';
-        if(name){ try{ await T.core.invoke("plugin:opener|reveal_item_in_dir",{path:dir+(dir.slice(-1)===sep?'':sep)+name}); return true; }catch(e){} }
-        try{ await T.core.invoke("plugin:opener|open_path",{path:dir}); return true; }catch(e){}
-        try{ T.core.invoke("plugin:opener|open_url",{url:"file:///"+dir.replace(/\\/g,'/')}); return true; }catch(e){}
-      }
-    }catch(e){}
-    return false;
-  }
-  // Notificación de "descarga lista" con botón para abrir la carpeta.
+  // Notificación de "descarga lista": confirma el archivo y dónde quedó guardado.
   window.__vtxDownloaded=function(name){
-    var isApp=!!window.__TAURI__;
     var n=document.getElementById("vtx-dlnote");
     if(!n){
       n=document.createElement("div"); n.id="vtx-dlnote";
-      n.style.cssText="position:fixed;right:20px;bottom:20px;z-index:2147483400;display:flex;align-items:center;gap:12px;min-width:280px;max-width:380px;background:#0f2327;border:1px solid #23464b;border-radius:14px;padding:13px 14px;box-shadow:0 20px 50px -18px rgba(0,0,0,.7);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#eaf6f6;opacity:0;transform:translateY(14px);transition:opacity .3s,transform .3s";
+      n.style.cssText="position:fixed;right:20px;bottom:20px;z-index:2147483400;display:flex;align-items:center;gap:12px;min-width:280px;max-width:400px;background:#0f2327;border:1px solid #23464b;border-radius:14px;padding:13px 14px;box-shadow:0 20px 50px -18px rgba(0,0,0,.7);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#eaf6f6;opacity:0;transform:translateY(14px);transition:opacity .3s,transform .3s";
       document.body.appendChild(n);
     }
     n.innerHTML='<div style="width:38px;height:38px;flex:0 0 auto;border-radius:50%;background:rgba(62,203,140,.16);display:flex;align-items:center;justify-content:center;font-size:19px">✓</div>'
-      +'<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">Descarga lista</div><div style="font-size:12px;color:#a6c2c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</div></div>'
-      +(isApp?'<button id="vtx-dl-open" style="flex:0 0 auto;background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;border:none;border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit">📂 Abrir carpeta</button>':'')
+      +'<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">Descarga lista</div><div style="font-size:12px;color:#a6c2c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+name+'</div><div style="font-size:11px;color:#7fa3a6;margin-top:2px">Guardado en tu carpeta <b>Descargas</b></div></div>'
       +'<button id="vtx-dl-x" style="flex:0 0 auto;background:transparent;border:none;color:#6f8f92;font-size:18px;cursor:pointer;line-height:1">✕</button>';
     n.style.display="flex";
     requestAnimationFrame(function(){ n.style.opacity="1"; n.style.transform="none"; });
     function hide(){ n.style.opacity="0"; n.style.transform="translateY(14px)"; setTimeout(function(){ n.style.display="none"; },320); }
-    var ob=document.getElementById("vtx-dl-open"); if(ob) ob.onclick=function(){ openDownloadsFolder(name); };
     document.getElementById("vtx-dl-x").onclick=hide;
     clearTimeout(n._t); n._t=setTimeout(hide, 9000);
   };
@@ -2068,6 +2050,14 @@
     w.document.close();
   }
   window.printPaper=printPaper;
+  // Abre cualquier documento (reporte, cierre, libro) como hoja imprimible en el
+  // mismo overlay que las facturas: la hoja se ve en pantalla y "Imprimir / PDF"
+  // dispara el diálogo para imprimir o Guardar como PDF.
+  function openPaper(inner){
+    document.getElementById('paper').innerHTML=inner;
+    document.getElementById('printOverlay').classList.add('show');
+  }
+  window.openPaper=openPaper;
   function downloadPaper(){const nEl=document.querySelector('#paper .p-num');const num=(nEl?nEl.textContent.trim():'factura').replace(/[^\w-]/g,'');const blob=new Blob([buildPaperDoc()],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(num||'factura')+'.html';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},30000);toast('Descargué '+(num||'factura')+'.html en tu carpeta Descargas · ábrela (doble clic) y saldrá el diálogo para Guardar como PDF',true);}
   window.downloadPaper=downloadPaper;
 
@@ -2104,12 +2094,8 @@
   function buildCierreDoc(){
     return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja — Vortex</title><style>'+PAPER_CSS+'body{background:#e9edec;}.bar{position:sticky;top:0;display:flex;gap:10px;justify-content:center;padding:14px;background:#fff;border-bottom:1px solid #ddd;box-shadow:0 1px 4px rgba(0,0,0,.06);}.bar button{font-family:system-ui,sans-serif;font-size:14px;font-weight:600;padding:10px 20px;border-radius:9px;border:1px solid #0f6f78;background:#0f6f78;color:#fff;cursor:pointer;}.hint{font-size:12px;color:#777;text-align:center;padding:8px;}.sheet{max-width:760px;margin:18px auto;background:#fff;box-shadow:0 6px 28px rgba(0,0,0,.14);}@media print{.bar,.hint{display:none!important;}body{background:#fff;}.sheet{box-shadow:none;margin:0;max-width:100%;}}</style></head><body onload="setTimeout(function(){window.print();},500)"><div class="bar"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div><div class="hint">Pulsa el botón (o Ctrl+P). En destino elige "Guardar como PDF".</div><div class="sheet"><div class="paper">'+cierreReportInner()+'</div></div></body></html>';
   }
-  function printCierre(){
-    const doc=buildCierreDoc();
-    const w=window.open('','_blank');
-    if(!w){const blob=new Blob([doc],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='cierre-caja.html';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},30000);window.__vtxDownloaded('cierre-caja.html');return;}
-    w.document.write(doc);w.document.close();
-  }
+  // Muestra el cierre como hoja imprimible en el overlay in-app (igual que las facturas).
+  function printCierre(){ openPaper(cierreReportInner()); }
   window.printCierre=printCierre;
   const RIF_RE=/^[VEJPGCvejpgc]-?\d{6,9}-?\d$/;
 
@@ -2727,7 +2713,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.2";
+  var CURRENT_FALLBACK = "1.2.3";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
