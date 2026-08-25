@@ -490,17 +490,19 @@
   // ── Tasa BCV en vivo (USD y EUR) ──
   function getBcv(){try{const j=JSON.parse(localStorage.getItem('vortex_bcv')||'null');if(j&&j.usd>0)return j;}catch(e){}return null;}
   function saveBcv(usd,eur){try{localStorage.setItem('vortex_bcv',JSON.stringify({usd:usd,eur:eur,date:todayISO(),ts:Date.now()}));}catch(e){}}
+  function _price(o){if(!o)return null;const v=+(o.price||o.promedio||o.value||o.venta||0);return v>0?v:null;}
+  async function _json(url){try{const r=await fetch(url,{cache:'no-store'});if(r.ok)return await r.json();}catch(e){}return null;}
   async function fetchBcv(){
-    // 1) pydolarve (página BCV: trae USD y EUR oficiales del día)
-    try{
-      const r=await fetch('https://pydolarve.org/api/v1/dollar?page=bcv',{cache:'no-store'});
-      if(r.ok){const j=await r.json();const m=(j&&j.monitors)||{};const usd=(m.usd&&+m.usd.price)||0;const eur=(m.eur&&+m.eur.price)||0;if(usd>0)return{usd:usd,eur:eur>0?eur:null};}
-    }catch(e){}
-    // 2) respaldo: dolarapi (USD oficial)
-    try{
-      const r=await fetch('https://ve.dolarapi.com/v1/dolares/oficial',{cache:'no-store'});
-      if(r.ok){const j=await r.json();const usd=+(j.promedio||j.price||0);if(usd>0)return{usd:usd,eur:null};}
-    }catch(e){}
+    let usd=null,eur=null;
+    // 1) pydolarve — dólar oficial BCV (a veces trae también el euro)
+    const jd=await _json('https://pydolarve.org/api/v1/dollar?page=bcv');
+    if(jd){const m=jd.monitors||{};usd=_price(m.usd)||_price(m.bcv)||usd;eur=_price(m.eur)||eur;}
+    // 2) pydolarve — euro oficial BCV (fuente dedicada) si aún no hay euro
+    if(!eur){const je=await _json('https://pydolarve.org/api/v1/euro?page=bcv');if(je){const m=je.monitors||{};eur=_price(m.eur)||_price(m.bcv)||_price(m.euro)||_price(je)||eur;}}
+    // 3) respaldos: dolarapi (USD oficial y EUR oficial)
+    if(!usd){const j=await _json('https://ve.dolarapi.com/v1/dolares/oficial');usd=_price(j)||usd;}
+    if(!eur){const j=await _json('https://ve.dolarapi.com/v1/euros/oficial');eur=_price(j)||eur;}
+    if(usd>0)return{usd:usd,eur:eur>0?eur:null};
     return null;
   }
   // Actualiza en segundo plano (una vez al día salvo force) y refresca Facturación si está abierta.
@@ -2216,9 +2218,9 @@
           <div class="card">
             <div class="card-head"><div class="card-title">${svg(I.user)} Cliente</div><button class="btn sm ghost" onclick="FA.openClientPicker()">${svg(I.search)} Cambiar / nuevo</button></div>
             <div style="display:flex;gap:8px;align-items:center;padding:0 14px 10px;flex-wrap:wrap">
-              <input id="fa-cedula" class="mono" placeholder="C.I. / RIF (ej. V-12345678)" style="flex:1;min-width:150px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.quickCedula();}">
-              <input id="fa-cednom" placeholder="Nombre (opcional)" style="flex:1;min-width:150px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.quickCedula();}">
-              <button class="btn sm primary" type="button" onclick="FA.quickCedula()">Usar cédula</button>
+              <input id="fa-cedula" class="mono" placeholder="C.I. / RIF y Enter — busca o registra" style="flex:1;min-width:170px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.quickCedula();}">
+              <input id="fa-cednom" placeholder="Nombre (opcional)" style="flex:1;min-width:140px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.quickCedula();}">
+              <button class="btn sm primary" type="button" onclick="FA.quickCedula()">${svg(I.search)} Buscar</button>
             </div>
             <div class="cli"><div class="cli-av">${c.c}</div><div style="flex:1"><div class="cli-name">${c.name}</div>
               <div class="cli-meta"><span class="mono">${c.idKind==='CI'?'C.I. ':''}${c.rif}</span> · ${c.addr} · ${c.tipo==='ESPECIAL'?'<span class="badge esp">Contribuyente especial</span>':c.tipo==='ORDINARIO'?'<span class="badge">Contribuyente ordinario</span>':c.tipo==='FORMAL'?'<span class="badge muted">Contribuyente formal</span>':'<span class="badge muted">Consumidor final</span>'}</div>
@@ -2305,13 +2307,24 @@
         if(btn){btn.textContent=orig;btn.disabled=false;}},
       quickCedula(){
         const ce=document.getElementById('fa-cedula');const no=document.getElementById('fa-cednom');
-        const ced=((ce&&ce.value)||'').trim().toUpperCase();const nom=((no&&no.value)||'').trim();
-        if(!ced){toast('Escribe la cédula o el RIF del cliente',false);if(ce)ce.focus();return;}
-        const kind=/^[JG]/.test(ced)?'RIF':'CI';
-        const quick={c:(nom?nom.slice(0,2):'CF').toUpperCase(),name:nom,idKind:kind,rif:ced,addr:'—',tipo:'NO',payCond:'Contado',vendor:'—',limit:0};
-        CLI.push(quick);ci=CLI.length-1; // transitorio: no se persiste (walk-in)
-        if(touchOn){FA.renderTouch();}else{go('facturacion');}
-        toast('Cliente por '+(kind==='RIF'?'RIF':'cédula')+' listo'+(nom?'':' · nombre en blanco'),true);
+        const raw=((ce&&ce.value)||'').trim();const nom=((no&&no.value)||'').trim();
+        if(!raw){toast('Escribe la cédula o el RIF del cliente',false);if(ce)ce.focus();return;}
+        const up=raw.toUpperCase();const digits=up.replace(/\D/g,'');
+        if(!digits){toast('Identificación inválida',false);if(ce)ce.focus();return;}
+        // 1) Buscar en la base de clientes por número (ignorando guiones/prefijo)
+        const idx=CLI.findIndex(c=>{const cd=(c.rif||'').toUpperCase().replace(/\D/g,'');return cd&&cd===digits;});
+        if(idx>=0){ // cliente existente → cargarlo automáticamente
+          ci=idx;lines=[];pays=[];const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');
+          if(touchOn){FA.renderTouch();}else{go('facturacion');}
+          toast('Cliente encontrado · '+(CLI[idx].name||CLI[idx].rif),true);
+          return;
+        }
+        // 2) No existe → abrir "Nuevo cliente" prellenado con la identificación
+        const pm=up.match(/[VEJGPC]/);
+        const kind=/^[JG]/.test(up)?'RIF':(pm&&/[VE]/.test(pm[0])?'CI':(digits.length>8?'RIF':'CI'));
+        const prefix=pm?pm[0]:(kind==='CI'?'V':'J');
+        toast('Cliente nuevo · complétalo para registrarlo',true);
+        FA.openNewClient({kind:kind,prefix:prefix,digits:digits,name:nom});
       },
       cycleCli(){ci=(ci+1)%CLI.length;go('facturacion');},
       clients(){return CLI.map(c=>({name:c.name,rif:c.rif,vendor:c.vendor,payCond:c.payCond}));},
@@ -2404,7 +2417,7 @@
       },
       selectClient(i){ci=i;lines=[];pays=[];closeModal();const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cliente cambiado · factura en blanco',true);},
       deleteClient(i){if(CLI.length<=1){toast('Debe existir al menos un cliente',false);return;}const wasSel=(i===ci);CLI.splice(i,1);saveCli();if(wasSel)ci=0;else if(i<ci)ci--;this.filterClients(document.getElementById('cliQ').value);toast('Cliente eliminado del sistema',true);},
-      openNewClient(){
+      openNewClient(prefill){
         document.getElementById('modal').innerHTML=`
           <div class="modal-head"><div class="modal-title">Nuevo cliente</div><button class="modal-x" onclick="FA.openClientPicker()">✕</button></div>
           <div class="modal-body">
@@ -2427,7 +2440,14 @@
           </div>
           <div class="modal-foot"><button class="btn" onclick="FA.openClientPicker()">Cancelar</button><button class="btn primary" onclick="FA.saveClient()">Guardar cliente</button></div>`;
         this.onDocType();
-        document.getElementById('n-idnum').focus();
+        if(prefill){
+          const dt=document.getElementById('n-doctype');if(dt&&prefill.kind){dt.value=prefill.kind;this.onDocType();}
+          const pf=document.getElementById('n-prefix');if(pf&&prefill.prefix){pf.value=prefill.prefix;}
+          const idn=document.getElementById('n-idnum');if(idn&&prefill.digits){idn.value=prefill.digits;}
+          const nm=document.getElementById('n-name');if(nm){if(prefill.name)nm.value=prefill.name;nm.focus();}
+        }else{
+          document.getElementById('n-idnum').focus();
+        }
       },
       onDocType(){
         const kind=document.getElementById('n-doctype').value;
@@ -2806,7 +2826,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.5";
+  var CURRENT_FALLBACK = "1.2.6";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
