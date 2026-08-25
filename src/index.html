@@ -2323,8 +2323,9 @@
         const pm=up.match(/[VEJGPC]/);
         const kind=/^[JG]/.test(up)?'RIF':(pm&&/[VE]/.test(pm[0])?'CI':(digits.length>8?'RIF':'CI'));
         const prefix=pm?pm[0]:(kind==='CI'?'V':'J');
+        const ident=kind==='CI'?prefix+'-'+digits:(digits.length>=9?prefix+'-'+digits.slice(0,8)+'-'+digits.slice(8):prefix+'-'+digits);
         toast('Cliente nuevo · complétalo para registrarlo',true);
-        FA.openNewClient({kind:kind,prefix:prefix,digits:digits,name:nom});
+        FA.openNewClient({kind:kind,prefix:prefix,digits:digits,name:nom,ident:ident});
       },
       cycleCli(){ci=(ci+1)%CLI.length;go('facturacion');},
       clients(){return CLI.map(c=>({name:c.name,rif:c.rif,vendor:c.vendor,payCond:c.payCond}));},
@@ -2421,6 +2422,7 @@
         document.getElementById('modal').innerHTML=`
           <div class="modal-head"><div class="modal-title">Nuevo cliente</div><button class="modal-x" onclick="FA.openClientPicker()">✕</button></div>
           <div class="modal-body">
+            ${prefill&&prefill.ident?`<div style="display:flex;align-items:center;gap:9px;background:var(--accent-soft,rgba(47,192,206,.12));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--text)">${svg(I.user)}<span>No está registrado. Identificación <b class="mono">${prefill.ident}</b> tomada de tu consulta — completa el nombre y guarda.</span></div>`:''}
             <div class="field"><label>Tipo de identificación</label>
               <div class="g2">
                 <select id="n-doctype" onchange="FA.onDocType()"><option value="RIF">RIF (jurídico / natural)</option><option value="CI">Cédula (C.I.) — persona natural</option></select>
@@ -2826,7 +2828,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.6";
+  var CURRENT_FALLBACK = "1.2.7";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
