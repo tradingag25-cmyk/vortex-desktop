@@ -498,6 +498,14 @@
   ];
   function setTaxRate(i,v){TAX_CFG[i].rate=parseFloat(v)||0;}
   window.setTaxRate=setTaxRate;
+  // IGTF: impuesto a las grandes transacciones financieras (pagos en divisa).
+  // Editable y persistente. Se guarda como fracción (0.03 = 3%); puede ponerse en 0.
+  const IGTF_KEY='vortex_igtf_rate';
+  let IGTF_RATE=(function(){const v=parseFloat(localStorage.getItem(IGTF_KEY));return isFinite(v)&&v>=0?v:0.03;})();
+  const getIgtf=()=>IGTF_RATE; // fracción vigente (0.03)
+  const igtfPct=()=>(IGTF_RATE*100).toLocaleString('es-VE',{maximumFractionDigits:2}); // "3"
+  function setIgtfRate(v){let p=parseFloat(String(v).replace(',','.'));if(!isFinite(p)||p<0)p=0;IGTF_RATE=p/100;try{localStorage.setItem(IGTF_KEY,String(IGTF_RATE));}catch(e){}}
+  window.setIgtfRate=setIgtfRate;
   function renderTaxConfig(view){
     view.innerHTML=`<div style="display:flex;flex-direction:column;gap:16px;max-width:920px">
       <div class="card">
@@ -512,6 +520,21 @@
         <div style="padding:13px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-size:11.5px;color:var(--text-faint)">G=16% · R=8% · A=31% · E=exento</span>
           <button class="btn primary" onclick="toast('Configuración tributaria guardada',true)">Guardar cambios</button></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">${svg(I.receipt)} IGTF — Impuesto a las Grandes Transacciones Financieras</div><span class="label">Se aplica a los pagos en divisa · editable</span></div>
+        <div style="padding:16px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <div style="font-weight:600;font-size:13.5px">Tasa IGTF</div>
+            <div style="font-size:11.5px;color:var(--text-faint);margin-top:2px;max-width:420px">Alícuota sobre pagos en efectivo/transferencia en divisa (USD/EUR/Zelle). El SENIAT la fija en 3%. Ponla en <b>0</b> si no deseas aplicarla.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" min="0" max="20" step="0.5" value="${igtfPct()}" onchange="setIgtfRate(this.value)" style="width:88px;text-align:right;font-family:var(--mono);font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);outline:none"><span style="font-size:14px;color:var(--text-muted)">%</span>
+          </div>
+        </div>
+        <div style="padding:13px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:11.5px;color:var(--text-faint)">Aplica a: efectivo USD/EUR · transferencia USD/EUR · Zelle</span>
+          <button class="btn primary" onclick="toast('Tasa IGTF guardada · '+igtfPct()+'%',true)">Guardar cambios</button></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">${svg(I.receipt)} Máquina fiscal</div><span class="badge muted">Fase futura</span></div>
@@ -589,7 +612,7 @@
         ${kpiC('Total del día',money(totalBs),usd(totalBs/RATE)+' equiv.','coin')}
         ${kpiC('Operaciones',String(CIERRE.length),'facturas cobradas','invoice')}
         ${kpiC('Divisas recibidas',usd(totUsd),'€ '+totEur.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}),'coin')}
-        ${kpiC('IGTF (3% divisas)',money((totUsd*RATE+totEur*RATE_EUR)*0.03),'sobre pagos en divisa','receipt')}
+        ${kpiC('IGTF ('+igtfPct()+'% divisas)',money((totUsd*RATE+totEur*RATE_EUR)*getIgtf()),'sobre pagos en divisa','receipt')}
       </div>
       <div style="margin:20px 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:600">Resumen por forma de pago</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px">${cards}</div>
@@ -1575,7 +1598,7 @@
         ${kpiC('Ventas del período',money(T.total),usd(T.total/RATE)+' equiv.','coin')}
         ${kpiC('Base gravable',money(T.gr),'exenta '+money(T.ex),'receipt')}
         ${kpiC('IVA débito fiscal',money(T.iva),'a declarar','book')}
-        ${kpiC('IGTF',money(T.igtf),'3% divisas','coin')}
+        ${kpiC('IGTF',money(T.igtf),igtfPct()+'% divisas','coin')}
       </div>
       <div class="panel" style="margin-top:16px"><div class="overflow-x"><table style="min-width:1080px"><thead><tr><th>Fecha</th><th>Documento</th><th>Tipo</th><th>Nº control</th><th>Cliente</th><th>RIF</th><th class="num">Total</th><th class="num">Base exenta</th><th class="num">Base gravable</th><th class="num">IVA 16%</th><th class="num">IGTF</th></tr></thead><tbody>${body}</tbody>
         <tfoot><tr style="font-weight:750"><td colspan="6" style="padding:11px 12px;border-top:2px solid var(--border-strong)">TOTALES · ${monthLabel(libroMonth)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.total)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.ex)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.gr)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.iva)}</td><td class="num" style="border-top:2px solid var(--border-strong)">${money(T.igtf)}</td></tr></tfoot></table></div></div>`;
@@ -1994,7 +2017,7 @@
       <div class="kgrid">
         ${kpi('Ventas de hoy',money(ventasHoy),usd(ventasHoy/RATE),'coin')}
         ${kpi('IVA débito fiscal',money(ivaHoy),'Base gravada '+money(baseHoy),'receipt')}
-        ${kpi('IGTF cobrado',money(igtfHoy),'3% sobre divisas','coin')}
+        ${kpi('IGTF cobrado',money(igtfHoy),igtfPct()+'% sobre divisas','coin')}
         ${(()=>{const p=CXCL.filter(x=>cxcSaldo(x)>0);const tot=p.reduce((a,x)=>a+cxcSaldo(x),0);const nv=p.filter(x=>cxcDias(x)>0).length;return kpi('Por cobrar',money(tot),usd(tot/RATE)+(nv?' · '+nv+' vencida'+(nv>1?'s':''):''),'warn');})()}
       </div>
       <div class="row2">
@@ -2062,7 +2085,7 @@
     const totalBs=CIERRE.reduce((a,x)=>a+bsOf(x),0);
     const totUsd=CIERRE.filter(x=>x.cur==='USD').reduce((a,x)=>a+x.amt,0);
     const totEur=CIERRE.filter(x=>x.cur==='EUR').reduce((a,x)=>a+x.amt,0);
-    const igtf=(totUsd*RATE+totEur*RATE_EUR)*0.03;
+    const igtf=(totUsd*RATE+totEur*RATE_EUR)*getIgtf();
     const rows=keys.map(k=>{const g=groups[k];const divisa=g.usd?usd(g.usd):g.eur?eur(g.eur):'—';return `<tr><td>${ML[k]}</td><td class="num">${g.n}</td><td class="num">${divisa}</td><td class="num">${money(g.bs)}</td></tr>`;}).join('');
     let fechaFmt=fecha; try{fechaFmt=new Date(fecha+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'long',year:'numeric'});}catch(e){}
     return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Cierre de caja · Reporte Z</span><div class="p-num">Z-${fecha.replace(/-/g,'')}</div><div class="p-mut" style="margin-top:6px">${fechaFmt} · ${nowTime()}</div></div></div>
@@ -2093,7 +2116,7 @@
   // ══════════════ FACTURACIÓN ══════════════
   const FA=(()=>{
     const IVA={GENERAL:.16,REDUCIDA:.08,EXENTO:0,ADICIONAL:.31}, IVAL={GENERAL:'16%',REDUCIDA:'8%',EXENTO:'Exento',ADICIONAL:'31%'};
-    const IGTF=.03, RET=.75, DIV=new Set(['EFECTIVO_USD','TRANSFERENCIA_USD','ZELLE','EFECTIVO_EUR','TRANSFERENCIA_EUR']);
+    const RET=.75, DIV=new Set(['EFECTIVO_USD','TRANSFERENCIA_USD','ZELLE','EFECTIVO_EUR','TRANSFERENCIA_EUR']);
     const PL={EFECTIVO_VES:'Efectivo Bs.',EFECTIVO_USD:'Efectivo USD',EFECTIVO_EUR:'Efectivo EUR',PAGO_MOVIL:'Pago móvil',PUNTO_VENTA:'Punto de venta',TRANSFERENCIA_VES:'Transferencia Bs.',TRANSFERENCIA_USD:'Transferencia USD',TRANSFERENCIA_EUR:'Transferencia EUR',ZELLE:'Zelle'};
     const CAT=[{sku:'HAR-001',name:'Harina de trigo 1kg',p:0.90,iva:'GENERAL'},{sku:'ACE-010',name:'Aceite vegetal 1L',p:2.20,iva:'GENERAL'},{sku:'ARR-004',name:'Arroz blanco 1kg',p:0.85,iva:'GENERAL'},{sku:'CAF-003',name:'Café molido 250g',p:2.40,iva:'GENERAL'},{sku:'MED-233',name:'Analgésico (exento)',p:1.10,iva:'EXENTO'},{sku:'LIC-090',name:'Whisky importado 12 años',p:28,iva:'ADICIONAL'},{sku:'SRV-001',name:'Servicio de flete',p:5,iva:'GENERAL'}];
     let CLI=[
@@ -2127,7 +2150,7 @@
     const showN=u=>cur==='USD'?usd(u):money(u*rate);
     const bothN=u=>usd(u)+' · '+money(u*rate); // muestra siempre USD y Bs (para el cajero)
     function lc(l){const g=l.p*l.qty,b=g-g*((l.disc||0)/100),r=IVA[l.iva];return{b,iva:b*r,t:b*(1+r),r};}
-    function tot(){let ex=0,gr=0,iv=0;lines.forEach(l=>{const c=lc(l);c.r===0?ex+=c.b:gr+=c.b;iv+=c.iva;});let ig=0;pays.forEach(p=>{if(DIV.has(p.m)){ig+=pUsd(p)*IGTF;}});const total=ex+gr+iv+ig;const ret=CLI[ci].tipo==='ESPECIAL'?iv*RET:0;return{ex,gr,iv,ig,total,ret,neto:total-ret};}
+    function tot(){let ex=0,gr=0,iv=0;lines.forEach(l=>{const c=lc(l);c.r===0?ex+=c.b:gr+=c.b;iv+=c.iva;});let ig=0;pays.forEach(p=>{if(DIV.has(p.m)){ig+=pUsd(p)*getIgtf();}});const total=ex+gr+iv+ig;const ret=CLI[ci].tipo==='ESPECIAL'?iv*RET:0;return{ex,gr,iv,ig,total,ret,neto:total-ret};}
 
     function credVenceTxt(){const d=new Date();d.setDate(d.getDate()+credDias);return d.toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});}
     function render(view){
@@ -2194,7 +2217,7 @@
       if(t.ex>0)rows.push(row('Base exenta',showN(t.ex)));
       rows.push(row('Base gravable',showN(t.gr)));
       rows.push(row('IVA débito fiscal <span class="chip">16/8/31%</span>',showN(t.iv)));
-      if(t.ig>0)rows.push(row('IGTF <span class="chip igtf">3% divisa</span>',showN(t.ig)));
+      if(t.ig>0)rows.push(row('IGTF <span class="chip igtf">'+igtfPct()+'% divisa</span>',showN(t.ig)));
       const el=document.getElementById('fa-totals');if(!el)return;el.innerHTML=rows.join('');
       document.getElementById('fa-gm').textContent=cur==='USD'?usd(t.total):money(t.total*rate);
       document.getElementById('fa-ga').textContent=cur==='USD'?money(t.total*rate):usd(t.total);
@@ -2409,7 +2432,7 @@
             ${t.ex>0?`<tr><td class="lab">Base exenta</td><td class="val">${money(t.ex*r)}</td></tr>`:''}
             <tr><td class="lab">Base gravable</td><td class="val">${money(t.gr*r)}</td></tr>
             <tr><td class="lab">IVA débito fiscal</td><td class="val">${money(t.iv*r)}</td></tr>
-            ${t.ig>0?`<tr><td class="lab">IGTF (3%)</td><td class="val">${money(t.ig*r)}</td></tr>`:''}
+            ${t.ig>0?`<tr><td class="lab">IGTF (${igtfPct()}%)</td><td class="val">${money(t.ig*r)}</td></tr>`:''}
             ${retBlock}
           </table></div>
           ${payBlock}
@@ -2704,7 +2727,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.1";
+  var CURRENT_FALLBACK = "1.2.2";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
