@@ -2636,7 +2636,7 @@
           </div>
           <div class="g2">
             <div class="field"><label>Costo ($)</label><input id="p-cost" type="number" min="0" step="0.01" value="${e?e.cost:''}" placeholder="0,00" oninput="IN.calcPrice()"></div>
-            <div class="field"><label>Margen de ganancia (% sobre venta)</label><input id="p-margin" type="number" min="0" max="99" step="0.1" value="${e&&e.p>0?((1-e.cost/e.p)*100).toFixed(1):''}" placeholder="30" oninput="IN.calcPrice()"></div>
+            <div class="field"><label>Ganancia (% sobre el costo)</label><input id="p-margin" type="number" min="0" step="0.1" value="${e&&e.cost>0?(((e.p/e.cost)-1)*100).toFixed(1):''}" placeholder="30" oninput="IN.calcPrice()"></div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${[10,15,20,30,50].map(m=>`<button class="btn sm" type="button" onclick="IN.setMargin(${m})">${m}%</button>`).join('')}</div>
           <div class="g2">
@@ -2690,7 +2690,7 @@
         if(!sku){let n=prods.length+1;do{sku='PRD-'+String(n++).padStart(3,'0');}while(prods.some(p=>p.sku.toUpperCase()===sku));}
         if(prods.some(p=>p.sku.toUpperCase()===sku))return null;
         const cost=Math.max(0,parseFloat(o.cost)||0);const iva=o.iva||'GENERAL';
-        const price=(o.price!=null&&o.price!=='')?Math.max(0,parseFloat(o.price)||0):(cost>0?+(cost/0.7).toFixed(2):0);
+        const price=(o.price!=null&&o.price!=='')?Math.max(0,parseFloat(o.price)||0):(cost>0?+(cost*1.3).toFixed(2):0);
         const p={id:pUid++,sku,name,unit:o.unit||'UND',iva,cat:o.cat||'General',p:price,cost,min:0,img:'',st:{PRIN:0,SUC:0,DEP:0},kx:[]};
         prods.push(p);saveProds();if(container)render(container);
         return {sku:p.sku,name:p.name,cost:p.cost,iva:p.iva,p:p.p,unit:p.unit,cat:p.cat,img:''};},
@@ -2700,8 +2700,9 @@
       sell(items){items.forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;let d='PRIN';if((p.st[d]||0)<it.qty){const alt=Object.keys(p.st).find(k=>(p.st[k]||0)>=it.qty);if(alt)d=alt;}p.st[d]=(p.st[d]||0)-it.qty;p.kx.push({t:'out',d:'23/07',q:-it.qty,b:Object.values(p.st).reduce((a,b)=>a+b,0)});});saveProds();},
       setCat(v){catF=v;render(container);},
       onCatSel(){const sel=document.getElementById('p-catsel');const inp=document.getElementById('p-catnew');if(!sel||!inp)return;const isNew=sel.value==='__new__';inp.style.display=isNew?'block':'none';if(isNew){inp.focus();}else{inp.value='';}},
-      calcPrice(){const c=+document.getElementById('p-cost').value||0;let m=+document.getElementById('p-margin').value||0;if(m>=99)m=99;if(c>0)document.getElementById('p-price').value=(c/(1-m/100)).toFixed(2);},
-      calcMargin(){const c=+document.getElementById('p-cost').value||0,p=+document.getElementById('p-price').value||0;if(p>0)document.getElementById('p-margin').value=((1-c/p)*100).toFixed(2);},
+      // Ganancia (%) sobre el COSTO: precio = costo × (1 + %/100). Lineal, sin disparos.
+      calcPrice(){const c=+document.getElementById('p-cost').value||0;let m=+document.getElementById('p-margin').value||0;if(m<0)m=0;if(c>0)document.getElementById('p-price').value=(c*(1+m/100)).toFixed(2);},
+      calcMargin(){const c=+document.getElementById('p-cost').value||0,p=+document.getElementById('p-price').value||0;if(c>0)document.getElementById('p-margin').value=(((p/c)-1)*100).toFixed(2);},
       setMargin(m){document.getElementById('p-margin').value=m;this.calcPrice();},
       pickImg(input){const f=input.files&&input.files[0];if(!f)return;const rd=new FileReader();rd.onload=function(){const im=new Image();im.onload=function(){const cv=document.createElement('canvas');const max=220;let w=im.width,h=im.height;if(w>=h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);let url;try{url=cv.toDataURL('image/jpeg',0.82);}catch(e){url=rd.result;}document.getElementById('p-img').value=url;const pv=document.getElementById('p-imgprev');if(pv){pv.style.backgroundImage="url('"+url+"')";pv.textContent='';}};im.src=rd.result;};rd.readAsDataURL(f);},
       clearImg(){document.getElementById('p-img').value='';const pv=document.getElementById('p-imgprev');if(pv){pv.style.backgroundImage='';pv.textContent='Sin foto';}},
@@ -2834,7 +2835,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.9";
+  var CURRENT_FALLBACK = "1.2.10";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
