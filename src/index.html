@@ -481,6 +481,10 @@
   const money=n=>'Bs. '+n.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
   const usd=n=>'$ '+n.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtN=n=>n.toLocaleString('es-VE',{maximumFractionDigits:0});
+  // Fecha/hora reales del sistema (hora local del equipo).
+  const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const todayDMY=()=>new Date().toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const nowTime=()=>new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
   const RATE=737.23;    // BCV USD 22/07/2026
   const RATE_EUR=840.85;// BCV EUR 22/07/2026
   function toast(msg,ok){const el=document.getElementById('toast');el.style.background=ok?'var(--good)':'var(--crit)';el.innerHTML=svg(ok?I.check:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',2.2)+'<span>'+msg+'</span>';el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2500);}
@@ -575,7 +579,7 @@
     const cards=Object.keys(groups).sort((a,b)=>order.indexOf(a)-order.indexOf(b)).map(k=>{const g=groups[k];const div=g.cur==='USD'?` · ${usd(g.div)}`:g.cur==='EUR'?` · € ${g.div.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2})}`:'';return `<div class="card" style="padding:13px 15px"><div style="font-size:11.5px;color:var(--text-muted);font-weight:600">${ML[k]}</div><div style="font-size:19px;font-weight:720;margin-top:5px;font-variant-numeric:tabular-nums">${money(g.bs)}</div><div style="font-size:11.5px;color:var(--text-faint);margin-top:2px">${g.n} oper.${div}</div></div>`;}).join('');
     view.innerHTML=`
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div class="field"><label>Fecha</label><input class="selm" type="date" value="2026-07-22"></div>
+        <div class="field"><label>Fecha</label><input class="selm" type="date" value="${todayISO()}"></div>
         <div class="field"><label>Cajero</label><select class="selm"><option>José Márquez</option><option>Ana Rodríguez</option></select></div>
         <div style="flex:1"></div>
         <button class="btn" onclick="printCierre()">${svg('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="7"/>')} Imprimir / PDF</button>
@@ -648,7 +652,7 @@
   function openCompraEditor(id){
     const editing=id?COMPRAS.find(c=>c.id===id):null;
     if(editing){compraDraft={id:editing.id,prov:editing.prov,rif:editing.rif,tipo:editing.tipo,provInvoice:editing.provInvoice,date:editing.date,cond:editing.cond,term:editing.term||30,agente:editing.agente,retIvaPct:editing.retIvaPct,islrPct:editing.islrPct,items:editing.items.map(i=>({...i})),newProv:false};}
-    else{const p0=PROV[0]||{};compraDraft={prov:p0.name||'',rif:p0.rif||'',tipo:p0.tipo||'ORDINARIO',provInvoice:'',date:'2026-07-23',cond:'Contado',term:30,agente:true,retIvaPct:75,islrPct:0,items:[],newProv:false};}
+    else{const p0=PROV[0]||{};compraDraft={prov:p0.name||'',rif:p0.rif||'',tipo:p0.tipo||'ORDINARIO',provInvoice:'',date:todayISO(),cond:'Contado',term:30,agente:true,retIvaPct:75,islrPct:0,items:[],newProv:false};}
     renderCompraModal();
     document.getElementById('modalOverlay').classList.add('show');
   }
@@ -713,7 +717,7 @@
     closeModal();go('compras');toast('Compra registrada · inventario actualizado'+(c.retIva>0?' · retención generada':''),true);
   }
   function compraRetHtml(c){
-    const period=(c.date||'2026-07-23').slice(0,7).replace('-','');
+    const period=(c.date||todayISO()).slice(0,7).replace('-','');
     return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Comprobante de retención IVA</span><div class="p-num">${c.retNum}</div><div class="p-mut" style="margin-top:6px">${fmtC(new Date(c.date+'T00:00:00'))}</div></div></div>
       <div class="p-body">
         <div class="p-parts">
@@ -735,7 +739,7 @@
   window.renderCompras=renderCompras;window.setCompraClient=setCompraClient;window.openCompraEditor=openCompraEditor;window.setCompraProv=setCompraProv;window.compraUseExisting=compraUseExisting;window.setCompraCond=setCompraCond;window.setCompraAgente=setCompraAgente;window.setCompraRiva=setCompraRiva;window.setCompraIslr=setCompraIslr;window.setCompraQty=setCompraQty;window.setCompraCost=setCompraCost;window.addCompraItem=addCompraItem;window.rmCompraItem=rmCompraItem;window.saveCompra=saveCompra;window.printCompraRet=printCompraRet;window.deleteCompra=deleteCompra;
 
   // ══════════════ CUENTAS POR PAGAR ══════════════
-  const CXP_TODAY=new Date('2026-07-23T00:00:00');
+  const CXP_TODAY=new Date();
   let cxpUid=1;
   let CXP=[
     {num:'A-45231',prov:'Alimentos Polar, C.A.',rif:'J-00012345-6',date:'2026-06-25',term:30,total:98000,abonado:0},
@@ -814,7 +818,7 @@
     if(amt>s+0.01){err.textContent='El monto supera el saldo ('+money(s)+')';return;}
     const m=document.getElementById('pg-m').value;const ref=document.getElementById('pg-ref').value.trim();
     const saldoAntes=cxpSaldo(x);x.abonado=(x.abonado||0)+amt;saveCxp();const saldoDespues=cxpSaldo(x);
-    const eg={seq:egresoSeq,num:'EG-'+String(egresoSeq).padStart(6,'0'),fecha:'23/07/2026',doc:x.num,prov:x.prov,rif:x.rif,m,ref,amt,saldoAntes,saldoDespues};
+    const eg={seq:egresoSeq,num:'EG-'+String(egresoSeq).padStart(6,'0'),fecha:todayDMY(),doc:x.num,prov:x.prov,rif:x.rif,m,ref,amt,saldoAntes,saldoDespues};
     egresoSeq++;EGRESOS.unshift(eg);saveEgresos();
     closeModal();go('cxp');toast('Pago registrado · '+money(amt)+(saldoDespues<=0?' · factura saldada':''),true);
     document.getElementById('paper').innerHTML=egresoHtml(eg);document.getElementById('printOverlay').classList.add('show');
@@ -930,7 +934,7 @@
   function openOrdenEditor(id){
     const editing=id?ORDENES.find(o=>o.id===id):null;
     if(editing){ordenDraft={id:editing.id,num:editing.num,date:editing.date,deliver:editing.deliver,status:editing.status,prov:editing.prov,rif:editing.rif,tipo:editing.tipo,items:editing.items.map(i=>({...i})),newProv:false};}
-    else{const p0=PROV[0]||{};ordenDraft={prov:p0.name||'',rif:p0.rif||'',tipo:p0.tipo||'ORDINARIO',date:'2026-07-23',deliver:'',items:[],newProv:false};}
+    else{const p0=PROV[0]||{};ordenDraft={prov:p0.name||'',rif:p0.rif||'',tipo:p0.tipo||'ORDINARIO',date:todayISO(),deliver:'',items:[],newProv:false};}
     renderOrdenModal();
     document.getElementById('modalOverlay').classList.add('show');
   }
@@ -974,12 +978,12 @@
   }
   function printOrden(id){const o=ORDENES.find(x=>x.id===id);if(!o)return;document.getElementById('paper').innerHTML=o.html||ordenPaperHtml(o);document.getElementById('printOverlay').classList.add('show');}
   function deleteOrden(id){const o=ORDENES.find(x=>x.id===id);if(!o)return;if(!confirm('¿Eliminar la orden de compra '+o.num+'?'))return;ORDENES=ORDENES.filter(x=>x.id!==id);saveOrdenes();go('ordenes');toast('Orden eliminada',true);}
-  function recibirOrden(id){const o=ORDENES.find(x=>x.id===id);if(!o)return;const p=PROV.find(x=>x.name===o.prov);compraDraft={prov:o.prov,rif:o.rif,tipo:(p?p.tipo:o.tipo)||'ORDINARIO',provInvoice:'',date:'2026-07-23',cond:'Contado',agente:true,retIvaPct:75,islrPct:0,items:o.items.map(i=>({...i})),newProv:false,fromOrden:o.id};go('compras');renderCompraModal();document.getElementById('modalOverlay').classList.add('show');toast('Completa el Nº de factura del proveedor y registra la recepción',true);}
+  function recibirOrden(id){const o=ORDENES.find(x=>x.id===id);if(!o)return;const p=PROV.find(x=>x.name===o.prov);compraDraft={prov:o.prov,rif:o.rif,tipo:(p?p.tipo:o.tipo)||'ORDINARIO',provInvoice:'',date:todayISO(),cond:'Contado',agente:true,retIvaPct:75,islrPct:0,items:o.items.map(i=>({...i})),newProv:false,fromOrden:o.id};go('compras');renderCompraModal();document.getElementById('modalOverlay').classList.add('show');toast('Completa el Nº de factura del proveedor y registra la recepción',true);}
   function markOrdenRecibida(id){const o=ORDENES.find(x=>x.id===id);if(o){o.status='Recibida';saveOrdenes();}}
   window.renderOrdenes=renderOrdenes;window.setOrdenFilter=setOrdenFilter;window.setOrdenClient=setOrdenClient;window.openOrdenEditor=openOrdenEditor;window.setOrdenProv=setOrdenProv;window.ordenUseExisting=ordenUseExisting;window.setOrdenQty=setOrdenQty;window.setOrdenCost=setOrdenCost;window.addOrdenItem=addOrdenItem;window.rmOrdenItem=rmOrdenItem;window.saveOrden=saveOrden;window.printOrden=printOrden;window.deleteOrden=deleteOrden;window.recibirOrden=recibirOrden;window.markOrdenRecibida=markOrdenRecibida;
 
   // ══════════════ COTIZACIONES ══════════════
-  const COTIZ_TODAY=new Date('2026-07-23T00:00:00');
+  const COTIZ_TODAY=new Date();
   const COT_IVA={GENERAL:.16,REDUCIDA:.08,ADICIONAL:.31,EXENTO:0};
   const COT_IVAL={GENERAL:'16%',REDUCIDA:'8%',ADICIONAL:'31%',EXENTO:'Exento'};
   const fmtCot=d=>d.toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -992,7 +996,7 @@
   try{const s=localStorage.getItem('vortex_cotiz');if(s){const a=JSON.parse(s);if(Array.isArray(a)){COTIZ=a;cotizUid=a.reduce((m,x)=>Math.max(m,x.id||0),0)+1;}}}catch(e){}
   const saveCotizLS=()=>{try{localStorage.setItem('vortex_cotiz',JSON.stringify(COTIZ));}catch(e){}};
   function nextCotizNum(){let mx=0;COTIZ.forEach(c=>{const m=/(\d+)/.exec(c.num||'');if(m)mx=Math.max(mx,+m[1]);});return 'COT-'+String(mx+1).padStart(6,'0');}
-  function cotizVence(c){const d=new Date((c.date||'2026-07-23')+'T00:00:00');d.setDate(d.getDate()+(c.validez||15));return d;}
+  function cotizVence(c){const d=new Date((c.date||todayISO())+'T00:00:00');d.setDate(d.getDate()+(c.validez||15));return d;}
   function cotizEstado(c){if(c.status==='Facturada')return{k:'Facturada',col:'var(--accent)',bg:'var(--accent-soft)'};if(COTIZ_TODAY>cotizVence(c))return{k:'Vencida',col:'var(--crit)',bg:'var(--crit-soft)'};return{k:'Vigente',col:'var(--good)',bg:'var(--good-soft)'};}
   let cotizFilter='ALL',cotizClient='ALL',cotizDraft=null;
   function setCotizFilter(v){cotizFilter=v;go('cotizaciones');}
@@ -1079,21 +1083,21 @@
     if(!cotizDraft.items.length){toast('Agrega al menos un producto',false);return;}
     const t=cotizTotals(cotizDraft.items);
     if(cotizDraft.id){const c=COTIZ.find(x=>x.id===cotizDraft.id);Object.assign(c,{cli:cotizDraft.cli,rif:cotizDraft.rif,vendor:cotizDraft.vendor,validez:cotizDraft.validez,items:cotizDraft.items,totalUsd:t.total,totalBs:t.total*RATE});c.html=cotizPaperHtml(c);}
-    else{const c={id:cotizUid++,num:nextCotizNum(),date:'2026-07-23',status:'Vigente',cli:cotizDraft.cli,rif:cotizDraft.rif,vendor:cotizDraft.vendor,validez:cotizDraft.validez,items:cotizDraft.items,totalUsd:t.total,totalBs:t.total*RATE};c.html=cotizPaperHtml(c);COTIZ.unshift(c);}
+    else{const c={id:cotizUid++,num:nextCotizNum(),date:todayISO(),status:'Vigente',cli:cotizDraft.cli,rif:cotizDraft.rif,vendor:cotizDraft.vendor,validez:cotizDraft.validez,items:cotizDraft.items,totalUsd:t.total,totalBs:t.total*RATE};c.html=cotizPaperHtml(c);COTIZ.unshift(c);}
     saveCotizLS();closeModal();go('cotizaciones');toast(cotizDraft.id?'Cotización actualizada':'Cotización creada',true);
   }
   function printCotiz(id){const c=COTIZ.find(x=>x.id===id);if(!c)return;document.getElementById('paper').innerHTML=c.html||cotizPaperHtml(c);document.getElementById('printOverlay').classList.add('show');}
   function deleteCotiz(id){const c=COTIZ.find(x=>x.id===id);if(!c)return;if(!confirm('¿Eliminar la cotización '+c.num+' de '+c.cli+'?'))return;COTIZ=COTIZ.filter(x=>x.id!==id);saveCotizLS();go('cotizaciones');toast('Cotización eliminada',true);}
   function facturarCotiz(id){const c=COTIZ.find(x=>x.id===id);if(!c)return;if(window.FA&&FA.loadFrom){FA.loadFrom(c.cli,c.items);c.status='Facturada';saveCotizLS();toast('Cotización cargada en Facturación · revisa y emite la factura',true);}else{toast('Facturación no disponible',false);}}
   // Guardar la factura en curso como cotización (aparcar la venta para facturar luego)
-  function saveCotizFrom(cli,rif,vendor,items){const t=cotizTotals(items);const c={id:cotizUid++,num:nextCotizNum(),date:'2026-07-25',status:'Vigente',cli:cli,rif:rif||'',vendor:vendor||'',validez:15,items:items.map(i=>({...i})),totalUsd:t.total,totalBs:t.total*RATE};c.html=cotizPaperHtml(c);COTIZ.unshift(c);saveCotizLS();return c;}
+  function saveCotizFrom(cli,rif,vendor,items){const t=cotizTotals(items);const c={id:cotizUid++,num:nextCotizNum(),date:todayISO(),status:'Vigente',cli:cli,rif:rif||'',vendor:vendor||'',validez:15,items:items.map(i=>({...i})),totalUsd:t.total,totalBs:t.total*RATE};c.html=cotizPaperHtml(c);COTIZ.unshift(c);saveCotizLS();return c;}
   window.saveCotizFrom=saveCotizFrom;
   window.renderCotiz=renderCotiz;window.setCotizFilter=setCotizFilter;window.setCotizClient=setCotizClient;window.openCotizEditor=openCotizEditor;window.setCotizCli=setCotizCli;window.setCotizVal=setCotizVal;window.setCotizQty=setCotizQty;window.addCotizItem=addCotizItem;window.rmCotizItem=rmCotizItem;window.saveCotiz=saveCotiz;window.printCotiz=printCotiz;window.deleteCotiz=deleteCotiz;window.facturarCotiz=facturarCotiz;
 
   // ══════════════ NOTAS DE ENTREGA ══════════════
   let notaUid=1;
   let NOTAS=[
-    {num:'NE-000001',date:'2026-07-23',cli:'Comercial El Sol, C.A.',rif:'J-31005588-4',vendor:'José Márquez',items:[{sku:'ACE-010',name:'Aceite vegetal 1L',qty:30,p:2.20,iva:'GENERAL'}],status:'Despachada'},
+    {num:'NE-000001',date:todayISO(),cli:'Comercial El Sol, C.A.',rif:'J-31005588-4',vendor:'José Márquez',items:[{sku:'ACE-010',name:'Aceite vegetal 1L',qty:30,p:2.20,iva:'GENERAL'}],status:'Despachada'},
     {num:'NE-000002',date:'2026-07-21',cli:'Corporación XYZ, C.A.',rif:'J-29887766-1',vendor:'Ana Rodríguez',items:[{sku:'ARR-004',name:'Arroz blanco 1kg',qty:100,p:0.85,iva:'GENERAL'}],status:'Facturada'},
   ].map(x=>{const t=cotizTotals(x.items);return {id:notaUid++,totalUsd:t.total,totalBs:t.total*RATE,...x};});
   try{const s=localStorage.getItem('vortex_notas');if(s){const a=JSON.parse(s);if(Array.isArray(a)){NOTAS=a;notaUid=a.reduce((m,x)=>Math.max(m,x.id||0),0)+1;}}}catch(e){}
@@ -1151,7 +1155,7 @@
     const editing=id?NOTAS.find(n=>n.id===id):null;
     const cls=(window.FA&&FA.clients)?FA.clients():[];
     if(editing){notaDraft={id:editing.id,num:editing.num,date:editing.date,status:editing.status,cli:editing.cli,rif:editing.rif,vendor:editing.vendor,items:editing.items.map(i=>({...i}))};}
-    else{const c0=cls[0]||{};notaDraft={cli:c0.name||'',rif:c0.rif||'',vendor:c0.vendor||'',date:'2026-07-25',items:[]};}
+    else{const c0=cls[0]||{};notaDraft={cli:c0.name||'',rif:c0.rif||'',vendor:c0.vendor||'',date:todayISO(),items:[]};}
     renderNotaModal();
     document.getElementById('modalOverlay').classList.add('show');
   }
@@ -1255,7 +1259,7 @@
     const editing=id?DEVOL.find(d=>d.id===id):null;
     const cls=(window.FA&&FA.clients)?FA.clients():[];
     if(editing){devDraft={id:editing.id,num:editing.num,tipo:editing.tipo,date:editing.date,cli:editing.cli,rif:editing.rif,facturaRef:editing.facturaRef,motivo:editing.motivo,items:(editing.items||[]).map(i=>({...i})),concepto:editing.concepto||'',ndBase:editing.ndBase||0,ndIva:editing.ndIva||'GENERAL'};}
-    else{const c0=cls[0]||{};devDraft={tipo:'NC',date:'2026-07-25',cli:c0.name||'',rif:c0.rif||'',facturaRef:'',motivo:'Devolución de mercancía',items:[],concepto:'',ndBase:0,ndIva:'GENERAL'};}
+    else{const c0=cls[0]||{};devDraft={tipo:'NC',date:todayISO(),cli:c0.name||'',rif:c0.rif||'',facturaRef:'',motivo:'Devolución de mercancía',items:[],concepto:'',ndBase:0,ndIva:'GENERAL'};}
     renderDevModal();
     document.getElementById('modalOverlay').classList.add('show');
   }
@@ -1310,7 +1314,7 @@
   window.renderDev=renderDev;window.setDevFilter=setDevFilter;window.setDevClient=setDevClient;window.openDevEditor=openDevEditor;window.setDevTipo=setDevTipo;window.setDevCli=setDevCli;window.setDevQty=setDevQty;window.addDevItem=addDevItem;window.rmDevItem=rmDevItem;window.saveDev=saveDev;window.printDev=printDev;window.deleteDev=deleteDev;window.devReTotals=devReTotals;
 
   // ══════════════ CUENTAS POR COBRAR ══════════════
-  const CXC_TODAY=new Date('2026-07-23T00:00:00');
+  const CXC_TODAY=new Date();
   let cxcUid=1;
   let CXC=[
     {num:'F-000456',cli:'Comercial El Sol, C.A.',rif:'J-31005588-4',vendor:'José Márquez',emit:'2026-06-18',term:30,total:48200,abonado:0},
@@ -1457,7 +1461,7 @@
     const amtCur=cur==='USD'?amt/RATE:cur==='EUR'?amt/RATE_EUR:amt;
     CIERRE.unshift({id:cierreUid++,fac:x.num,cli:x.cli,m,cur,ref:ref||'Abono CxC',amt:amtCur});saveCierre();
     // Registrar el cobro y generar el recibo (no fiscal) imprimible
-    const rec={seq:reciboSeq,num:'RC-'+String(reciboSeq).padStart(6,'0'),fecha:'23/07/2026',doc:x.num,cli:x.cli,m,ref,amt,saldoAntes,saldoDespues};
+    const rec={seq:reciboSeq,num:'RC-'+String(reciboSeq).padStart(6,'0'),fecha:todayDMY(),doc:x.num,cli:x.cli,m,ref,amt,saldoAntes,saldoDespues};
     reciboSeq++;COBROS.unshift(rec);saveCobros();
     closeModal();go('cxc');
     toast('Cobro registrado · '+money(amt)+(saldoDespues<=0?' · factura saldada':''),true);
@@ -1542,7 +1546,7 @@
   window.recordFactura=recordFactura;
 
   // ══════════════ LIBROS FISCALES (SENIAT) ══════════════
-  let libroMonth='2026-07';
+  let libroMonth=todayISO().slice(0,7);
   const libroIso=r=>r.dateISO||(r.date&&r.date.indexOf('/')>-1?r.date.split('/').reverse().join('-'):(r.date||''));
   const inLibroMonth=iso=>(iso||'').slice(0,7)===libroMonth;
   const fmtF=iso=>{try{return new Date(iso+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return iso;}};
@@ -1618,7 +1622,7 @@
   window.renderLVentas=renderLVentas;window.renderLCompras=renderLCompras;window.setLibroMonth=setLibroMonth;window.exportVentasCsv=exportVentasCsv;window.exportComprasCsv=exportComprasCsv;window.printLibro=printLibro;
 
   // ══════════════ RETENCIONES (IVA / ISLR) ══════════════
-  let retenTab='practicadas',retenMonth='2026-07';
+  let retenTab='practicadas',retenMonth=todayISO().slice(0,7);
   const inRetenMonth=iso=>(iso||'').slice(0,7)===retenMonth;
   function setRetenTab(v){retenTab=v;go('reten');}
   function setRetenMonth(v){retenMonth=v||retenMonth;go('reten');}
@@ -1679,7 +1683,7 @@
       <div class="modal-body">
         <div class="g2"><div class="field"><label>Cliente (agente de retención)</label><select id="sp-cli" onchange="sopFillRif(this.value)">${cls.map(c=>`<option value="${c.name}" ${e&&e.cli===c.name?'selected':''}>${c.name}</option>`).join('')}${e&&!cls.some(c=>c.name===e.cli)?`<option selected>${e.cli}</option>`:''}</select></div><div class="field"><label>RIF</label><input id="sp-rif" class="mono" value="${e?e.rif:(cls[0]?cls[0].rif:'')}"></div></div>
         <div class="g2"><div class="field"><label>Nº de comprobante</label><input id="sp-num" class="mono" value="${e?e.num:''}" placeholder="20260700000000"></div><div class="field"><label>Factura afectada</label><input id="sp-fac" class="mono" value="${e?e.facturaRef||'':''}" placeholder="F-000000"></div></div>
-        <div class="g2"><div class="field"><label>Fecha</label><input id="sp-date" type="date" value="${e?e.date:'2026-07-25'}"></div><div class="field"><label>Base imponible (Bs.)</label><input id="sp-base" type="number" min="0" step="0.01" value="${e?e.base:''}" placeholder="0,00"></div></div>
+        <div class="g2"><div class="field"><label>Fecha</label><input id="sp-date" type="date" value="${e?e.date:todayISO()}"></div><div class="field"><label>Base imponible (Bs.)</label><input id="sp-base" type="number" min="0" step="0.01" value="${e?e.base:''}" placeholder="0,00"></div></div>
         <div class="g2"><div class="field"><label>IVA retenido (Bs.)</label><input id="sp-iva" type="number" min="0" step="0.01" value="${e?e.ivaRet:''}" placeholder="0,00"><div class="err" id="spe-iva"></div></div><div class="field"><label>ISLR retenido (Bs.)</label><input id="sp-islr" type="number" min="0" step="0.01" value="${e?e.islrRet:''}" placeholder="0,00"></div></div>
       </div>
       <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveSop(${id||0})">${e?'Guardar cambios':'Registrar'}</button></div>`;
@@ -1690,7 +1694,7 @@
   function saveSop(id){
     const iva=parseFloat(document.getElementById('sp-iva').value)||0;const islr=parseFloat(document.getElementById('sp-islr').value)||0;
     if(iva<=0&&islr<=0){document.getElementById('spe-iva').textContent='Indica el IVA o ISLR retenido';return;}
-    const rec={cli:document.getElementById('sp-cli').value,rif:document.getElementById('sp-rif').value.trim(),num:document.getElementById('sp-num').value.trim(),facturaRef:document.getElementById('sp-fac').value.trim(),date:document.getElementById('sp-date').value||'2026-07-25',base:parseFloat(document.getElementById('sp-base').value)||0,ivaRet:iva,islrRet:islr};
+    const rec={cli:document.getElementById('sp-cli').value,rif:document.getElementById('sp-rif').value.trim(),num:document.getElementById('sp-num').value.trim(),facturaRef:document.getElementById('sp-fac').value.trim(),date:document.getElementById('sp-date').value||todayISO(),base:parseFloat(document.getElementById('sp-base').value)||0,ivaRet:iva,islrRet:islr};
     if(id){Object.assign(SOPORTADAS.find(s=>s.id===id),rec);}else{SOPORTADAS.unshift({id:sopUid++,...rec});}
     saveSopLS();closeModal();go('reten');toast(id?'Comprobante actualizado':'Comprobante registrado',true);
   }
@@ -1701,7 +1705,7 @@
   window.renderReten=renderReten;window.setRetenTab=setRetenTab;window.setRetenMonth=setRetenMonth;window.openSop=openSop;window.sopFillRif=sopFillRif;window.saveSop=saveSop;window.editSop=editSop;window.deleteSop=deleteSop;window.exportPractCsv=exportPractCsv;window.exportSopCsv=exportSopCsv;
 
   // ══════════════ REPORTES (PANEL DE ANÁLISIS) ══════════════
-  let repMonth='2026-07';
+  let repMonth=todayISO().slice(0,7);
   function setRepMonth(v){repMonth=v||repMonth;go('reportes');}
   function renderReportes(view){
     const inM=iso=>(iso||'').slice(0,7)===repMonth;
@@ -2012,7 +2016,7 @@
   // ── Reporte de Cierre de caja (imprimible / PDF, mismo formato de papel) ──
   function cierreReportInner(){
     const dEl=document.querySelector('.view input[type="date"]');
-    const fecha=dEl&&dEl.value?dEl.value:'2026-07-22';
+    const fecha=dEl&&dEl.value?dEl.value:todayISO();
     const cEl=document.querySelector('.view select.selm');
     const cajero=cEl?cEl.value:'—';
     const eur=v=>'€ '+v.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2026,7 +2030,7 @@
     const igtf=(totUsd*RATE+totEur*RATE_EUR)*0.03;
     const rows=keys.map(k=>{const g=groups[k];const divisa=g.usd?usd(g.usd):g.eur?eur(g.eur):'—';return `<tr><td>${ML[k]}</td><td class="num">${g.n}</td><td class="num">${divisa}</td><td class="num">${money(g.bs)}</td></tr>`;}).join('');
     let fechaFmt=fecha; try{fechaFmt=new Date(fecha+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'long',year:'numeric'});}catch(e){}
-    return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Cierre de caja · Reporte Z</span><div class="p-num">Z-${fecha.replace(/-/g,'')}</div><div class="p-mut" style="margin-top:6px">${fechaFmt}</div></div></div>
+    return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Cierre de caja · Reporte Z</span><div class="p-num">Z-${fecha.replace(/-/g,'')}</div><div class="p-mut" style="margin-top:6px">${fechaFmt} · ${nowTime()}</div></div></div>
       <div class="p-body">
         <div class="p-parts"><div class="p-box"><div class="pk">Cajero</div><div class="pn">${cajero}</div></div><div class="p-box"><div class="pk">Operaciones del día</div><div class="pn">${CIERRE.length} facturas cobradas</div></div></div>
         <table><thead><tr><th>Forma de pago</th><th class="num">Oper.</th><th class="num">Divisa</th><th class="num">Equiv. Bs.</th></tr></thead><tbody>${rows}</tbody></table>
@@ -2090,7 +2094,7 @@
     function lc(l){const g=l.p*l.qty,b=g-g*((l.disc||0)/100),r=IVA[l.iva];return{b,iva:b*r,t:b*(1+r),r};}
     function tot(){let ex=0,gr=0,iv=0;lines.forEach(l=>{const c=lc(l);c.r===0?ex+=c.b:gr+=c.b;iv+=c.iva;});let ig=0;pays.forEach(p=>{if(DIV.has(p.m)){ig+=pUsd(p)*IGTF;}});const total=ex+gr+iv+ig;const ret=CLI[ci].tipo==='ESPECIAL'?iv*RET:0;return{ex,gr,iv,ig,total,ret,neto:total-ret};}
 
-    function credVenceTxt(){const d=new Date('2026-07-23T00:00:00');d.setDate(d.getDate()+credDias);return d.toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});}
+    function credVenceTxt(){const d=new Date();d.setDate(d.getDate()+credDias);return d.toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});}
     function render(view){
       const c=CLI[ci];
       const isCred=/cr[eé]dito/i.test(c.payCond||'');credito=isCred;credDias=isCred?(parseInt((c.payCond.match(/\d+/)||[30])[0],10)||30):30;
@@ -2360,7 +2364,7 @@
         const payRows=pays.filter(p=>p.a>0).map(p=>{const parts=[];if(p.d){['ref','name','bank','phone','email','last4'].forEach(k=>{if(p.d[k])parts.push((k==='ref'?'Ref: ':'')+p.d[k]);});}const amt=p.cur==='VES'?money(p.a):p.cur==='USD'?usd(p.a):eur(p.a);return `<tr><td>${PL[p.m]}${parts.length?' · <span style="color:#999">'+parts.join(' · ')+'</span>':''}</td><td class="num">${amt}</td></tr>`;}).join('');
         const payBlock=payRows?`<div class="p-body" style="padding-top:0;padding-bottom:8px"><div style="font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#8a9897;font-weight:700;margin-bottom:6px">Forma de pago</div><table>${payRows}</table></div>`:'';
         const paperHtml=`
-          <div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Factura · digital SENIAT</span><div class="p-num">${num}</div><div class="p-ctrl">Nº control ${ctrlNum}</div><div class="p-mut" style="margin-top:6px">22/07/2026</div></div></div>
+          <div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Factura · digital SENIAT</span><div class="p-num">${num}</div><div class="p-ctrl">Nº control ${ctrlNum}</div><div class="p-mut" style="margin-top:6px">${todayDMY()} · ${nowTime()}</div></div></div>
           <div class="p-body"><div class="p-parts">
             <div class="p-box"><div class="pk">Cliente</div><div class="pn">${c.name}</div><div class="p-mut">${c.idKind==='CI'?'C.I. ':''}${c.rif}${c.addr&&c.addr!=='—'?' · '+c.addr:''}<br><span class="p-chip">${tipo}</span> · ${credito?('Crédito '+credDias+' días'):'Contado'}${c.vendor&&c.vendor!=='—'?` · Vend.: ${c.vendor}`:''}</div></div>
             <div class="p-box"><div class="pk">Referencia cambiaria</div><div class="pn">Bs. ${r.toFixed(2)} / USD</div><div class="p-mut">Total en divisa: ${usd(t.total)}</div></div>
@@ -2376,13 +2380,13 @@
           ${payBlock}
           <div class="p-foot"><div class="p-qr"></div>Documento generado electrónicamente conforme a la Providencia SENIAT sobre emisión de facturas y otros documentos. Representación impresa de factura digital.</div>`;
         document.getElementById('paper').innerHTML=paperHtml;
-        if(window.recordFactura)window.recordFactura({num,cli:c.name,rif:c.rif,date:'25/07/2026',dateISO:'2026-07-25',ctrl:ctrlNum,totalUsd:t.total,totalBs:t.total*r,base_ex:t.ex*r,base_gr:t.gr*r,iva:t.iv*r,igtf:t.ig*r,neto:t.neto*r,methods:pays.filter(p=>p.a>0).map(p=>PL[p.m]),status:'Emitida',html:paperHtml});
+        if(window.recordFactura)window.recordFactura({num,cli:c.name,rif:c.rif,date:todayDMY(),dateISO:todayISO(),ctrl:ctrlNum,totalUsd:t.total,totalBs:t.total*r,base_ex:t.ex*r,base_gr:t.gr*r,iva:t.iv*r,igtf:t.ig*r,neto:t.neto*r,methods:pays.filter(p=>p.a>0).map(p=>PL[p.m]),status:'Emitida',html:paperHtml});
         // Venta a crédito con saldo pendiente → generar cuenta por cobrar
         try{
           if(credito&&window.addCxc){
             const paid=pays.filter(p=>p.a>0).reduce((sum,p)=>sum+(p.cur==='USD'?p.a*rate:p.cur==='EUR'?p.a*rateEur:p.a),0);
             const totBs=(t.ret>0?t.neto:t.total)*r;
-            if(paid<totBs-0.01)window.addCxc({num,cli:c.name,rif:c.rif,vendor:c.vendor,emit:'2026-07-23',term:credDias,total:totBs,abonado:paid});
+            if(paid<totBs-0.01)window.addCxc({num,cli:c.name,rif:c.rif,vendor:c.vendor,emit:todayISO(),term:credDias,total:totBs,abonado:paid});
           }
         }catch(e){}
         document.getElementById('printOverlay').classList.add('show');
@@ -2665,7 +2669,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.1.9";
+  var CURRENT_FALLBACK = "1.2.0";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
