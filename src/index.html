@@ -2643,7 +2643,7 @@
             <div class="field"><label>Precio de venta ($)</label><input id="p-price" type="number" min="0" step="0.01" value="${e?e.p:''}" placeholder="0,00" oninput="IN.calcMargin()"></div>
             <div class="field"><label>Stock mínimo</label><input id="p-min" type="number" min="0" value="${e?e.min:''}" placeholder="0"></div>
           </div>
-          ${e?'':'<div class="field"><label>Existencia inicial (Principal)</label><input id="p-stock" type="number" min="0" placeholder="0"></div>'}
+          <div class="field"><label>${e?'Existencia — Depósito Principal (editar cantidad)':'Existencia inicial (Principal)'}</label><input id="p-stock" type="number" min="0" step="1" value="${e?((e.st&&e.st.PRIN!=null)?e.st.PRIN:0):''}" placeholder="0">${e?'<div style="font-size:11px;color:var(--text-faint);margin-top:4px">Ajusta la cantidad disponible en el depósito Principal. El cambio queda registrado en el kardex.</div>':''}</div>
           <div class="field"><label>Foto del producto (opcional · para Modo Touch)</label>
             <input type="hidden" id="p-img" value="${e&&e.img?e.img:''}">
             <div style="display:flex;align-items:center;gap:12px">
@@ -2672,7 +2672,12 @@
       const catSel=document.getElementById('p-catsel');const cat=(catSel.value==='__new__'?(document.getElementById('p-catnew').value||'').trim():catSel.value)||'General';
       const img=(document.getElementById('p-img')||{}).value||'';
       const wasEdit=editingId;
-      if(editingId){Object.assign(prods.find(x=>x.id===editingId),{sku,name,unit,iva,cat,p:price,cost,min,img});toast('Producto actualizado',true);}
+      if(editingId){const prod=prods.find(x=>x.id===editingId);Object.assign(prod,{sku,name,unit,iva,cat,p:price,cost,min,img});
+        // Ajuste de existencia (Depósito Principal) desde el formulario de edición.
+        const se=document.getElementById('p-stock');
+        if(se&&se.value!==''){if(!prod.st)prod.st={PRIN:0,SUC:0,DEP:0};const nv=Math.max(0,parseFloat(se.value)||0);const curP=prod.st.PRIN||0;
+          if(nv!==curP){const delta=nv-curP;prod.st.PRIN=nv;const d=new Date();const dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');const totq=Object.values(prod.st).reduce((a,b)=>a+b,0);if(!prod.kx)prod.kx=[];prod.kx.push({t:delta>0?'in':'out',d:dd,q:delta,b:totq});}}
+        toast('Producto actualizado',true);}
       else{const se=document.getElementById('p-stock');const stock=se?Math.max(0,parseFloat(se.value)||0):0;prods.push({id:pUid++,sku,name,unit,iva,cat,p:price,cost,min,img,st:{PRIN:stock,SUC:0,DEP:0},kx:stock>0?[{t:'in',d:'23/07',q:stock,b:stock}]:[]});toast('Producto “'+name+'” creado',true);}
       saveProds();closeModal();render(container);if(wasEdit&&sel===wasEdit)open(sel);editingId=null;
     }
@@ -2829,7 +2834,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.8";
+  var CURRENT_FALLBACK = "1.2.9";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
