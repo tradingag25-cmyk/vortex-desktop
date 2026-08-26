@@ -892,14 +892,24 @@
   window.renderKardex=renderKardex;window.setKxProd=setKxProd;window.setKxType=setKxType;
 
   // ══════════════ ALMACENES (resumen por depósito) ══════════════
+  let almDep='';
+  function setAlmDep(k){almDep=(almDep===k?'':k);go('almacenes');}
+  window.setAlmDep=setAlmDep;
   function renderAlmacenes(view){
     const rows=(window.IN&&IN.depsSummary)?IN.depsSummary():[];
+    if(almDep&&!rows.some(r=>r.key===almDep))almDep='';
+    const detail=(function(){
+      if(!almDep)return '<div style="font-size:12px;color:var(--text-faint);margin-top:12px">Toca un depósito para ver sus productos. Para mover existencia entre almacenes usa <b>Ajustes y traslados</b>.</div>';
+      const d=rows.find(r=>r.key===almDep)||{name:almDep};
+      const list=(window.IN&&IN.productsInDep)?IN.productsInDep(almDep):[];
+      return `<div class="panel" style="margin-top:16px"><div class="card-head" style="padding:12px 16px"><div class="card-title">${svg(I.box)} Productos en ${d.name}</div><button class="btn sm" onclick="setAlmDep('${almDep}')">Cerrar</button></div><div class="overflow-x"><table style="min-width:520px"><thead><tr><th>Producto</th><th>Categoría</th><th class="num">Existencia</th><th class="num">Valor (a costo)</th></tr></thead><tbody>${list.map(p=>`<tr><td style="font-weight:600">${p.name}<div class="mono" style="font-size:11px;color:var(--text-faint)">${p.sku}</div></td><td style="color:var(--text-muted);font-size:12.5px">${p.cat}</td><td class="num">${fmtN(p.qty)}</td><td class="num">${money(p.qty*p.cost*RATE)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:22px;color:var(--text-faint)">Sin productos con existencia en este depósito.</td></tr>'}</tbody></table></div></div>`;
+    })();
     view.innerHTML=`
       <div class="kgrid">
-        ${rows.map(d=>kpiC(d.name,fmtN(d.units)+' u.',d.products+' productos · '+money(d.value*RATE),'layers')).join('')}
+        ${rows.map(d=>`<div onclick="setAlmDep('${d.key}')" style="cursor:pointer">${kpiC(d.name,fmtN(d.units)+' u.',d.products+' productos · '+money(d.value*RATE),'layers')}</div>`).join('')}
       </div>
-      <div class="panel" style="margin-top:16px"><div class="overflow-x"><table style="min-width:560px"><thead><tr><th>Almacén / Depósito</th><th class="num">Productos con stock</th><th class="num">Unidades</th><th class="num">Valor (a costo)</th></tr></thead><tbody>${rows.map(d=>`<tr><td style="font-weight:600">${d.name}</td><td class="num">${d.products}</td><td class="num">${fmtN(d.units)}</td><td class="num">${money(d.value*RATE)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:26px;color:var(--text-faint)">Sin datos.</td></tr>'}</tbody></table></div></div>
-      <div style="font-size:12px;color:var(--text-faint);margin-top:12px">Para mover existencia entre almacenes usa <b>Ajustes y traslados</b>.</div>`;
+      <div class="panel" style="margin-top:16px"><div class="overflow-x"><table style="min-width:560px"><thead><tr><th>Almacén / Depósito</th><th class="num">Productos con stock</th><th class="num">Unidades</th><th class="num">Valor (a costo)</th><th></th></tr></thead><tbody>${rows.map(d=>`<tr class="rowc" onclick="setAlmDep('${d.key}')" style="cursor:pointer${almDep===d.key?';background:var(--accent-soft)':''}"><td style="font-weight:600">${d.name}</td><td class="num">${d.products}</td><td class="num">${fmtN(d.units)}</td><td class="num">${money(d.value*RATE)}</td><td class="num" style="color:var(--accent);font-size:12px">ver productos ›</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;padding:26px;color:var(--text-faint)">Sin datos.</td></tr>'}</tbody></table></div></div>
+      ${detail}`;
   }
   window.renderAlmacenes=renderAlmacenes;
 
@@ -932,8 +942,23 @@
            <button class="btn primary" onclick="doTraslado()">Trasladar</button>
          </div>
        </div>
+       <div class="card"><div class="card-head"><div class="card-title">${svg(I.layers)} Renombrar depósitos</div></div>
+         <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+           <div class="field"><label>Depósito 1</label><input class="selm" id="ajd-PRIN" value="${(deps.PRIN||'').replace(/"/g,'&quot;')}"></div>
+           <div class="field"><label>Depósito 2</label><input class="selm" id="ajd-SUC" value="${(deps.SUC||'').replace(/"/g,'&quot;')}"></div>
+           <div class="field"><label>Depósito 3</label><input class="selm" id="ajd-DEP" value="${(deps.DEP||'').replace(/"/g,'&quot;')}"></div>
+           <button class="btn primary" onclick="saveAjustesDeps()">Guardar nombres</button>
+         </div>
+       </div>
      </div>`;
   }
+  function saveAjustesDeps(){
+    const map={PRIN:((document.getElementById('ajd-PRIN')||{}).value||'').trim(),SUC:((document.getElementById('ajd-SUC')||{}).value||'').trim(),DEP:((document.getElementById('ajd-DEP')||{}).value||'').trim()};
+    if(!map.PRIN||!map.SUC||!map.DEP){toast('Los tres depósitos deben tener nombre',false);return;}
+    if(window.IN&&IN.setDepNames)IN.setDepNames(map);
+    toast('Nombres de depósitos guardados',true);go('ajustes');
+  }
+  window.saveAjustesDeps=saveAjustesDeps;
   function setAjSku(v){ajSku=v;go('ajustes');}
   function setAjDep(v){ajDep=v;go('ajustes');}
   function trSkuSet(v){trSku=v;}
@@ -3280,6 +3305,8 @@
       stockByDep(sku){const p=prods.find(x=>x.sku===sku);return p?Object.assign({},p.st):null;},
       // Resumen por almacén: productos con stock, unidades y valor (a costo).
       depsSummary(){return Object.keys(DEPS).map(k=>{let u=0,val=0,n=0;prods.forEach(p=>{const s=p.st[k]||0;if(s>0){n++;u+=s;val+=s*p.cost;}});return {key:k,name:DEPS[k],products:n,units:u,value:val};});},
+      // Productos con existencia en un depósito (para el detalle de Almacenes).
+      productsInDep(dep){const out=[];prods.forEach(function(p){const q=(p.st&&p.st[dep])||0;if(q>0)out.push({sku:p.sku,name:p.name,qty:q,cost:p.cost,cat:p.cat||'—'});});return out.sort(function(a,b){return b.qty-a.qty;});},
       // Ajuste de existencia (fija la cantidad de un depósito y registra el kardex).
       adjust(sku,dep,newQty){const p=prods.find(x=>x.sku===sku);if(!p||!(dep in p.st))return false;const nv=Math.max(0,parseFloat(newQty)||0);const cur=p.st[dep]||0;if(nv===cur)return true;const delta=nv-cur;p.st[dep]=nv;const d=new Date();const dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');const tot=Object.values(p.st).reduce((a,b)=>a+b,0);if(!p.kx)p.kx=[];p.kx.push({t:delta>0?'in':'out',d:dd,q:delta,b:tot});saveProds();return true;},
       // Traslado entre depósitos (salida de origen + entrada a destino).
@@ -3616,7 +3643,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.30";
+  var CURRENT_FALLBACK = "1.2.31";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -3657,14 +3684,27 @@
       bar.style.display = "flex";
     }).catch(function(){});
   }
-  // Consulta de versión para el panel de Configuración: devuelve {current, latest, hasUpdate}.
+  // Respaldo: consulta la API de la plataforma (si el updater de Tauri falla).
+  function apiVersion(cur,cb){
+    fetch(API,{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
+      var v=(j&&j.version&&j.version.semver)||null;
+      cb({current:cur, latest:v, hasUpdate:(v?cmp(v,cur)>0:false), url:(j&&j.version&&j.version.fileUrl)||RELEASES});
+    }).catch(function(){ cb({current:cur, latest:null, hasUpdate:false, url:RELEASES}); });
+  }
+  // Consulta de versión para el panel de Configuración. Usa el updater de Tauri
+  // (mismo que el auto-update, evita problemas de CORS) y cae a la API si falla.
   window.__vtxVersionInfo = function(cb){
     var cur = CURRENT_FALLBACK;
     Promise.resolve(getCurrent()).then(function(c){ cur=c||cur;
-      fetch(API,{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
-        var v=(j&&j.version&&j.version.semver)||null, url=(j&&j.version&&j.version.fileUrl)||RELEASES;
-        cb({current:cur, latest:v, hasUpdate:(v?cmp(v,cur)>0:false), url:url});
-      }).catch(function(){ cb({current:cur, latest:null, hasUpdate:false, url:RELEASES}); });
+      try{
+        var U=T.updater;
+        if(U && U.check){
+          U.check().then(function(update){
+            if(update && update.available){ cb({current:cur, latest:update.version||null, hasUpdate:true, url:RELEASES}); }
+            else { cb({current:cur, latest:cur, hasUpdate:false, url:RELEASES}); }
+          }).catch(function(){ apiVersion(cur,cb); });
+        } else { apiVersion(cur,cb); }
+      }catch(e){ apiVersion(cur,cb); }
     });
   };
   setTimeout(function(){
