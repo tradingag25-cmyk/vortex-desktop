@@ -3396,17 +3396,29 @@
         {go:'facturacion',sel:'#fa-emit',title:'5) Emitir',body:'Registra las formas de pago (Bs./USD/EUR) y pulsa Emitir. Se imprime y descuenta el inventario.',plus:true}
       ],
       inventario:[
-        {go:'inventario',sel:nav('inventario'),title:'Productos',body:'Crea productos, fija el precio por costo + % de ganancia y controla la existencia.'},
-        {go:'kardex',sel:nav('kardex'),title:'Kardex',body:'Historial de todas las entradas y salidas de cada producto.'},
-        {go:'ajustes',sel:nav('ajustes'),title:'Ajustes y traslados',body:'Corrige existencias y mueve mercancía entre tus depósitos.'}
+        {go:'inventario',sel:nav('inventario'),title:'Productos',body:'Crea y edita productos: fija el <b>precio por costo + % de ganancia</b>, controla la existencia por depósito y recibe alertas de <b>bajo mínimo</b> y agotados.'},
+        {go:'inventario',sel:'#in-q',title:'Buscar y filtrar',body:'Busca por nombre o código, filtra por <b>categoría</b> o <b>depósito</b>, y cambia entre vista de lista y tarjetas.'},
+        {go:'kardex',sel:nav('kardex'),title:'Kardex',body:'El historial de <b>todas las entradas y salidas</b> de cada producto, con el saldo después de cada movimiento.'},
+        {go:'almacenes',sel:nav('almacenes'),title:'Almacenes',body:'Resumen por depósito: cuántos productos con stock, unidades y el <b>valor del inventario</b> en cada almacén.'},
+        {go:'ajustes',sel:nav('ajustes'),title:'Ajustes y traslados',body:'Corrige la existencia de un producto o <b>traslada mercancía</b> entre depósitos; todo queda registrado en el Kardex.'}
       ],
       reportes:[
-        {go:'reportes',sel:'#rep-q',title:'Barra inteligente ⭐',body:'Escribe lo que quieres ver (ej. "ventas", "cobrar", "inventario") y elige el reporte.',plus:true},
-        {go:'reportes',sel:nav('reportes'),title:'Áreas y gráficas',body:'Cambia entre Ventas, Compras, Cartera, Inventario y Finanzas, y ve cada reporte en barras, líneas o dona.'}
+        {go:'reportes',sel:'#rep-q',title:'Barra inteligente ⭐',body:'Escribe lo que quieres ver (ej. "ventas", "IVA", "cobrar", "inventario") y toca el reporte que aparece. Encuentras cualquiera al instante.',plus:true},
+        {go:'reportes',sel:'.rep-tabs',title:'Reportes por área',body:'Están agrupados en <b>Ventas, Compras, Cartera, Inventario y Finanzas</b>. Toca un área y elige el reporte que quieras.'},
+        {go:'reportes',sel:'.rep-tiles',title:'Métricas al instante',body:'Arriba ves el <b>Total, el promedio y el máximo</b> del reporte, con animación, y cambian según el período que elijas.'},
+        {go:'reportes',sel:'.viewtog',title:'Tú eliges la gráfica',body:'Mira cada reporte en <b>Barras, Líneas, Dona o Tabla</b> con un toque. Y lo exportas a <b>CSV</b> o lo imprimes/guardas en <b>PDF</b>.'},
+        {title:'Reportes que puedes tener 📊',body:'Ventas por día, mes, cliente y cajero · Formas de pago · Compras por proveedor y por mes · Cuentas por cobrar y por pagar (por antigüedad) · Inventario por categoría · Tesorería · Retenciones.'}
       ],
       config:[
-        {go:'config',sel:'#cfg-license',title:'Licencia ⭐',body:'Activa o cambia tu licencia sin reinstalar.',plus:true},
-        {go:'config',sel:'#co-name',title:'Datos de la empresa ⭐',body:'Nombre, RIF, dirección, teléfono, correo y logo: salen en todas tus facturas.',plus:true}
+        {go:'config',sel:'#cfg-license',title:'Tu licencia ⭐',body:'Activa o cambia tu licencia <b>sin reinstalar</b>, ideal cuando renuevas tu plan.',plus:true},
+        {go:'config',sel:'#co-name',title:'Datos de tu empresa ⭐',body:'Nombre, RIF, dirección, teléfono, correo y <b>logo</b>: aparecen en <b>todas tus facturas</b> y documentos.',plus:true},
+        {go:'config',sel:'#pin-admin',title:'Seguridad',body:'Cambia los <b>PIN</b> de Administrador y Cajero para proteger tu sistema.'},
+        {go:'config',sel:'#num-prefix',title:'Numeración fiscal',body:'Define el <b>prefijo de la factura</b> y el <b>número de control</b> de tu talonario.'},
+        {go:'config',sel:'#caj-new',title:'Cajeros',body:'Agrega o elimina los <b>cajeros</b> que aparecen en Facturación.'},
+        {go:'config',sel:'#doc-footer',title:'Personaliza tus documentos',body:'Escribe un <b>mensaje al pie</b> de la factura y muestra u oculta el código <b>QR</b>.'},
+        {go:'config',sel:'#pref-cotiz',title:'Preferencias',body:'Validez de cotizaciones, días de crédito por defecto y abrir Facturación en <b>Modo Touch</b>.'},
+        {go:'config',sel:'#bk-days',title:'Respaldo ⭐',body:'Descarga una <b>copia de seguridad</b> de todo y activa un recordatorio para no olvidarlo.',plus:true},
+        {go:'config',sel:'#dep-PRIN',title:'Tus depósitos',body:'Renombra tus almacenes con los nombres reales de tu negocio (Principal, Sucursal, Depósito).'}
       ]
     };
     let steps=[],idx=0,built=false,curMod='';
@@ -3570,7 +3582,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.26";
+  var CURRENT_FALLBACK = "1.2.27";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
