@@ -329,6 +329,18 @@
   .tp-cliname{font-size:16px;font-weight:700;color:var(--text);}
   .tp-clisub{font-size:11.5px;color:var(--text-faint);}
   .tp-rate{font-size:12px;color:var(--text-muted);background:var(--surface-2);padding:6px 12px;border-radius:20px;font-weight:600;}
+  .tp-ced{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:15px;color:var(--text);outline:none;width:190px;font-family:inherit;}
+  .tp-ced:focus{border-color:var(--accent);}
+  .tp-cedprompt{position:fixed;inset:0;z-index:80;background:rgba(6,14,16,.82);display:none;align-items:center;justify-content:center;padding:20px;font-family:inherit;}
+  .tp-cedcard{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:30px 28px;width:100%;max-width:440px;box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center;animation:guiaUp .2s ease;}
+  .tp-cedttl{font-size:22px;font-weight:800;color:var(--text);}
+  .tp-cedsub{font-size:13.5px;color:var(--text-muted);margin:8px 0 18px;}
+  .tp-cedin{width:100%;box-sizing:border-box;font-size:26px;text-align:center;letter-spacing:1px;padding:16px;border-radius:14px;border:2px solid var(--accent);background:var(--surface-2);color:var(--text);outline:none;font-family:ui-monospace,monospace;}
+  .tp-cednom{width:100%;box-sizing:border-box;font-size:16px;text-align:center;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);outline:none;font-family:inherit;margin-top:10px;}
+  .tp-cedbtns{display:flex;gap:10px;margin-top:18px;}
+  .tp-cedbtn{flex:1;padding:15px;border-radius:12px;border:none;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .tp-cedbtn.ghost{background:var(--surface-2);color:var(--text-muted);}
+  .tp-cedbtn.primary{background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;}
   .tp-main{flex:1;display:flex;min-height:0;}
   .tp-catalog{flex:1.7;display:flex;flex-direction:column;min-width:0;padding:14px 16px;gap:12px;}
   .tp-search{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;}
@@ -2883,7 +2895,7 @@
       loadFrom(cliName,items){const idx=CLI.findIndex(c=>c.name===cliName);if(idx>=0)ci=idx;lines=(items||[]).map(it=>({id:uid++,sku:it.sku,name:it.name,qty:it.qty,p:it.p,disc:0,iva:it.iva}));pays=[];seeded=true;go('facturacion');},
       // ── MODO TOUCH (POS táctil) ──
       enterTouch(){touchOn=true;let el=document.getElementById('touchPos');if(!el){el=document.createElement('div');el.id='touchPos';document.body.appendChild(el);}el.style.display='flex';const c=CLI[ci];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');FA.renderTouch();},
-      exitTouch(){touchOn=false;const el=document.getElementById('touchPos');if(el)el.style.display='none';go('facturacion');},
+      exitTouch(){touchOn=false;FA.touchCedClose();const el=document.getElementById('touchPos');if(el)el.style.display='none';go('facturacion');},
       touchSetCat(c){touchCat=c;FA.renderTouch();},
       touchSearch(q){touchQ=(q||'').trim().toLowerCase();const g=document.getElementById('tp-grid-host');if(g)g.innerHTML=FA._touchGrid();},
       touchAdd(sku){const p=catSrc().find(x=>x.sku===sku);if(!p)return;const ex=lines.find(l=>l.sku===sku);if(ex)ex.qty++;else lines.push({id:uid++,sku:p.sku,name:p.name,qty:1,p:p.p,disc:0,iva:p.iva});FA.renderTouch();},
@@ -2896,7 +2908,34 @@
       touchCredito(v){credito=!!v;if(credito)pays=[];FA.renderTouch();},
       saveDraft(){if(!lines.length){toast('No hay renglones para guardar',false);return;}const c=CLI[ci];const items=lines.map(l=>({sku:l.sku,name:l.name,qty:l.qty,p:l.p,iva:l.iva}));if(window.saveCotizFrom)window.saveCotizFrom(c.name,c.rif,c.vendor,items);lines=[];pays=[];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');if(touchOn)FA.renderTouch();else go('facturacion');toast('Factura guardada en Cotizaciones · factúrala cuando el cliente pague',true);},
       clearInvoice(){if(lines.length&&!confirm('¿Limpiar la factura y dejarla en blanco?'))return;lines=[];pays=[];const c=CLI[ci];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');if(touchOn)FA.renderTouch();else go('facturacion');toast('Factura en blanco',true);},
-      touchEmit(){if(!lines.length){toast('Agrega productos al ticket',false);return;}const before=FACTURAS.length;FA.emit();if(FACTURAS.length>before){lines=[];pays=[];credito=false;touchQ='';FA.renderTouch();}},
+      touchEmit(){if(!lines.length){toast('Agrega productos al ticket',false);return;}const before=FACTURAS.length;FA.emit();if(FACTURAS.length>before){lines=[];pays=[];credito=false;touchQ='';FA.renderTouch();FA.touchNewClientPrompt();}},
+      // Cuadro grande para pedir la cédula del siguiente cliente (tras emitir, o al abrirlo manualmente).
+      touchNewClientPrompt(){
+        let el=document.getElementById('tp-cedprompt');
+        if(!el){el=document.createElement('div');el.id='tp-cedprompt';el.className='tp-cedprompt';document.body.appendChild(el);}
+        el.innerHTML='<div class="tp-cedcard"><div class="tp-cedttl">Cédula del cliente</div><div class="tp-cedsub">Escríbela para buscar o registrar al cliente, o continúa como consumidor final.</div>'
+          +'<input id="tp-cedbig" class="tp-cedin" placeholder="V-12345678" autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();FA.touchCedulaBig();}">'
+          +'<div class="tp-cedbtns"><button class="tp-cedbtn ghost" onclick="FA.touchCedulaSkip()">Consumidor final</button><button class="tp-cedbtn primary" onclick="FA.touchCedulaBig()">Continuar</button></div></div>';
+        el.style.display='flex';
+        setTimeout(function(){const i=document.getElementById('tp-cedbig');if(i)i.focus();},60);
+      },
+      touchCedClose(){const el=document.getElementById('tp-cedprompt');if(el)el.style.display='none';},
+      touchCedulaSkip(){const cf=CLI.findIndex(function(c){return c.tipo==='NO'||/^0+$/.test((c.rif||'').replace(/\D/g,''))||/consumidor/i.test(c.name||'');});ci=cf>=0?cf:0;FA.touchCedClose();FA.renderTouch();},
+      touchCedula(){FA._touchCedLookup((document.getElementById('tp-cedula')||{}).value||'',false);},
+      touchCedulaBig(){FA._touchCedLookup((document.getElementById('tp-cedbig')||{}).value||'',true);},
+      _touchCedLookup(raw,fromPrompt){
+        raw=(raw||'').trim();
+        if(!raw){toast('Escribe la cédula/RIF',false);return;}
+        const up=raw.toUpperCase(),digits=up.replace(/\D/g,'');
+        if(!digits){toast('Identificación inválida',false);return;}
+        const idx=CLI.findIndex(function(c){const cd=(c.rif||'').toUpperCase().replace(/\D/g,'');return cd&&cd===digits;});
+        if(idx>=0){ci=idx;if(fromPrompt)FA.touchCedClose();FA.renderTouch();toast('Cliente: '+(CLI[idx].name||CLI[idx].rif),true);return;}
+        const pm=up.match(/[VEJGPC]/),kind=/^[JG]/.test(up)?'RIF':(pm&&/[VE]/.test(pm[0])?'CI':(digits.length>8?'RIF':'CI')),prefix=pm?pm[0]:(kind==='CI'?'V':'J');
+        const ident=kind==='CI'?prefix+'-'+digits:(digits.length>=9?prefix+'-'+digits.slice(0,8)+'-'+digits.slice(8):prefix+'-'+digits);
+        if(fromPrompt)FA.touchCedClose();
+        toast('Cliente nuevo · complétalo para registrarlo',true);
+        FA.openNewClient({kind:kind,prefix:prefix,digits:digits,ident:ident});
+      },
       _touchGrid(){
         let list=catSrc();
         if(touchCat!=='ALL')list=list.filter(p=>(p.cat||'')===touchCat);
@@ -2923,7 +2962,8 @@
         el.innerHTML=`
           <div class="tp-top">
             <button class="tp-exit" onclick="FA.exitTouch()">← Salir</button>
-            <button class="tp-clibtn" onclick="FA.openClientPicker()"><span class="tp-cliname">${c.name} ▾</span><span class="tp-clisub">${c.rif} · toca para cambiar</span></button>
+            <button class="tp-clibtn" onclick="FA.openClientPicker()"><span class="tp-cliname">${c.name||'(sin nombre)'} ▾</span><span class="tp-clisub">${c.rif} · toca para cambiar</span></button>
+            <input id="tp-cedula" class="tp-ced" placeholder="C.I./RIF y Enter" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();FA.touchCedula();}">
             <div style="flex:1"></div>
             <div class="tp-rate">BCV ${rate.toFixed(2)} Bs/$</div>
           </div>
@@ -3643,7 +3683,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.31";
+  var CURRENT_FALLBACK = "1.2.32";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
