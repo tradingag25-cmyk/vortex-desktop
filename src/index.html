@@ -853,6 +853,82 @@
   function deleteProvEntry(id){const p=PROV.find(x=>x.id===id);if(!p)return;if(!confirm('¿Eliminar el proveedor '+p.name+'?'))return;PROV=PROV.filter(x=>x.id!==id);saveProv();go('prov');toast('Proveedor eliminado',true);}
   window.renderProveedores=renderProveedores;window.openProvEditor=openProvEditor;window.saveProvEntry=saveProvEntry;window.deleteProvEntry=deleteProvEntry;
 
+  // ══════════════ KARDEX (módulo global) ══════════════
+  let kxProd='ALL',kxType='ALL';
+  function renderKardex(view){
+    const prods=(window.IN&&IN.products)?IN.products():[];
+    const opts=['<option value="ALL">Todos los productos</option>'].concat(prods.map(p=>`<option value="${p.sku}" ${kxProd===p.sku?'selected':''}>${p.name}</option>`)).join('');
+    view.innerHTML=`
+      <div class="toolbar">
+        <select class="selm" onchange="setKxProd(this.value)">${opts}</select>
+        <div class="chips">${[['ALL','Todos'],['in','Entradas'],['out','Salidas']].map(([k,l])=>`<button class="chipf ${kxType===k?'on':''}" onclick="setKxType('${k}')">${l}</button>`).join('')}</div>
+        <div style="flex:1"></div>
+      </div>
+      <div class="panel" style="margin-top:14px"><div class="overflow-x"><table style="min-width:720px"><thead><tr><th>Producto</th><th>SKU</th><th>Tipo</th><th>Fecha</th><th class="num">Cantidad</th><th class="num">Saldo</th></tr></thead><tbody id="kx-body"></tbody></table></div></div>`;
+    kxBody();
+  }
+  function kxBody(){
+    const el=document.getElementById('kx-body');if(!el)return;
+    let list=(window.IN&&IN.allKardex)?IN.allKardex():[];
+    if(kxProd!=='ALL')list=list.filter(m=>m.sku===kxProd);
+    if(kxType!=='ALL')list=list.filter(m=>m.t===kxType);
+    list=list.slice().reverse(); // más reciente primero
+    el.innerHTML=list.map(m=>`<tr><td style="font-weight:600">${m.name}</td><td class="mono" style="font-size:11.5px;color:var(--text-faint)">${m.sku}</td><td>${m.t==='in'?'<span class="badge" style="background:var(--good-soft);color:var(--good)">Entrada</span>':'<span class="badge" style="background:var(--crit-soft,rgba(220,80,80,.15));color:var(--crit)">Salida</span>'}</td><td style="color:var(--text-muted)">${m.d||'—'}</td><td class="num" style="color:${m.q>0?'var(--good)':'var(--crit)'};font-weight:600">${m.q>0?'+':''}${m.q}</td><td class="num">${m.b}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:26px;color:var(--text-faint)">Sin movimientos registrados.</td></tr>';
+  }
+  function setKxProd(v){kxProd=v;kxBody();}
+  function setKxType(v){kxType=v;go('kardex');}
+  window.renderKardex=renderKardex;window.setKxProd=setKxProd;window.setKxType=setKxType;
+
+  // ══════════════ ALMACENES (resumen por depósito) ══════════════
+  function renderAlmacenes(view){
+    const rows=(window.IN&&IN.depsSummary)?IN.depsSummary():[];
+    view.innerHTML=`
+      <div class="kgrid">
+        ${rows.map(d=>kpiC(d.name,fmtN(d.units)+' u.',d.products+' productos · '+money(d.value*RATE),'layers')).join('')}
+      </div>
+      <div class="panel" style="margin-top:16px"><div class="overflow-x"><table style="min-width:560px"><thead><tr><th>Almacén / Depósito</th><th class="num">Productos con stock</th><th class="num">Unidades</th><th class="num">Valor (a costo)</th></tr></thead><tbody>${rows.map(d=>`<tr><td style="font-weight:600">${d.name}</td><td class="num">${d.products}</td><td class="num">${fmtN(d.units)}</td><td class="num">${money(d.value*RATE)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:26px;color:var(--text-faint)">Sin datos.</td></tr>'}</tbody></table></div></div>
+      <div style="font-size:12px;color:var(--text-faint);margin-top:12px">Para mover existencia entre almacenes usa <b>Ajustes y traslados</b>.</div>`;
+  }
+  window.renderAlmacenes=renderAlmacenes;
+
+  // ══════════════ AJUSTES Y TRASLADOS ══════════════
+  let ajSku='',ajDep='PRIN',trSku='',trFrom='PRIN',trTo='SUC';
+  function renderAjustes(view){
+    const prods=(window.IN&&IN.products)?IN.products():[];
+    const deps=(window.IN&&IN.deps)?IN.deps():{};
+    if((!ajSku||!prods.some(p=>p.sku===ajSku))&&prods.length)ajSku=prods[0].sku;
+    if((!trSku||!prods.some(p=>p.sku===trSku))&&prods.length)trSku=prods[0].sku;
+    const prodOpts=sel=>prods.map(p=>`<option value="${p.sku}" ${sel===p.sku?'selected':''}>${p.name}</option>`).join('');
+    const depOpts=sel=>Object.keys(deps).map(k=>`<option value="${k}" ${sel===k?'selected':''}>${deps[k]}</option>`).join('');
+    const st=(window.IN&&IN.stockByDep)?IN.stockByDep(ajSku):null;
+    const curQty=st?(st[ajDep]||0):0;
+    view.innerHTML=`
+     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+       <div class="card"><div class="card-head"><div class="card-title">${svg(I.box)} Ajustar existencia</div></div>
+         <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+           <div class="field"><label>Producto</label><select class="selm" id="aj-sku" onchange="setAjSku(this.value)">${prodOpts(ajSku)}</select></div>
+           <div class="field"><label>Depósito</label><select class="selm" id="aj-dep" onchange="setAjDep(this.value)">${depOpts(ajDep)}</select></div>
+           <div class="field"><label>Existencia actual: <b>${fmtN(curQty)}</b> — nueva cantidad</label><input class="selm" type="number" min="0" id="aj-qty" value="${curQty}"></div>
+           <button class="btn primary" onclick="doAjuste()">Aplicar ajuste</button>
+         </div>
+       </div>
+       <div class="card"><div class="card-head"><div class="card-title">${svg(I.swap)} Traslado entre depósitos</div></div>
+         <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+           <div class="field"><label>Producto</label><select class="selm" id="tr-sku" onchange="trSkuSet(this.value)">${prodOpts(trSku)}</select></div>
+           <div class="g2"><div class="field"><label>Desde</label><select class="selm" id="tr-from">${depOpts(trFrom)}</select></div><div class="field"><label>Hacia</label><select class="selm" id="tr-to">${depOpts(trTo)}</select></div></div>
+           <div class="field"><label>Cantidad a trasladar</label><input class="selm" type="number" min="0" id="tr-qty" placeholder="0"></div>
+           <button class="btn primary" onclick="doTraslado()">Trasladar</button>
+         </div>
+       </div>
+     </div>`;
+  }
+  function setAjSku(v){ajSku=v;go('ajustes');}
+  function setAjDep(v){ajDep=v;go('ajustes');}
+  function trSkuSet(v){trSku=v;}
+  function doAjuste(){const sku=document.getElementById('aj-sku').value,dep=document.getElementById('aj-dep').value,qty=document.getElementById('aj-qty').value;if(window.IN&&IN.adjust&&IN.adjust(sku,dep,qty)){toast('Existencia ajustada',true);go('ajustes');}else{toast('No se pudo ajustar',false);}}
+  function doTraslado(){const sku=document.getElementById('tr-sku').value,from=document.getElementById('tr-from').value,to=document.getElementById('tr-to').value,qty=document.getElementById('tr-qty').value;const r=(window.IN&&IN.transfer)?IN.transfer(sku,from,to,qty):{ok:false,msg:'Inventario no disponible'};if(r.ok){toast('Traslado realizado',true);go('ajustes');}else{toast(r.msg||'No se pudo trasladar',false);}}
+  window.renderAjustes=renderAjustes;window.setAjSku=setAjSku;window.setAjDep=setAjDep;window.trSkuSet=trSkuSet;window.doAjuste=doAjuste;window.doTraslado=doTraslado;
+
   // ══════════════ CUENTAS POR PAGAR ══════════════
   const CXP_TODAY=new Date();
   let cxpUid=1;
@@ -2006,9 +2082,9 @@
     {id:'ordenes',label:'Órdenes de compra',icon:'cart',group:'Compras',crumb:'Compras · Órdenes de compra',render:renderOrdenes},
     {id:'cxp',label:'Cuentas por pagar',icon:'coin',group:'Compras',crumb:'Compras · Cuentas por pagar',render:renderCxp},
     {id:'inventario',label:'Productos',icon:'box',group:'Inventario',crumb:'Inventario · Productos',render:c=>IN.render(c)},
-    {id:'almacenes',label:'Almacenes',icon:'layers',group:'Inventario',crumb:'Inventario · Almacenes'},
-    {id:'kardex',label:'Kardex',icon:'chart',group:'Inventario',crumb:'Inventario · Kardex'},
-    {id:'ajustes',label:'Ajustes y traslados',icon:'swap',group:'Inventario',crumb:'Inventario · Ajustes y traslados'},
+    {id:'almacenes',label:'Almacenes',icon:'layers',group:'Inventario',crumb:'Inventario · Almacenes',render:renderAlmacenes},
+    {id:'kardex',label:'Kardex',icon:'chart',group:'Inventario',crumb:'Inventario · Kardex',render:renderKardex},
+    {id:'ajustes',label:'Ajustes y traslados',icon:'swap',group:'Inventario',crumb:'Inventario · Ajustes y traslados',render:renderAjustes},
     {id:'clientes',label:'Clientes',icon:'users',group:'Terceros',crumb:'Terceros · Clientes',render:c=>FA.renderClientes(c)},
     {id:'prov',label:'Proveedores',icon:'users',group:'Terceros',crumb:'Terceros · Proveedores',render:renderProveedores},
     {id:'lventas',label:'Libro de Ventas',icon:'book',group:'Fiscal',crumb:'Fiscal · Libro de Ventas (SENIAT)',render:renderLVentas},
@@ -2813,6 +2889,17 @@
         return {sku:p.sku,name:p.name,cost:p.cost,iva:p.iva,p:p.p,unit:p.unit,cat:p.cat,img:''};},
       receive(items){(items||[]).forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;const ot=Object.values(p.st).reduce((a,b)=>a+b,0);const cost=(it.cost>0?it.cost:p.cost);p.cost=(ot+it.qty)>0?(ot*p.cost+it.qty*cost)/(ot+it.qty):cost;p.st.PRIN=(p.st.PRIN||0)+it.qty;p.kx.push({t:'in',d:'23/07',q:it.qty,b:ot+it.qty});});saveProds();},
       summary(){const c=counts();return {val:c.val,low:c.low,out:c.out,ex:c.ex,count:prods.length};},
+      // Kardex global: aplana los movimientos de todos los productos (más reciente primero por producto).
+      allKardex(){const out=[];prods.forEach(p=>{(p.kx||[]).forEach((m,idx)=>{out.push({sku:p.sku,name:p.name,unit:p.unit,cat:p.cat,t:m.t,d:m.d,q:m.q,b:m.b,idx});});});return out;},
+      products(){return prods.map(p=>({sku:p.sku,name:p.name}));},
+      deps(){return Object.assign({},DEPS);},
+      stockByDep(sku){const p=prods.find(x=>x.sku===sku);return p?Object.assign({},p.st):null;},
+      // Resumen por almacén: productos con stock, unidades y valor (a costo).
+      depsSummary(){return Object.keys(DEPS).map(k=>{let u=0,val=0,n=0;prods.forEach(p=>{const s=p.st[k]||0;if(s>0){n++;u+=s;val+=s*p.cost;}});return {key:k,name:DEPS[k],products:n,units:u,value:val};});},
+      // Ajuste de existencia (fija la cantidad de un depósito y registra el kardex).
+      adjust(sku,dep,newQty){const p=prods.find(x=>x.sku===sku);if(!p||!(dep in p.st))return false;const nv=Math.max(0,parseFloat(newQty)||0);const cur=p.st[dep]||0;if(nv===cur)return true;const delta=nv-cur;p.st[dep]=nv;const d=new Date();const dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');const tot=Object.values(p.st).reduce((a,b)=>a+b,0);if(!p.kx)p.kx=[];p.kx.push({t:delta>0?'in':'out',d:dd,q:delta,b:tot});saveProds();return true;},
+      // Traslado entre depósitos (salida de origen + entrada a destino).
+      transfer(sku,from,to,qty){const p=prods.find(x=>x.sku===sku);if(!p||!(from in p.st)||!(to in p.st)||from===to)return {ok:false,msg:'Selecciona depósitos distintos'};const q=Math.max(0,parseFloat(qty)||0);if(q<=0)return {ok:false,msg:'Indica una cantidad válida'};if((p.st[from]||0)<q)return {ok:false,msg:'Existencia insuficiente en el origen'};p.st[from]-=q;p.st[to]=(p.st[to]||0)+q;const d=new Date();const dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');const tot=Object.values(p.st).reduce((a,b)=>a+b,0);if(!p.kx)p.kx=[];p.kx.push({t:'out',d:dd,q:-q,b:tot});p.kx.push({t:'in',d:dd,q:q,b:tot});saveProds();return {ok:true};},
       stockOf(sku){const p=prods.find(x=>x.sku===sku);return p?Object.values(p.st).reduce((a,b)=>a+b,0):null;},
       sell(items){items.forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;let d='PRIN';if((p.st[d]||0)<it.qty){const alt=Object.keys(p.st).find(k=>(p.st[k]||0)>=it.qty);if(alt)d=alt;}p.st[d]=(p.st[d]||0)-it.qty;p.kx.push({t:'out',d:'23/07',q:-it.qty,b:Object.values(p.st).reduce((a,b)=>a+b,0)});});saveProds();},
       setCat(v){catF=v;render(container);},
@@ -2952,7 +3039,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.13";
+  var CURRENT_FALLBACK = "1.2.14";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
