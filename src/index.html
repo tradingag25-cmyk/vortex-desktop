@@ -489,7 +489,8 @@
   const RATE_EUR=840.85;// BCV EUR 22/07/2026 (respaldo)
   // ── Tasa BCV en vivo (USD y EUR) ──
   function getBcv(){try{const j=JSON.parse(localStorage.getItem('vortex_bcv')||'null');if(j&&j.usd>0)return j;}catch(e){}return null;}
-  function saveBcv(usd,eur){try{localStorage.setItem('vortex_bcv',JSON.stringify({usd:usd,eur:eur,date:todayISO(),ts:Date.now()}));}catch(e){}}
+  function saveBcv(usd,eur){try{const rec={usd:usd,eur:eur,date:todayISO(),ts:Date.now()};localStorage.setItem('vortex_bcv',JSON.stringify(rec));let h=[];try{h=JSON.parse(localStorage.getItem('vortex_bcv_hist')||'[]');if(!Array.isArray(h))h=[];}catch(e){}h=h.filter(x=>x.date!==rec.date);h.push(rec);if(h.length>90)h=h.slice(-90);localStorage.setItem('vortex_bcv_hist',JSON.stringify(h));}catch(e){}}
+  function bcvHist(){try{const h=JSON.parse(localStorage.getItem('vortex_bcv_hist')||'[]');return Array.isArray(h)?h:[];}catch(e){return[];}}
   function _price(o){if(!o)return null;const v=+(o.price||o.promedio||o.value||o.venta||0);return v>0?v:null;}
   async function _json(url){try{const r=await fetch(url,{cache:'no-store'});if(r.ok)return await r.json();}catch(e){}return null;}
   async function fetchBcv(){
@@ -928,6 +929,74 @@
   function doAjuste(){const sku=document.getElementById('aj-sku').value,dep=document.getElementById('aj-dep').value,qty=document.getElementById('aj-qty').value;if(window.IN&&IN.adjust&&IN.adjust(sku,dep,qty)){toast('Existencia ajustada',true);go('ajustes');}else{toast('No se pudo ajustar',false);}}
   function doTraslado(){const sku=document.getElementById('tr-sku').value,from=document.getElementById('tr-from').value,to=document.getElementById('tr-to').value,qty=document.getElementById('tr-qty').value;const r=(window.IN&&IN.transfer)?IN.transfer(sku,from,to,qty):{ok:false,msg:'Inventario no disponible'};if(r.ok){toast('Traslado realizado',true);go('ajustes');}else{toast(r.msg||'No se pudo trasladar',false);}}
   window.renderAjustes=renderAjustes;window.setAjSku=setAjSku;window.setAjDep=setAjDep;window.trSkuSet=trSkuSet;window.doAjuste=doAjuste;window.doTraslado=doTraslado;
+
+  // ══════════════ TASA BCV (histórico) ══════════════
+  function renderBcv(view){
+    const cur=getBcv()||{};const hist=bcvHist().slice().reverse();
+    const fdate=iso=>{try{return new Date(iso+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return iso||'—';}}
+    view.innerHTML=`
+      <div class="toolbar"><div style="font-size:12.5px;color:var(--text-faint)">Tasa oficial del BCV (dólar y euro). Se actualiza sola al iniciar sesión y al abrir Facturación.</div><div style="flex:1"></div><button class="btn primary" onclick="refreshBcvNow(this)">🔄 Actualizar tasa del día</button></div>
+      <div class="kgrid" style="margin-top:12px">
+        ${kpiC('Dólar BCV',cur.usd?money(cur.usd):'—','Bs. por USD','coin')}
+        ${kpiC('Euro BCV',cur.eur?money(cur.eur):'—','Bs. por EUR','coin')}
+        ${kpiC('Última actualización',cur.date?fdate(cur.date):'—',cur.ts?new Date(cur.ts).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'}):'','receipt')}
+      </div>
+      <div class="panel" style="margin-top:16px"><div class="card-head" style="padding:12px 16px"><div class="card-title">${svg(I.chart)} Histórico de tasas</div></div><div class="overflow-x"><table style="min-width:420px"><thead><tr><th>Fecha</th><th class="num">USD (Bs.)</th><th class="num">EUR (Bs.)</th></tr></thead><tbody>${hist.map(h=>`<tr><td>${fdate(h.date)}</td><td class="num">${h.usd?money(h.usd):'—'}</td><td class="num">${h.eur?money(h.eur):'—'}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;padding:26px;color:var(--text-faint)">Aún no hay histórico. Pulsa “Actualizar”.</td></tr>'}</tbody></table></div></div>`;
+  }
+  async function refreshBcvNow(btn){const o=btn?btn.textContent:'';if(btn){btn.textContent='Actualizando…';btn.disabled=true;}await autoBcv(true);if(btn){btn.textContent=o;btn.disabled=false;}go('bcv');}
+  window.renderBcv=renderBcv;window.refreshBcvNow=refreshBcvNow;
+
+  // ══════════════ BANCOS Y CAJA (tesorería) ══════════════
+  let TESO=(function(){try{const j=JSON.parse(localStorage.getItem('vortex_teso')||'null');if(j&&Array.isArray(j.accounts))return j;}catch(e){}return {accounts:[{id:1,name:'Caja Bs.',cur:'VES',bal:0},{id:2,name:'Caja USD',cur:'USD',bal:0},{id:3,name:'Banco Principal Bs.',cur:'VES',bal:0}],movs:[],uid:100};})();
+  function saveTeso(){try{localStorage.setItem('vortex_teso',JSON.stringify(TESO));}catch(e){}}
+  const tesoMoney=a=>a.cur==='USD'?usd(a.bal):money(a.bal);
+  function renderTesoreria(view){
+    view.innerHTML=`
+      <div class="toolbar"><div style="flex:1"></div><button class="btn" onclick="openTesoAccount()">${svg(I.plus)} Nueva cuenta</button><button class="btn primary" onclick="openTesoMov()">${svg(I.plus)} Registrar movimiento</button></div>
+      <div class="kgrid" style="margin-top:12px">${TESO.accounts.map(a=>kpiC(a.name,tesoMoney(a),a.cur==='USD'?'Divisa':'Bolívares','bank')).join('')||'<div style="color:var(--text-faint)">Sin cuentas.</div>'}</div>
+      <div class="panel" style="margin-top:16px"><div class="card-head" style="padding:12px 16px"><div class="card-title">${svg(I.receipt)} Movimientos</div></div><div class="overflow-x"><table style="min-width:640px"><thead><tr><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th>Tipo</th><th class="num">Monto</th></tr></thead><tbody>${TESO.movs.slice().reverse().map(m=>{const a=TESO.accounts.find(x=>x.id===m.acc)||{cur:'VES'};const mv=a.cur==='USD'?usd(m.amt):money(m.amt);return `<tr><td>${m.date}</td><td>${m.accName||''}</td><td>${m.concepto||'—'}</td><td>${m.tipo==='in'?'<span class="badge" style="background:var(--good-soft);color:var(--good)">Ingreso</span>':'<span class="badge" style="background:var(--crit-soft,rgba(220,80,80,.15));color:var(--crit)">Egreso</span>'}</td><td class="num" style="color:${m.tipo==='in'?'var(--good)':'var(--crit)'};font-weight:600">${m.tipo==='in'?'+':'-'}${mv}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;padding:26px;color:var(--text-faint)">Sin movimientos registrados.</td></tr>'}</tbody></table></div></div>`;
+  }
+  function openTesoAccount(){
+    document.getElementById('modal').innerHTML=`
+      <div class="modal-head"><div class="modal-title">Nueva cuenta</div><button class="modal-x" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="field"><label>Nombre de la cuenta *</label><input id="ta-name" placeholder="Banco / Caja"></div>
+        <div class="g2"><div class="field"><label>Moneda</label><select id="ta-cur"><option value="VES">Bolívares (Bs.)</option><option value="USD">Dólares (USD)</option></select></div>
+        <div class="field"><label>Saldo inicial</label><input id="ta-bal" type="number" step="0.01" placeholder="0,00"></div></div>
+      </div>
+      <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveTesoAccount()">Agregar cuenta</button></div>`;
+    document.getElementById('modalOverlay').classList.add('show');
+    setTimeout(function(){const i=document.getElementById('ta-name');if(i)i.focus();},30);
+  }
+  function saveTesoAccount(){
+    const name=(document.getElementById('ta-name').value||'').trim();if(!name){toast('Indica el nombre de la cuenta',false);return;}
+    const cur=document.getElementById('ta-cur').value;const bal=parseFloat(document.getElementById('ta-bal').value)||0;
+    TESO.accounts.push({id:TESO.uid++,name,cur,bal});saveTeso();closeModal();go('tesoreria');toast('Cuenta agregada',true);
+  }
+  function openTesoMov(){
+    if(!TESO.accounts.length){toast('Primero crea una cuenta',false);return;}
+    document.getElementById('modal').innerHTML=`
+      <div class="modal-head"><div class="modal-title">Registrar movimiento</div><button class="modal-x" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="field"><label>Cuenta</label><select id="tm-acc">${TESO.accounts.map(a=>`<option value="${a.id}">${a.name} (${a.cur==='USD'?'USD':'Bs.'})</option>`).join('')}</select></div>
+        <div class="g2"><div class="field"><label>Tipo</label><select id="tm-tipo"><option value="in">Ingreso (entra dinero)</option><option value="out">Egreso (sale dinero)</option></select></div>
+        <div class="field"><label>Monto</label><input id="tm-amt" type="number" min="0" step="0.01" placeholder="0,00"></div></div>
+        <div class="field"><label>Concepto</label><input id="tm-con" placeholder="Ej. Pago a proveedor, cobro, depósito…"></div>
+      </div>
+      <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveTesoMov()">Guardar movimiento</button></div>`;
+    document.getElementById('modalOverlay').classList.add('show');
+    setTimeout(function(){const i=document.getElementById('tm-amt');if(i)i.focus();},30);
+  }
+  function saveTesoMov(){
+    const acc=parseInt(document.getElementById('tm-acc').value,10);const a=TESO.accounts.find(x=>x.id===acc);if(!a){toast('Cuenta inválida',false);return;}
+    const tipo=document.getElementById('tm-tipo').value;const amt=Math.max(0,parseFloat(document.getElementById('tm-amt').value)||0);const concepto=(document.getElementById('tm-con').value||'').trim();
+    if(amt<=0){toast('Indica un monto válido',false);return;}
+    if(tipo==='out'&&a.bal<amt){if(!confirm('El saldo quedará negativo. ¿Continuar?'))return;}
+    a.bal=(a.bal||0)+(tipo==='in'?amt:-amt);
+    TESO.movs.push({id:TESO.uid++,date:todayDMY(),acc:acc,accName:a.name,tipo:tipo,amt:amt,concepto:concepto});
+    saveTeso();closeModal();go('tesoreria');toast('Movimiento registrado',true);
+  }
+  window.renderTesoreria=renderTesoreria;window.openTesoAccount=openTesoAccount;window.saveTesoAccount=saveTesoAccount;window.openTesoMov=openTesoMov;window.saveTesoMov=saveTesoMov;
 
   // ══════════════ CUENTAS POR PAGAR ══════════════
   const CXP_TODAY=new Date();
@@ -2090,9 +2159,9 @@
     {id:'lventas',label:'Libro de Ventas',icon:'book',group:'Fiscal',crumb:'Fiscal · Libro de Ventas (SENIAT)',render:renderLVentas},
     {id:'lcompras',label:'Libro de Compras',icon:'book',group:'Fiscal',crumb:'Fiscal · Libro de Compras (SENIAT)',render:renderLCompras},
     {id:'reten',label:'Retenciones',icon:'tag',group:'Fiscal',crumb:'Fiscal · Retenciones IVA/ISLR',render:renderReten},
-    {id:'bcv',label:'Tasa BCV',icon:'coin',group:'Fiscal',crumb:'Fiscal · Histórico de tasas'},
+    {id:'bcv',label:'Tasa BCV',icon:'coin',group:'Fiscal',crumb:'Fiscal · Histórico de tasas',render:renderBcv},
     {id:'trib',label:'Config. tributaria',icon:'receipt',group:'Fiscal',crumb:'Fiscal · Configuración tributaria y máquina fiscal',render:renderTaxConfig},
-    {id:'tesoreria',label:'Bancos y caja',icon:'bank',group:'Sistema',crumb:'Tesorería'},
+    {id:'tesoreria',label:'Bancos y caja',icon:'bank',group:'Sistema',crumb:'Tesorería · Bancos y caja',render:renderTesoreria},
     {id:'reportes',label:'Reportes',icon:'chart',group:'Sistema',crumb:'Reportes · Panel de análisis',render:renderReportes},
     {id:'ayuda',label:'Ayuda',icon:'help',group:'Sistema',crumb:'Sistema · Manual y fórmulas del sistema',render:renderAyuda},
     {id:'config',label:'Configuración',icon:'cog',group:'Sistema',crumb:'Configuración',render:renderConfig},
@@ -3039,7 +3108,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.14";
+  var CURRENT_FALLBACK = "1.2.15";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
