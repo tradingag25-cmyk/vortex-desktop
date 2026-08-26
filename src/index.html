@@ -1991,7 +1991,8 @@
 
   // ══════════════ REPORTES (PANEL DE ANÁLISIS) ══════════════
   // ══════════════ CENTRO DE REPORTES ══════════════
-  let repMonth=todayISO().slice(0,7), repId='ventas-dia', repChart='bar', repQ='';
+  let repMonth=todayISO().slice(0,7), repGroup='ventas', repId='ventas-dia', repChart='bar', repQ='';
+  const REP_GROUPS=[['ventas','Ventas','coin'],['compras','Compras','cart'],['cartera','Cartera','receipt'],['inventario','Inventario','box'],['finanzas','Finanzas','bank']];
   const REP_PAL=['#2fc0ce','#e0a83e','#6b4fa0','#3ecb8c','#d9644a','#4a86c5','#c74f8a','#12736b','#b07b2e','#8a8f98'];
   const repFmt=unit=>unit==='u'?(v=>fmtN(v)):(unit==='usd'?(v=>usd(v)):(v=>money(v)));
   const MMYY=key=>key.slice(5)+'/'+key.slice(2,4);
@@ -2000,7 +2001,7 @@
     const n=Math.max(1,rows.length),max=Math.max(1,...rows.map(r=>r.value));
     const iw=W-padL-padR,ih=H-padT-padB,bw=iw/n;let bars='',labels='';
     rows.forEach((r,i)=>{const bh=Math.max(0,Math.round(r.value/max*ih));const x=padL+i*bw,y=padT+ih-bh,w=Math.max(2,bw*0.62),bx=x+(bw-w)/2;const col=r.color||REP_PAL[i%REP_PAL.length];
-      bars+=`<rect x="${bx.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh}" rx="3" fill="${col}"><title>${r.label}: ${f(r.value)}</title></rect>`;
+      bars+=`<rect x="${bx.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh}" rx="3" fill="${col}" style="transform-box:fill-box;transform-origin:bottom;animation:repGrow .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:${i*35}ms"><title>${r.label}: ${f(r.value)}</title></rect>`;
       if(n<=14&&bh>16)bars+=`<text x="${(bx+w/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${f(r.value)}</text>`;
       const lbl=String(r.label),short=n>12?lbl.slice(0,3):(lbl.length>11?lbl.slice(0,10)+'…':lbl),cxp2=(x+bw/2);
       labels+=`<text x="${cxp2.toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="10" fill="var(--text-muted)" transform="rotate(${n>8?35:0} ${cxp2.toFixed(1)} ${H-padB+16})">${short}</text>`;});
@@ -2014,14 +2015,14 @@
     const path=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
     const area=`M${padL} ${padT+ih} `+pts.map(p=>'L'+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')+` L${(padL+(n>1?iw:0)).toFixed(1)} ${padT+ih} Z`;
     let dots='',labels='';pts.forEach((p,i)=>{dots+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="#2fc0ce"><title>${rows[i].label}: ${f(rows[i].value)}</title></circle>`;const show=n<=16||i%Math.ceil(n/12)===0;if(show)labels+=`<text x="${p[0].toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${String(rows[i].label).slice(0,5)}</text>`;});
-    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:320px"><line x1="${padL}" y1="${padT+ih}" x2="${W-padR}" y2="${padT+ih}" stroke="var(--border)"/><text x="${padL-6}" y="${padT+6}" text-anchor="end" font-size="9" fill="var(--text-faint)">${f(max)}</text><path d="${area}" fill="#2fc0ce" opacity="0.12"/><path d="${path}" fill="none" stroke="#2fc0ce" stroke-width="2"/>${dots}${labels}</svg>`;
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:320px"><line x1="${padL}" y1="${padT+ih}" x2="${W-padR}" y2="${padT+ih}" stroke="var(--border)"/><text x="${padL-6}" y="${padT+6}" text-anchor="end" font-size="9" fill="var(--text-faint)">${f(max)}</text><path d="${area}" fill="#2fc0ce" opacity="0.12" style="animation:repFade .8s ease both"/><path d="${path}" fill="none" stroke="#2fc0ce" stroke-width="2" style="stroke-dasharray:3000;stroke-dashoffset:3000;animation:repDraw 1s ease forwards"/>${dots}${labels}</svg>`;
   }
   function svgDonut(rows,unit){
     const f=repFmt(unit);const total=rows.reduce((a,r)=>a+r.value,0)||1;const cx=150,cy=150,r=112,rin=66;let ang=-Math.PI/2,paths='';
     rows.forEach((row,i)=>{const frac=row.value/total;const a2=ang+frac*Math.PI*2;const col=row.color||REP_PAL[i%REP_PAL.length];
       const x1=cx+r*Math.cos(ang),y1=cy+r*Math.sin(ang),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
       const xi1=cx+rin*Math.cos(a2),yi1=cy+rin*Math.sin(a2),xi2=cx+rin*Math.cos(ang),yi2=cy+rin*Math.sin(ang);const large=frac>0.5?1:0;
-      paths+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L${xi1.toFixed(1)} ${yi1.toFixed(1)} A${rin} ${rin} 0 ${large} 0 ${xi2.toFixed(1)} ${yi2.toFixed(1)} Z" fill="${col}"><title>${row.label}: ${f(row.value)} (${Math.round(frac*100)}%)</title></path>`;ang=a2;});
+      paths+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L${xi1.toFixed(1)} ${yi1.toFixed(1)} A${rin} ${rin} 0 ${large} 0 ${xi2.toFixed(1)} ${yi2.toFixed(1)} Z" fill="${col}" style="opacity:0;animation:repFadeIn .5s ease forwards;animation-delay:${i*70}ms"><title>${row.label}: ${f(row.value)} (${Math.round(frac*100)}%)</title></path>`;ang=a2;});
     const legend=rows.map((row,i)=>`<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:6px"><span style="width:11px;height:11px;border-radius:3px;background:${row.color||REP_PAL[i%REP_PAL.length]};flex:0 0 auto"></span><span style="flex:1;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.label}</span><span style="font-weight:650">${f(row.value)}</span></div>`).join('');
     return `<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center"><svg viewBox="0 0 300 300" style="width:210px;height:210px;flex:0 0 auto">${paths}<text x="150" y="146" text-anchor="middle" font-size="12" fill="var(--text-faint)">Total</text><text x="150" y="167" text-anchor="middle" font-size="15" font-weight="700" fill="var(--text)">${f(total)}</text></svg><div style="flex:1;min-width:200px">${legend}</div></div>`;
   }
@@ -2037,21 +2038,19 @@
     const byKey=(arr,kf,vf)=>{const m={};arr.forEach(x=>{const k=kf(x)||'—';m[k]=(m[k]||0)+vf(x);});return Object.keys(m).map(k=>({label:k,value:m[k]}));};
     const topN=(rows,n)=>rows.slice().sort((a,b)=>b.value-a.value).slice(0,n);
     return [
-      {id:'ventas-dia',name:'Ventas por día',kw:'ventas dia diario evolucion',unit:'Bs',charts:['bar','line','table'],rows:()=>repVentasDia()},
-      {id:'ventas-mes',name:'Ventas por mes',kw:'ventas mes tendencia mensual',unit:'Bs',charts:['line','bar','table'],rows:()=>repMeses('ventas')},
-      {id:'ventas-cliente',name:'Ventas por cliente',kw:'ventas cliente top clientes',unit:'Bs',charts:['bar','donut','table'],rows:()=>topN(byKey(facM,f=>f.cli,f=>f.totalBs||0),10)},
-      {id:'ventas-cajero',name:'Ventas por cajero',kw:'ventas cajero vendedor turno',unit:'Bs',charts:['bar','donut','table'],rows:()=>byKey(facM,f=>f.cajero||'—',f=>f.totalBs||0)},
-      {id:'formas-pago',name:'Formas de pago',kw:'formas pago metodo efectivo divisa cobros',unit:'Bs',charts:['donut','bar','table'],rows:()=>{const m={};(typeof CIERRE!=='undefined'?CIERRE:[]).forEach(x=>{const k=ML[x.m]||x.m;m[k]=(m[k]||0)+bsOf(x);});return Object.keys(m).map(k=>({label:k,value:m[k]}));}},
-      {id:'igtf-dia',name:'IGTF por día',kw:'igtf divisa impuesto',unit:'Bs',charts:['bar','line','table'],rows:()=>repIgtfDia()},
-      {id:'productos',name:'Productos con más salidas',kw:'productos vendidos salidas mas vendido inventario',unit:'u',charts:['bar','table'],rows:()=>topN((window.IN&&IN.unitsByProduct?IN.unitsByProduct():[]),10)},
-      {id:'compras-prov',name:'Compras por proveedor',kw:'compras proveedor',unit:'Bs',charts:['bar','donut','table'],rows:()=>topN(byKey(compM,c=>c.prov,c=>(c.total||0)*RATE),10)},
-      {id:'compras-mes',name:'Compras por mes',kw:'compras mes tendencia',unit:'Bs',charts:['line','bar','table'],rows:()=>repMeses('compras')},
-      {id:'iva',name:'IVA — débito vs crédito',kw:'iva debito credito declarar seniat pagar',unit:'Bs',charts:['bar','table'],rows:()=>{const deb=facM.reduce((a,f)=>a+(f.iva||0),0),cre=compM.reduce((a,c)=>a+(c.iva||0)*RATE,0);return [{label:'IVA débito (ventas)',value:deb,color:'#2fc0ce'},{label:'IVA crédito (compras)',value:cre,color:'#e0a83e'}];}},
-      {id:'cxc',name:'Cuentas por cobrar (antigüedad)',kw:'cuentas cobrar cartera aging vencido clientes',unit:'Bs',charts:['bar','donut','table'],rows:()=>agingCxc()},
-      {id:'cxp',name:'Cuentas por pagar (antigüedad)',kw:'cuentas pagar aging vencido proveedores',unit:'Bs',charts:['bar','donut','table'],rows:()=>agingCxp()},
-      {id:'inv-cat',name:'Inventario por categoría',kw:'inventario categoria valor stock existencia',unit:'Bs',charts:['donut','bar','table'],rows:()=>(window.IN&&IN.valueByCategory?IN.valueByCategory():[]).map(x=>({label:x.label,value:x.value*RATE})).sort((a,b)=>b.value-a.value)},
-      {id:'tesoreria',name:'Tesorería (saldos)',kw:'tesoreria bancos caja saldo flujo',unit:'Bs',charts:['bar','table'],rows:()=>tesoRows()},
-      {id:'retenciones',name:'Retenciones',kw:'retenciones practicadas soportadas iva islr',unit:'Bs',charts:['bar','table'],rows:()=>{const pract=compM.reduce((a,c)=>a+((c.retIva||0)+(c.retIslr||0))*RATE,0),sop=(typeof SOPORTADAS!=='undefined'?SOPORTADAS:[]).filter(s=>(libroIso(s)||'').slice(0,7)===repMonth).reduce((a,s)=>a+(s.ivaRet||0)+(s.islrRet||0),0);return [{label:'Practicadas (por enterar)',value:pract,color:'#6b4fa0'},{label:'Soportadas (descontable)',value:sop,color:'#3ecb8c'}];}},
+      {id:'ventas-dia',group:'ventas',name:'Ventas por día',kw:'ventas dia diario evolucion',unit:'Bs',charts:['bar','line','table'],rows:()=>repVentasDia()},
+      {id:'ventas-mes',group:'ventas',name:'Ventas por mes',kw:'ventas mes tendencia mensual',unit:'Bs',charts:['line','bar','table'],rows:()=>repMeses('ventas')},
+      {id:'ventas-cliente',group:'ventas',name:'Ventas por cliente',kw:'ventas cliente top clientes',unit:'Bs',charts:['bar','donut','table'],rows:()=>topN(byKey(facM,f=>f.cli,f=>f.totalBs||0),10)},
+      {id:'ventas-cajero',group:'ventas',name:'Ventas por cajero',kw:'ventas cajero vendedor turno',unit:'Bs',charts:['bar','donut','table'],rows:()=>byKey(facM,f=>f.cajero||'—',f=>f.totalBs||0)},
+      {id:'formas-pago',group:'ventas',name:'Formas de pago',kw:'formas pago metodo efectivo divisa cobros',unit:'Bs',charts:['donut','bar','table'],rows:()=>{const m={};(typeof CIERRE!=='undefined'?CIERRE:[]).forEach(x=>{const k=ML[x.m]||x.m;m[k]=(m[k]||0)+bsOf(x);});return Object.keys(m).map(k=>({label:k,value:m[k]}));}},
+      {id:'compras-prov',group:'compras',name:'Compras por proveedor',kw:'compras proveedor',unit:'Bs',charts:['bar','donut','table'],rows:()=>topN(byKey(compM,c=>c.prov,c=>(c.total||0)*RATE),10)},
+      {id:'compras-mes',group:'compras',name:'Compras por mes',kw:'compras mes tendencia',unit:'Bs',charts:['line','bar','table'],rows:()=>repMeses('compras')},
+      {id:'cxc',group:'cartera',name:'Cuentas por cobrar',kw:'cuentas cobrar cartera aging vencido clientes',unit:'Bs',charts:['bar','donut','table'],rows:()=>agingCxc()},
+      {id:'cxp',group:'cartera',name:'Cuentas por pagar',kw:'cuentas pagar aging vencido proveedores',unit:'Bs',charts:['bar','donut','table'],rows:()=>agingCxp()},
+      {id:'productos',group:'inventario',name:'Productos con más salidas',kw:'productos vendidos salidas mas vendido inventario',unit:'u',charts:['bar','table'],rows:()=>topN((window.IN&&IN.unitsByProduct?IN.unitsByProduct():[]),10)},
+      {id:'inv-cat',group:'inventario',name:'Inventario por categoría',kw:'inventario categoria valor stock existencia',unit:'Bs',charts:['donut','bar','table'],rows:()=>(window.IN&&IN.valueByCategory?IN.valueByCategory():[]).map(x=>({label:x.label,value:x.value*RATE})).sort((a,b)=>b.value-a.value)},
+      {id:'tesoreria',group:'finanzas',name:'Tesorería (saldos)',kw:'tesoreria bancos caja saldo flujo',unit:'Bs',charts:['bar','table'],rows:()=>tesoRows()},
+      {id:'retenciones',group:'finanzas',name:'Retenciones',kw:'retenciones practicadas soportadas iva islr',unit:'Bs',charts:['bar','table'],rows:()=>{const pract=compM.reduce((a,c)=>a+((c.retIva||0)+(c.retIslr||0))*RATE,0),sop=(typeof SOPORTADAS!=='undefined'?SOPORTADAS:[]).filter(s=>(libroIso(s)||'').slice(0,7)===repMonth).reduce((a,s)=>a+(s.ivaRet||0)+(s.islrRet||0),0);return [{label:'Practicadas (por enterar)',value:pract,color:'#6b4fa0'},{label:'Soportadas (descontable)',value:sop,color:'#3ecb8c'}];}},
     ];
   }
   function repTableHtml(rep,rows){const f=repFmt(rep.unit),tot=rows.reduce((a,r)=>a+r.value,0);return `<div class="overflow-x"><table style="min-width:360px"><thead><tr><th>Concepto</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.label}</td><td class="num">${f(r.value)}</td></tr>`).join('')||'<tr><td colspan="2" style="text-align:center;color:var(--text-faint);padding:18px">Sin datos.</td></tr>'}</tbody><tfoot><tr style="font-weight:750"><td>Total</td><td class="num">${f(tot)}</td></tr></tfoot></table></div>`;}
@@ -2065,22 +2064,62 @@
   function repExportCsv(){const rep=REPORTS().find(x=>x.id===repId);if(!rep)return;const rows=rep.rows();let c='Concepto;Valor\n';rows.forEach(r=>{c+='"'+r.label+'";'+(rep.unit==='u'?r.value:(r.value||0).toFixed(2))+'\n';});dlCsv('reporte-'+rep.id+'-'+repMonth+'.csv',c);}
   function repPrint(){const rep=REPORTS().find(x=>x.id===repId);if(!rep)return;const rows=rep.rows(),f=repFmt(rep.unit),tot=rows.reduce((a,r)=>a+r.value,0);const inner=`<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Reporte</span><div class="p-num" style="font-size:14px">${rep.name}</div><div class="p-mut" style="margin-top:6px">Período ${repMonth} · ${todayDMY()}</div></div></div><div class="p-body"><table><thead><tr><th>Concepto</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.label}</td><td class="num">${f(r.value)}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:800;border-top:2px solid #12433f"><td>Total</td><td class="num">${f(tot)}</td></tr></tfoot></table></div><div class="p-foot">${rep.name} · Período ${repMonth} · ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;openPaper(inner);}
   function setRepMonth(v){repMonth=v||repMonth;go('reportes');}
-  function setRepId(id){repId=id;const r=REPORTS().find(x=>x.id===id);if(r&&r.charts.indexOf(repChart)<0)repChart=r.charts[0];go('reportes');}
+  function setRepGroup(g){repGroup=g;repQ='';const first=REPORTS().find(x=>x.group===g);if(first){repId=first.id;if(first.charts.indexOf(repChart)<0)repChart=first.charts[0];}go('reportes');}
+  function setRepId(id){const r=REPORTS().find(x=>x.id===id);if(r){repId=id;repGroup=r.group;if(r.charts.indexOf(repChart)<0)repChart=r.charts[0];}go('reportes');}
   function setRepChart(c){repChart=c;go('reportes');}
-  window.setRepId=setRepId;window.setRepChart=setRepChart;window.repExportCsv=repExportCsv;window.repPrint=repPrint;
+  function animateReportCounters(){try{document.querySelectorAll('.rep-cnt').forEach(function(el){const to=parseFloat(el.getAttribute('data-to'))||0,dec=parseInt(el.getAttribute('data-dec')||'0',10),pre=el.getAttribute('data-pre')||'',suf=el.getAttribute('data-suf')||'',dur=680,t0=performance.now();function step(t){let k=Math.min(1,(t-t0)/dur);k=1-Math.pow(1-k,3);el.textContent=pre+(to*k).toLocaleString('es-VE',{minimumFractionDigits:dec,maximumFractionDigits:dec})+suf;if(k<1)requestAnimationFrame(step);}requestAnimationFrame(step);});}catch(e){}}
+  window.setRepGroup=setRepGroup;window.setRepId=setRepId;window.setRepChart=setRepChart;window.repExportCsv=repExportCsv;window.repPrint=repPrint;
+  const REP_STYLE=`<style>
+    @keyframes repGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+    @keyframes repDraw{to{stroke-dashoffset:0}}
+    @keyframes repFade{from{opacity:0}to{opacity:.12}}
+    @keyframes repFadeIn{to{opacity:1}}
+    @keyframes repCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .rep-wrap{animation:repCardIn .4s ease both}
+    .rep-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+    @media(max-width:640px){.rep-tiles{grid-template-columns:1fr}}
+    .rep-tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:15px 17px;transition:transform .16s ease,box-shadow .16s ease}
+    .rep-tile:hover{transform:translateY(-2px);box-shadow:0 12px 26px -16px rgba(0,0,0,.45)}
+    .rep-tile-l{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:700}
+    .rep-tile-v{font-size:25px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums;color:var(--text);letter-spacing:-.01em}
+    .rep-tile-s{font-size:12px;color:var(--text-muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rep-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .rep-tab{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:11px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:13px;font-weight:650;cursor:pointer;transition:all .15s ease}
+    .rep-tab:hover{color:var(--text);transform:translateY(-1px)}
+    .rep-tab.on{background:linear-gradient(120deg,#2fc0ce,#1a8f9b);color:#042220;border-color:transparent;box-shadow:0 8px 18px -10px rgba(47,192,206,.7)}
+    .rep-tab svg{width:15px;height:15px}
+    .rep-subs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+    .rep-sub{padding:6px 12px;border-radius:9px;background:var(--surface-2);color:var(--text-muted);font-size:12.5px;cursor:pointer;transition:all .15s ease;border:1px solid transparent}
+    .rep-sub:hover{color:var(--text)}
+    .rep-sub.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-soft);font-weight:650}
+  </style>`;
   function renderReportes(view){
-    const reps=REPORTS();const rep=reps.find(x=>x.id===repId)||reps[0];repId=rep.id;
+    const reps=REPORTS();const rep=reps.find(x=>x.id===repId)||reps[0];repId=rep.id;repGroup=rep.group;
     if(rep.charts.indexOf(repChart)<0)repChart=rep.charts[0];
     const rows=rep.rows();
-    const chipHtml=q=>{q=(q||'').trim().toLowerCase();return reps.filter(r=>!q||r.name.toLowerCase().includes(q)||r.kw.indexOf(q)>=0).map(r=>`<button class="chipf ${r.id===repId?'on':''}" onclick="setRepId('${r.id}')">${r.name}</button>`).join('')||'<span style="color:var(--text-faint);font-size:13px">Sin reportes que coincidan con tu búsqueda.</span>';};
+    const q=(repQ||'').trim().toLowerCase();
+    const subList=q?reps.filter(r=>r.name.toLowerCase().includes(q)||r.kw.indexOf(q)>=0):reps.filter(r=>r.group===repGroup);
+    const subsHtml=subList.map(r=>`<button class="rep-sub ${r.id===repId?'on':''}" onclick="setRepId('${r.id}')">${r.name}</button>`).join('')||'<span style="color:var(--text-faint);font-size:13px">Sin reportes que coincidan.</span>';
+    const tabsHtml=REP_GROUPS.map(g=>`<button class="rep-tab ${(!q&&repGroup===g[0])?'on':''}" onclick="setRepGroup('${g[0]}')">${svg(I[g[2]])} ${g[1]}</button>`).join('');
+    // Métricas hero del reporte actual
+    const nz=rows.filter(r=>r.value>0);const total=rows.reduce((a,r)=>a+r.value,0);const avg=nz.length?total/nz.length:0;const top=rows.slice().sort((a,b)=>b.value-a.value)[0]||{label:'—',value:0};
+    const cnt=(v,unit)=>{const pre=unit==='u'?'':'Bs. ',suf=unit==='u'?' u':'',dec=unit==='u'?0:2;return `<span class="rep-cnt" data-to="${v||0}" data-dec="${dec}" data-pre="${pre}" data-suf="${suf}">${pre}0${suf}</span>`;};
+    const tile=(l,v,s)=>`<div class="rep-tile"><div class="rep-tile-l">${l}</div><div class="rep-tile-v">${v}</div>${s?`<div class="rep-tile-s">${s}</div>`:''}</div>`;
     const chartTypes=[['bar','Barras'],['line','Líneas'],['donut','Dona'],['table','Tabla']].filter(x=>rep.charts.indexOf(x[0])>=0);
-    view.innerHTML=`
-      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div class="search" style="flex:1;min-width:240px"><span>${svg(I.search)}</span><input id="rep-q" placeholder="Escribe el reporte que quieres… (ej. ventas, IVA, inventario, cobrar)" value="${repQ}" autocomplete="off"></div>
+    view.innerHTML=REP_STYLE+`<div class="rep-wrap">
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Reportes</div><div style="font-size:12.5px;color:var(--text-faint);margin-top:2px">Elige un área o busca lo que quieras ver.</div></div>
+        <div class="search" style="flex:1;min-width:220px;max-width:340px"><span>${svg(I.search)}</span><input id="rep-q" placeholder="Buscar reporte…" value="${repQ}" autocomplete="off"></div>
         <div class="field"><label>Período</label><input class="selm" type="month" value="${repMonth}" onchange="setRepMonth(this.value)"></div>
       </div>
-      <div class="chips" id="rep-chips">${chipHtml(repQ)}</div>
-      <div class="card" style="margin-top:14px">
+      <div class="rep-tabs">${tabsHtml}</div>
+      <div class="rep-subs" id="rep-subs">${subsHtml}</div>
+      <div class="rep-tiles">
+        ${tile('Total del período',cnt(total,rep.unit))}
+        ${tile('Promedio',cnt(avg,rep.unit))}
+        ${tile('Máximo',cnt(top.value,rep.unit),top.label)}
+      </div>
+      <div class="card">
         <div class="card-head" style="flex-wrap:wrap;gap:10px"><div class="card-title">${svg(I.chart)} ${rep.name}</div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <div class="viewtog">${chartTypes.map(x=>`<button class="${repChart===x[0]?'on':''}" onclick="setRepChart('${x[0]}')">${x[1]}</button>`).join('')}</div>
@@ -2089,8 +2128,9 @@
           </div>
         </div>
         <div style="padding:16px">${repChartHtml(rep,rows)}${repChart!=='table'?('<div style="margin-top:16px">'+repTableHtml(rep,rows)+'</div>'):''}</div>
-      </div>`;
-    const qi=document.getElementById('rep-q');if(qi)qi.addEventListener('input',e=>{repQ=e.target.value;const c=document.getElementById('rep-chips');if(c)c.innerHTML=chipHtml(repQ);});
+      </div></div>`;
+    const qi=document.getElementById('rep-q');if(qi)qi.addEventListener('input',e=>{repQ=e.target.value;const nq=repQ.trim().toLowerCase();const list=nq?reps.filter(r=>r.name.toLowerCase().includes(nq)||r.kw.indexOf(nq)>=0):reps.filter(r=>r.group===repGroup);const c=document.getElementById('rep-subs');if(c)c.innerHTML=list.map(r=>`<button class="rep-sub ${r.id===repId?'on':''}" onclick="setRepId('${r.id}')">${r.name}</button>`).join('')||'<span style="color:var(--text-faint);font-size:13px">Sin reportes que coincidan.</span>';});
+    animateReportCounters();
   }
   window.renderReportes=renderReportes;window.setRepMonth=setRepMonth;
 
@@ -3347,7 +3387,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.20";
+  var CURRENT_FALLBACK = "1.2.21";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
