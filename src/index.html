@@ -2318,7 +2318,7 @@
         <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
           <div style="font-weight:700;font-size:14px;margin-bottom:4px">Licencia</div>
           <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">¿Ya adquiriste tu plan o quieres cambiar de licencia? Ingrésala aquí, <b>sin reinstalar el programa</b>.</p>
-          <button class="btn primary" onclick="if(window.__vtxOpenLicense)window.__vtxOpenLicense()">🔑 Activar Vortex</button>
+          <button id="cfg-license" class="btn primary" onclick="if(window.__vtxOpenLicense)window.__vtxOpenLicense()">🔑 Activar Vortex</button>
         </div>
         ${admin ? `
         <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
@@ -2689,12 +2689,12 @@
       view.innerHTML=`
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
         <div style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Factura <b class="mono" style="color:var(--text)">${docNum()}</b> · <span>Nº control</span><input class="cin mono" style="width:110px;border:1px solid var(--border);padding:5px 8px;" value="${ctrlNum}" oninput="FA.setCtrl(this.value)"> · Borrador</div>
-        <button class="btn sm" onclick="FA.enterTouch()" title="Modo táctil a pantalla completa (POS)" style="gap:7px;background:linear-gradient(120deg,#2fc0ce,#1a8f9b);color:#042220;border:none;font-weight:700">🖐️ Modo Touch</button>
+        <button id="fa-touch" class="btn sm" onclick="FA.enterTouch()" title="Modo táctil a pantalla completa (POS)" style="gap:7px;background:linear-gradient(120deg,#2fc0ce,#1a8f9b);color:#042220;border:none;font-weight:700">🖐️ Modo Touch</button>
         <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)" title="Cajero de turno — se registra en la factura y el cierre">${svg(I.user)}<span>Cajero</span><select class="selm" id="fa-cajero" onchange="FA.setCajeroTurno(this.value)" style="padding:5px 8px">${CAJEROS.map(v=>`<option value="${v}" ${v===loadCajero()?'selected':''}>${v}</option>`).join('')}<option value="__add__">➕ Otro cajero…</option></select></div>
         <div class="spacer" style="flex:1"></div>
         <div class="rateBox" title="Tasa BCV del dólar — editable manualmente (auto 9am)">BCV<input id="fa-rate" type="number" step="0.01" value="${rate}" oninput="FA.setRate(this.value)"><span>Bs./USD</span></div>
         <div class="rateBox" style="background:var(--accent-soft);color:var(--accent)" title="Tasa BCV del euro — editable manualmente (auto 9am)">BCV<input id="fa-reur" type="number" step="0.01" value="${rateEur.toFixed(2)}" style="color:var(--accent)" oninput="FA.setRateEur(this.value)"><span>Bs./EUR</span></div>
-        <button class="btn sm" onclick="FA.liveRate(this)" title="Actualizar tasa BCV en vivo">🔄 Actualizar BCV</button>
+        <button id="fa-bcvbtn" class="btn sm" onclick="FA.liveRate(this)" title="Actualizar tasa BCV en vivo">🔄 Actualizar BCV</button>
         <div class="seg"><button id="fa-usd" class="${cur==='USD'?'on':''}" onclick="FA.setCur('USD')">USD</button><button id="fa-ves" class="${cur==='VES'?'on':''}" onclick="FA.setCur('VES')">Bs.</button></div>
       </div>
       <div class="fgrid">
@@ -2724,7 +2724,7 @@
             <div id="fa-credrow" style="display:${credito?'flex':'none'};align-items:center;gap:8px;padding:2px 16px 10px;font-size:12px;color:var(--text-muted)"><span>Plazo</span><select class="selm" id="fa-creddias" onchange="FA.setCredDias(this.value)">${[15,30,45,60,90].map(d=>`<option value="${d}" ${credDias===d?'selected':''}>${d} días</option>`).join('')}</select><span>· vence <b id="fa-credvence" style="color:var(--text)">${credVenceTxt()}</b></span></div>
             <div class="payadd"><select class="selm" id="fa-pm"><option value="EFECTIVO_VES">Efectivo Bs.</option><option value="EFECTIVO_USD">Efectivo USD (divisa)</option><option value="EFECTIVO_EUR">Efectivo EUR (divisa)</option><option value="PAGO_MOVIL">Pago móvil</option><option value="PUNTO_VENTA">Punto de venta</option><option value="TRANSFERENCIA_VES">Transferencia Bs.</option><option value="TRANSFERENCIA_USD">Transferencia USD (divisa)</option><option value="TRANSFERENCIA_EUR">Transferencia EUR (divisa)</option><option value="ZELLE">Zelle (divisa)</option></select><button class="btn sm primary" onclick="FA.addPay()">Agregar</button></div>
             <div class="paylist" id="fa-pays"></div><div class="balance" id="fa-bal"></div></div>
-          <div class="card ffoot"><button class="btn primary block" style="padding:11px" onclick="FA.emit()">Emitir factura</button>
+          <div class="card ffoot"><button id="fa-emit" class="btn primary block" style="padding:11px" onclick="FA.emit()">Emitir factura</button>
             <div style="display:flex;gap:9px"><button class="btn block" onclick="FA.quick()">Pago exacto</button><button class="btn block" onclick="FA.saveDraft()">💾 Guardar</button><button class="btn block" onclick="FA.clearInvoice()">🧹 Limpiar</button></div></div>
         </div>
       </div>`;
@@ -3331,12 +3331,159 @@
     try{ autoBcv(true); }catch(e){} // tasa BCV del día al iniciar sesión
     go(currentRole==='CAJERO'?'facturacion':'dashboard');
     try{ backupReminder(); }catch(e){}
+    try{ if(window.Guia){ Guia.mount(); Guia.setVisible(true); } }catch(e){}
   }
   window.doLogin=doLogin;
   function updateLoginHint(){try{const h=document.querySelector('.login-hint');if(h)h.textContent=pinsAreCustom()?'Ingresa el PIN de tu rol.':'Demo — Administrador: 1234 · Cajero: 4321';}catch(e){}}
   try{updateLoginHint();}catch(e){}
-  function logout(){currentRole=null;selectedRole=null;document.querySelector('.app').style.display='none';document.getElementById('login').style.display='flex';const p=document.getElementById('loginPin');if(p)p.value='';document.getElementById('role-ADMIN').classList.remove('sel');document.getElementById('role-CAJERO').classList.remove('sel');document.getElementById('loginErr').textContent='';updateLoginHint();}
+  function logout(){currentRole=null;selectedRole=null;document.querySelector('.app').style.display='none';document.getElementById('login').style.display='flex';const p=document.getElementById('loginPin');if(p)p.value='';document.getElementById('role-ADMIN').classList.remove('sel');document.getElementById('role-CAJERO').classList.remove('sel');document.getElementById('loginErr').textContent='';updateLoginHint();try{ if(window.Guia)Guia.setVisible(false); }catch(e){}}
   window.logout=logout;
+
+  // ══════════════ GUÍA VORTEX (tour interactivo) ══════════════
+  const Guia=(function(){
+    const nav=id=>'.nav-i[data-id="'+id+'"]';
+    // Tours: cada paso {go?, sel?, title, body, plus?}
+    const T={
+      intro:[
+        {title:'Bienvenido a Vortex 👋',body:'Vortex es tu sistema de gestión integral: facturación, inventario, compras, control fiscal y reportes, todo en un mismo lugar y pensado para Venezuela.'},
+        {title:'Multi-divisa y fiscal venezolano ⭐',body:'Factura en <b>USD, EUR y Bolívares</b>, con IVA e IGTF, y cumple con el SENIAT: Libros de Ventas/Compras y retenciones.',plus:true},
+        {title:'Siempre al día ⭐',body:'El programa <b>se actualiza solo</b> (sin reinstalar) y la <b>tasa BCV se toma automáticamente</b> cada día. Toca el botón 🎓 cuando quieras repetir esta guía.',plus:true}
+      ],
+      plus:[
+        {sel:'#rateChip',title:'Tasa BCV automática ⭐',body:'Esta etiqueta muestra el <b>dólar y el euro del BCV</b>, actualizados <b>solos</b> cada día. No tienes que buscar la tasa a mano.',plus:true},
+        {go:'facturacion',sel:'#fa-cedula',title:'Cédula inteligente ⭐',body:'Escribe la cédula o RIF y pulsa Buscar: si el cliente existe lo <b>carga solo</b>, y si es nuevo abre el registro <b>ya prellenado</b>.',plus:true},
+        {go:'facturacion',sel:'#fa-cajero',title:'Cajero de turno ⭐',body:'Elige quién atiende la caja. Queda registrado en la <b>factura</b> y en el <b>cierre del día</b>.',plus:true},
+        {go:'facturacion',sel:'#fa-bcvbtn',title:'Tasa del día al instante ⭐',body:'¿Cambió la tasa? Un toque aquí trae la <b>tasa BCV del día</b> (USD y EUR) al momento.',plus:true},
+        {go:'facturacion',sel:'#fa-touch',title:'Modo Touch (POS) ⭐',body:'Un punto de venta <b>táctil a pantalla completa</b>, ideal para cobrar rápido con pantalla táctil.',plus:true},
+        {go:'facturacion',sel:'#fa-emit',title:'Factura multi-divisa ⭐',body:'Cobra en Bs., USD o EUR, con IVA e <b>IGTF configurable</b>. Al emitir, descuenta el inventario automáticamente.',plus:true},
+        {go:'config',sel:'#cfg-license',title:'Tu licencia, sin reinstalar ⭐',body:'Activa o cambia tu licencia <b>desde aquí mismo</b>, sin volver a instalar el programa.',plus:true},
+        {go:'config',sel:'#co-name',title:'Tu empresa y tu logo ⭐',body:'Coloca el <b>nombre, RIF, dirección y el logo</b> de tu negocio: aparecen en <b>todas tus facturas</b> y documentos.',plus:true},
+        {go:'reportes',sel:nav('reportes'),title:'Reportes con gráficas ⭐',body:'Escribe lo que quieres ver en la <b>barra inteligente</b> y míralo en barras, líneas o dona, con métricas animadas.',plus:true},
+        {title:'Y siempre protegido ⭐',body:'Tus datos viven en tu equipo (funciona <b>sin internet</b>), puedes hacer <b>respaldo</b> y pasarlos a otro equipo cuando quieras.',plus:true},
+        {title:'¡Eso es Vortex! 🎉',body:'Estas son las cosas que nos hacen diferentes. Toca 🎓 cuando quieras un recorrido por un módulo específico.'}
+      ],
+      completo:[
+        {title:'Recorramos Vortex 🎓',body:'Te muestro los módulos principales, uno por uno. Usa <b>Siguiente</b> para avanzar o <b>Salir</b> cuando quieras.'},
+        {go:'dashboard',sel:nav('dashboard'),title:'Resumen',body:'Tu tablero del día: ventas, IVA, por cobrar y gráficas del negocio. Es lo primero que ves al entrar.'},
+        {go:'facturacion',sel:'#fa-cedula',title:'Facturación · Cliente',body:'Escribe la cédula/RIF para buscar o registrar al cliente. También puedes elegirlo de la lista.',plus:true},
+        {go:'facturacion',sel:'#fa-cajero',title:'Facturación · Cajero de turno',body:'Selecciona quién atiende; queda en la factura y el cierre.',plus:true},
+        {go:'facturacion',sel:'#fa-search',title:'Facturación · Productos',body:'Busca un producto y presiona Enter, o abre la lista completa con la flecha ▾.'},
+        {go:'facturacion',sel:'#fa-emit',title:'Facturación · Emitir',body:'Registra las formas de pago (Bs./USD/EUR) y pulsa <b>Emitir factura</b>. Se imprime y descuenta el inventario.',plus:true},
+        {go:'inventario',sel:nav('inventario'),title:'Inventario',body:'Tus productos con existencia, costo promedio y precio por % de ganancia. Puedes ver el <b>Kardex</b>, almacenes y traslados.'},
+        {go:'compras',sel:nav('compras'),title:'Compras',body:'Registra las facturas de tus proveedores con <b>retenciones de IVA/ISLR</b>; la mercancía entra al inventario.',plus:true},
+        {go:'lventas',sel:nav('lventas'),title:'Libros fiscales (SENIAT)',body:'Libro de Ventas y de Compras listos para el SENIAT, exportables e imprimibles.',plus:true},
+        {go:'reten',sel:nav('reten'),title:'Retenciones',body:'Centro de retenciones de IVA e ISLR: las que practicas y las que te soportan.'},
+        {go:'reportes',sel:nav('reportes'),title:'Reportes',body:'Gráficas y métricas del negocio con una <b>barra inteligente</b> para encontrar cualquier reporte.',plus:true},
+        {go:'cierre',sel:nav('cierre'),title:'Cierre de caja',body:'Resumen del día por forma de pago (Reporte Z), listo para imprimir o guardar en PDF.'},
+        {go:'config',sel:'#cfg-license',title:'Configuración · Licencia',body:'Activa tu licencia y personaliza tu empresa, logo, PIN, numeración y más.',plus:true},
+        {title:'¡Listo! 🎉',body:'Ya conoces Vortex. Toca 🎓 cuando quieras repasar un módulo o ver "lo que nos hace diferentes".'}
+      ],
+      facturacion:[
+        {go:'facturacion',sel:'#fa-cedula',title:'1) El cliente',body:'Escribe la cédula/RIF y Buscar: carga el cliente o abre su registro prellenado.',plus:true},
+        {go:'facturacion',sel:'#fa-cajero',title:'2) Cajero de turno',body:'Elige quién atiende; queda en la factura y el cierre.',plus:true},
+        {go:'facturacion',sel:'#fa-search',title:'3) Los productos',body:'Busca y presiona Enter, o abre la lista con la flecha ▾. Ajusta cantidades y descuentos.'},
+        {go:'facturacion',sel:'#fa-touch',title:'4) Modo Touch',body:'Para cobrar rápido con pantalla táctil, entra al POS a pantalla completa.',plus:true},
+        {go:'facturacion',sel:'#fa-emit',title:'5) Emitir',body:'Registra las formas de pago (Bs./USD/EUR) y pulsa Emitir. Se imprime y descuenta el inventario.',plus:true}
+      ],
+      inventario:[
+        {go:'inventario',sel:nav('inventario'),title:'Productos',body:'Crea productos, fija el precio por costo + % de ganancia y controla la existencia.'},
+        {go:'kardex',sel:nav('kardex'),title:'Kardex',body:'Historial de todas las entradas y salidas de cada producto.'},
+        {go:'ajustes',sel:nav('ajustes'),title:'Ajustes y traslados',body:'Corrige existencias y mueve mercancía entre tus depósitos.'}
+      ],
+      reportes:[
+        {go:'reportes',sel:'#rep-q',title:'Barra inteligente ⭐',body:'Escribe lo que quieres ver (ej. "ventas", "cobrar", "inventario") y elige el reporte.',plus:true},
+        {go:'reportes',sel:nav('reportes'),title:'Áreas y gráficas',body:'Cambia entre Ventas, Compras, Cartera, Inventario y Finanzas, y ve cada reporte en barras, líneas o dona.'}
+      ],
+      config:[
+        {go:'config',sel:'#cfg-license',title:'Licencia ⭐',body:'Activa o cambia tu licencia sin reinstalar.',plus:true},
+        {go:'config',sel:'#co-name',title:'Datos de la empresa ⭐',body:'Nombre, RIF, dirección, teléfono, correo y logo: salen en todas tus facturas.',plus:true}
+      ]
+    };
+    let steps=[],idx=0,built=false,curMod='';
+    const CSS='<style>'
+      +'.guia-fab{position:fixed;right:22px;bottom:22px;z-index:2147483000;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#2fc0ce,#0e8f9c);color:#04191c;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 30px -8px rgba(47,192,206,.6);transition:transform .18s}'
+      +'.guia-fab:hover{transform:scale(1.07)}'
+      +'.guia-fab.pulse{animation:guiaPulse 2s ease-in-out infinite}'
+      +'@keyframes guiaPulse{0%,100%{box-shadow:0 12px 30px -8px rgba(47,192,206,.55)}50%{box-shadow:0 12px 30px -8px rgba(47,192,206,.55),0 0 0 14px rgba(47,192,206,.12)}}'
+      +'.guia-hi{position:fixed;right:22px;bottom:86px;z-index:2147483000;width:230px;background:#0f2327;color:#eaf6f6;border:1px solid #23464b;border-radius:14px;padding:12px 14px;font-size:12.5px;box-shadow:0 18px 40px -16px rgba(0,0,0,.7);display:none;animation:guiaUp .25s ease}'
+      +'.guia-hi.show{display:block}'
+      +'.guia-panel{position:fixed;right:22px;bottom:86px;z-index:2147483000;width:288px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 24px 60px -20px rgba(0,0,0,.6);overflow:hidden;display:none;animation:guiaUp .22s ease}'
+      +'.guia-panel.show{display:block}'
+      +'@keyframes guiaUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
+      +'.guia-ph{padding:15px 16px;background:linear-gradient(135deg,#0f2327,#123a3a);color:#eaf6f6}'
+      +'.guia-opt{display:flex;align-items:center;gap:11px;padding:12px 16px;cursor:pointer;border-top:1px solid var(--border);transition:background .12s;font-size:13.5px;color:var(--text)}'
+      +'.guia-opt:hover{background:var(--surface-2)}'
+      +'.guia-opt b{font-weight:650}'
+      +'.guia-ov{position:fixed;inset:0;z-index:2147483200;display:none}'
+      +'.guia-ov.show{display:block}'
+      +'.guia-hole{position:fixed;left:0;top:0;width:0;height:0;border-radius:10px;box-shadow:0 0 0 9999px rgba(6,14,16,.72);transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none}'
+      +'.guia-tip{position:fixed;z-index:2147483300;width:308px;max-width:88vw;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 60px -18px rgba(0,0,0,.7);padding:15px 16px;animation:guiaUp .2s ease}'
+      +'.guia-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#e0a83e,#d9644a);color:#2a1600;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}'
+      +'</style>';
+    function build(){
+      if(built)return;built=true;
+      const wrap=document.createElement('div');wrap.id='guiaRoot';
+      wrap.innerHTML=CSS
+        +'<button class="guia-fab" id="guiaFab" title="Guía Vortex" onclick="Guia.togglePanel()">🎓</button>'
+        +'<div class="guia-hi" id="guiaHi">¿Nuevo en Vortex? Te muestro cómo funciona 👇 <div style="margin-top:8px;display:flex;gap:6px"><button class="btn sm primary" onclick="Guia.start(\'plus\')">Ver el tour</button><button class="btn sm" onclick="Guia.dismissHi()">Ahora no</button></div></div>'
+        +'<div class="guia-panel" id="guiaPanel"><div class="guia-ph"><div style="font-weight:800;font-size:15px">🎓 Guía Vortex</div><div style="font-size:12px;opacity:.85;margin-top:2px">Aprende a usar el software paso a paso.</div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'plus\')"><span style="font-size:18px">⭐</span><div><b>Lo que nos hace diferentes</b><div style="font-size:11.5px;color:var(--text-faint)">Nuestros plus, en 1 minuto</div></div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'completo\')"><span style="font-size:18px">▶️</span><div><b>Tour completo</b><div style="font-size:11.5px;color:var(--text-faint)">Todos los módulos</div></div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'intro\')"><span style="font-size:18px">❓</span><div><b>¿Qué es Vortex?</b><div style="font-size:11.5px;color:var(--text-faint)">Introducción rápida</div></div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'facturacion\')"><span style="font-size:18px">🧾</span><div><b>Tour: Facturación</b></div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'inventario\')"><span style="font-size:18px">📦</span><div><b>Tour: Inventario</b></div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'reportes\')"><span style="font-size:18px">📊</span><div><b>Tour: Reportes</b></div></div>'
+          +'<div class="guia-opt" onclick="Guia.start(\'config\')"><span style="font-size:18px">⚙️</span><div><b>Tour: Configuración</b></div></div>'
+        +'</div>'
+        +'<div class="guia-ov" id="guiaOv"><div class="guia-hole" id="guiaHole"></div><div class="guia-tip" id="guiaTip"></div></div>';
+      document.body.appendChild(wrap);
+      window.addEventListener('resize',function(){ if(document.getElementById('guiaOv').classList.contains('show'))render(); });
+    }
+    function togglePanel(){build();const p=document.getElementById('guiaPanel');dismissHi();p.classList.toggle('show');}
+    function closePanel(){const p=document.getElementById('guiaPanel');if(p)p.classList.remove('show');}
+    function dismissHi(){const h=document.getElementById('guiaHi');if(h)h.classList.remove('show');const f=document.getElementById('guiaFab');if(f)f.classList.remove('pulse');try{localStorage.setItem('vortex_guide_seen','1');}catch(e){}}
+    function start(key){build();closePanel();dismissHi();steps=T[key]||T.plus;idx=0;document.getElementById('guiaOv').classList.add('show');show();}
+    function show(){const s=steps[idx];if(!s){finish();return;}if(s.go&&curMod!==s.go){try{go(s.go);curMod=s.go;}catch(e){}}setTimeout(render,s.go?340:60);}
+    function content(s){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +(s.plus?'<span class="guia-badge">⭐ Nuestro plus</span>':'<span style="font-size:11px;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Guía Vortex</span>')
+        +'<span style="font-size:11.5px;color:var(--text-faint)">'+(idx+1)+' / '+steps.length+'</span></div>'
+        +'<div style="font-weight:750;font-size:15px;margin-bottom:5px">'+s.title+'</div>'
+        +'<div style="font-size:13px;color:var(--text-muted);line-height:1.5">'+s.body+'</div>'
+        +'<div style="display:flex;gap:8px;margin-top:15px;align-items:center">'
+        +'<button class="btn sm" onclick="Guia.close()">Salir</button><div style="flex:1"></div>'
+        +(idx>0?'<button class="btn sm" onclick="Guia.prev()">Anterior</button>':'')
+        +'<button class="btn sm primary" onclick="Guia.next()">'+(idx===steps.length-1?'Finalizar':'Siguiente')+'</button></div>';
+    }
+    function render(){
+      const s=steps[idx];if(!s)return;
+      const ov=document.getElementById('guiaOv'),hole=document.getElementById('guiaHole'),tip=document.getElementById('guiaTip');
+      if(!ov.classList.contains('show'))ov.classList.add('show');
+      tip.innerHTML=content(s);
+      const el=s.sel?document.querySelector(s.sel):null;
+      if(el){
+        ov.style.background='transparent';
+        try{el.scrollIntoView({block:'center',inline:'nearest'});}catch(e){}
+        const r=el.getBoundingClientRect(),pad=8;
+        hole.style.display='block';hole.style.left=(r.left-pad)+'px';hole.style.top=(r.top-pad)+'px';hole.style.width=(r.width+pad*2)+'px';hole.style.height=(r.height+pad*2)+'px';
+        const th=tip.offsetHeight||170,tw=tip.offsetWidth||308,gap=14;
+        let top=r.bottom+gap;if(top+th>window.innerHeight-10)top=Math.max(10,r.top-th-gap);
+        let left=r.left;if(left+tw>window.innerWidth-10)left=window.innerWidth-tw-10;if(left<10)left=10;
+        tip.style.left=left+'px';tip.style.top=top+'px';tip.style.transform='none';
+      }else{
+        hole.style.display='none';ov.style.background='rgba(6,14,16,.72)';
+        tip.style.left='50%';tip.style.top='50%';tip.style.transform='translate(-50%,-50%)';
+      }
+    }
+    function next(){idx++;if(idx>=steps.length){finish();return;}show();}
+    function prev(){idx=Math.max(0,idx-1);show();}
+    function close(){const ov=document.getElementById('guiaOv');if(ov)ov.classList.remove('show');}
+    function finish(){close();try{toast('¡Listo! Ya conoces lo esencial de Vortex 🎉',true);}catch(e){}}
+    function mount(){build();try{const seen=localStorage.getItem('vortex_guide_seen');const f=document.getElementById('guiaFab');const h=document.getElementById('guiaHi');if(!seen){if(f)f.classList.add('pulse');if(h)setTimeout(function(){h.classList.add('show');},900);}}catch(e){}}
+    function setVisible(v){build();const f=document.getElementById('guiaFab');if(f)f.style.display=v?'flex':'none';if(!v){close();closePanel();dismissHi();}}
+    return {mount:mount,setVisible:setVisible,togglePanel:togglePanel,start:start,next:next,prev:prev,close:close,dismissHi:dismissHi};
+  })();
+  window.Guia=Guia;
 
   // Enter pasa al siguiente campo dentro de los formularios (modales). En el último campo, ejecuta la acción principal.
   document.addEventListener('keydown',function(e){
@@ -3412,7 +3559,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.23";
+  var CURRENT_FALLBACK = "1.2.24";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
