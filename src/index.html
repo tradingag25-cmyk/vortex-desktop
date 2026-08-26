@@ -3389,11 +3389,15 @@
         {title:'¡Listo! 🎉',body:'Ya conoces Vortex. Toca 🎓 cuando quieras repasar un módulo o ver "lo que nos hace diferentes".'}
       ],
       facturacion:[
-        {go:'facturacion',sel:'#fa-cedula',title:'1) El cliente',body:'Escribe la cédula/RIF y Buscar: carga el cliente o abre su registro prellenado.',plus:true},
-        {go:'facturacion',sel:'#fa-cajero',title:'2) Cajero de turno',body:'Elige quién atiende; queda en la factura y el cierre.',plus:true},
-        {go:'facturacion',sel:'#fa-search',title:'3) Los productos',body:'Busca y presiona Enter, o abre la lista con la flecha ▾. Ajusta cantidades y descuentos.'},
-        {go:'facturacion',sel:'#fa-touch',title:'4) Modo Touch',body:'Para cobrar rápido con pantalla táctil, entra al POS a pantalla completa.',plus:true},
-        {go:'facturacion',sel:'#fa-emit',title:'5) Emitir',body:'Registra las formas de pago (Bs./USD/EUR) y pulsa Emitir. Se imprime y descuenta el inventario.',plus:true}
+        {go:'facturacion',sel:'#fa-cedula',title:'1) El cliente',body:'Escribe la cédula/RIF y Buscar: carga el cliente o abre su registro prellenado. También puedes elegirlo de la lista.',plus:true},
+        {go:'facturacion',sel:'#fa-cajero',title:'2) Cajero de turno',body:'Elige quién atiende la caja; queda registrado en la factura y en el cierre.',plus:true},
+        {go:'facturacion',sel:'#fa-search',title:'3) Los productos',body:'Busca un producto y presiona Enter, o abre la lista completa con la flecha ▾. Ajusta la cantidad y el descuento de cada renglón.'},
+        {go:'facturacion',sel:'#fa-totals',title:'4) Resumen fiscal en vivo',body:'A medida que agregas productos, aquí se calcula solo la <b>base gravable, el IVA y el IGTF</b>, con el total en Bolívares y en dólares. No haces cuentas a mano.'},
+        {go:'facturacion',sel:'#fa-condseg',title:'5) Contado o Crédito',body:'<b>Contado</b>: se paga en el momento. <b>Crédito</b>: la factura queda pendiente en <b>Cuentas por cobrar</b>, con su fecha de vencimiento.'},
+        {go:'facturacion',sel:'.payadd',title:'6) Formas de pago · multimoneda ⭐',body:'Elige el método —Efectivo Bs., <b>USD</b>, <b>EUR</b>, Pago móvil, Punto de venta, Transferencia o Zelle— y pulsa <b>Agregar</b>. Puedes <b>combinar varias monedas</b>: agregas una, escribes el monto, y agregas otra hasta cubrir el total (el IGTF se aplica solo a las divisas).',plus:true},
+        {go:'facturacion',sel:'#fa-bal',title:'7) Cuánto falta por cobrar',body:'Te muestra el saldo <b>en dólares y en bolívares a la vez</b>, para que el cajero sepa al instante cuánto falta por pagar o cuánto es el vuelto.',plus:true},
+        {go:'facturacion',sel:'#fa-touch',title:'8) Modo Touch (POS) ⭐',body:'Para cobrar rápido con pantalla táctil, entra al punto de venta a pantalla completa.',plus:true},
+        {go:'facturacion',sel:'#fa-emit',title:'9) Emitir',body:'Cuando el pago cubre el total, pulsa <b>Emitir factura</b>: se imprime y descuenta el inventario automáticamente.',plus:true}
       ],
       inventario:[
         {go:'inventario',sel:nav('inventario'),title:'Productos',body:'Crea y edita productos: fija el <b>precio por costo + % de ganancia</b>, controla la existencia por depósito y recibe alertas de <b>bajo mínimo</b> y agotados.'},
@@ -3582,7 +3586,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.27";
+  var CURRENT_FALLBACK = "1.2.28";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
