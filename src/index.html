@@ -2734,7 +2734,7 @@
       se.addEventListener('keydown',onKey);
       renderItems();renderTotals();renderPays();
       try{ autoBcv(false); }catch(e){} // refresca la tasa BCV del día en segundo plano
-      if(!autoTouchDone && getPrefs().autoTouch && !touchOn){autoTouchDone=true;setTimeout(function(){try{FA.enterTouch();}catch(e){}},30);}
+      if(!autoTouchDone && getPrefs().autoTouch && !touchOn && !window.__guiaActive){autoTouchDone=true;setTimeout(function(){try{FA.enterTouch();}catch(e){}},30);}
     }
     function seed(){[0,1,4].forEach(i=>lines.push({id:uid++,sku:CAT[i].sku,name:CAT[i].name,qty:1,p:CAT[i].p,disc:0,iva:CAT[i].iva}));lines[0].qty=10;lines[1].qty=12;lines[2].qty=5;}
     function renderItems(){
@@ -3452,7 +3452,7 @@
     function togglePanel(){build();const p=document.getElementById('guiaPanel');dismissHi();p.classList.toggle('show');}
     function closePanel(){const p=document.getElementById('guiaPanel');if(p)p.classList.remove('show');}
     function dismissHi(){const h=document.getElementById('guiaHi');if(h)h.classList.remove('show');const f=document.getElementById('guiaFab');if(f)f.classList.remove('pulse');try{localStorage.setItem('vortex_guide_seen','1');}catch(e){}}
-    function start(key){build();closePanel();dismissHi();steps=T[key]||T.plus;idx=0;document.getElementById('guiaOv').classList.add('show');show();}
+    function start(key){build();window.__guiaActive=true;closePanel();dismissHi();steps=T[key]||T.plus;idx=0;document.getElementById('guiaOv').classList.add('show');show();}
     function show(){const s=steps[idx];if(!s){finish();return;}
       try{const tp=document.getElementById('touchPos');if(tp&&tp.style.display!=='none'&&window.FA&&FA.exitTouch)FA.exitTouch();}catch(e){}
       if(s.go){try{go(s.go);}catch(e){}}
@@ -3488,7 +3488,7 @@
     }
     function next(){idx++;if(idx>=steps.length){finish();return;}show();}
     function prev(){idx=Math.max(0,idx-1);show();}
-    function close(){const ov=document.getElementById('guiaOv');if(ov)ov.classList.remove('show');}
+    function close(){window.__guiaActive=false;const ov=document.getElementById('guiaOv');if(ov)ov.classList.remove('show');}
     function finish(){close();try{toast('¡Listo! Ya conoces lo esencial de Vortex 🎉',true);}catch(e){}}
     function mount(){build();try{const seen=localStorage.getItem('vortex_guide_seen');const f=document.getElementById('guiaFab');const h=document.getElementById('guiaHi');if(!seen){if(f)f.classList.add('pulse');if(h)setTimeout(function(){h.classList.add('show');},900);}}catch(e){}}
     function setVisible(v){build();const f=document.getElementById('guiaFab');if(f)f.style.display=v?'flex':'none';if(!v){close();closePanel();dismissHi();}}
@@ -3570,7 +3570,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.25";
+  var CURRENT_FALLBACK = "1.2.26";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
