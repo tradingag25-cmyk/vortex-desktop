@@ -546,7 +546,7 @@
   // IGTF: impuesto a las grandes transacciones financieras (pagos en divisa).
   // Editable y persistente. Se guarda como fracción (0.03 = 3%); puede ponerse en 0.
   const IGTF_KEY='vortex_igtf_rate';
-  let IGTF_RATE=(function(){const v=parseFloat(localStorage.getItem(IGTF_KEY));return isFinite(v)&&v>=0?v:0.03;})();
+  let IGTF_RATE=(function(){const v=parseFloat(localStorage.getItem(IGTF_KEY));return isFinite(v)&&v>=0?v:0;})();
   const getIgtf=()=>IGTF_RATE; // fracción vigente (0.03)
   const igtfPct=()=>(IGTF_RATE*100).toLocaleString('es-VE',{maximumFractionDigits:2}); // "3"
   function setIgtfRate(v){let p=parseFloat(String(v).replace(',','.'));if(!isFinite(p)||p<0)p=0;IGTF_RATE=p/100;try{localStorage.setItem(IGTF_KEY,String(IGTF_RATE));}catch(e){}}
@@ -2159,7 +2159,7 @@
     {t:'Libro de Compras',ic:'book',q:'Registro fiscal mensual de compras para el SENIAT.',usa:['Elige el período fiscal.','Exporta a CSV o imprime el libro.'],f:[['IVA crédito fiscal','Suma del IVA de todas las compras del mes']]},
     {t:'Retenciones',ic:'tag',q:'Centro de retenciones de IVA e ISLR, en dos sentidos.',usa:['"Practicadas": las que tú retienes a proveedores (salen de Compras) → total a enterar al SENIAT.','"Soportadas": registra el comprobante que te dio un cliente que te retuvo.'],f:[['Practicadas','Por enterar al SENIAT'],['Soportadas · IVA','Crédito descontable de tu IVA'],['Soportadas · ISLR','Anticipo de tu impuesto sobre la renta']]},
     {t:'Reportes',ic:'chart',q:'Centro de reportes: escribe lo que quieres ver y elige el tipo de gráfica.',usa:['En la barra inteligente escribe el reporte (ej. "ventas", "IVA", "inventario", "cobrar") y toca el que aparece.','Cambia entre Barras, Líneas, Dona o Tabla.','Exporta a CSV o imprime/guarda como PDF.','Elige el período (mes) para los reportes mensuales.'],f:[['IVA a pagar','IVA débito (ventas) − IVA crédito (compras)'],['Reportes','ventas por día/mes/cliente/cajero, formas de pago, IGTF, productos, compras, cartera, inventario, tesorería, retenciones']]},
-    {t:'Configuración tributaria',ic:'receipt',q:'Parámetros fiscales: alícuotas de IVA, letra fiscal (G/R/A/E) y la tasa de IGTF.',usa:['Ajusta las alícuotas de IVA si el SENIAT las cambia.','Modifica la tasa de IGTF, o ponla en 0 si no la aplicas.','Estos valores alimentan todos los cálculos del sistema.'],f:[['IGTF','Pago en divisa × tasa configurada (por defecto 3%)']]},
+    {t:'Configuración tributaria',ic:'receipt',q:'Parámetros fiscales: alícuotas de IVA, letra fiscal (G/R/A/E) y la tasa de IGTF.',usa:['Ajusta las alícuotas de IVA si el SENIAT las cambia.','El IGTF arranca en 0; si necesitas cobrarlo (el SENIAT lo fija en 3% sobre divisas), ponlo aquí.','Estos valores alimentan todos los cálculos del sistema.'],f:[['IGTF','Pago en divisa × tasa configurada (arranca en 0)']]},
     {t:'Tasa BCV',ic:'coin',q:'Tasa oficial del BCV (dólar y euro) con su histórico del día.',usa:['Se actualiza sola al iniciar sesión y al abrir Facturación.','"Actualizar tasa del día" la consulta al instante.','El histórico guarda una tasa por fecha.'],f:[]},
     {t:'Bancos y caja',ic:'bank',q:'Tesorería: saldos de tus cuentas de caja y bancos, y sus movimientos.',usa:['"Nueva cuenta" agrega una caja o banco (en Bs. o USD).','"Registrar movimiento" suma un ingreso o resta un egreso.','El historial muestra cada movimiento con su concepto.'],f:[['Saldo','Saldo anterior + ingresos − egresos']]},
     {t:'Configuración',ic:'cog',q:'Centro de ajustes: empresa, seguridad, numeración, cajeros, documentos y más.',usa:['Datos de la empresa: nombre, RIF, dirección, teléfono, correo y logo (salen en todas las facturas).','Seguridad: cambia los PIN de Administrador y Cajero.','Numeración fiscal: prefijo de factura y número de control.','Cajeros/Vendedores: agrega o elimina cajeros.','Documentos: mensaje de pie y mostrar/ocultar el QR de la factura.','Preferencias: validez de cotizaciones, crédito por defecto y abrir en Modo Touch.','Respaldo: copia de seguridad y recordatorio.','Depósitos: renombra tus almacenes.','Activar Vortex: ingresa o cambia la licencia sin reinstalar.'],f:[]},
@@ -2168,7 +2168,7 @@
   ];
   const FISCAL=[
     ['IVA','Base × alícuota (16% general · 8% reducida · 31% suntuaria · 0% exento)'],
-    ['IGTF','Pago en divisa (USD/EUR/Zelle) × tasa configurada (por defecto 3%)'],
+    ['IGTF','Pago en divisa (USD/EUR/Zelle) × tasa configurada (arranca en 0; SENIAT: 3%)'],
     ['Retención IVA','IVA de la factura × 75% (o 100% en casos especiales)'],
     ['Retención ISLR','Base × el porcentaje del concepto (servicios/honorarios)'],
     ['Costo promedio ponderado','(existencia × costo actual + entrada × costo nuevo) ÷ existencia total'],
@@ -2318,7 +2318,12 @@
         <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
           <div style="font-weight:700;font-size:14px;margin-bottom:4px">Licencia</div>
           <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">¿Ya adquiriste tu plan o quieres cambiar de licencia? Ingrésala aquí, <b>sin reinstalar el programa</b>.</p>
-          <button id="cfg-license" class="btn primary" onclick="if(window.__vtxOpenLicense)window.__vtxOpenLicense()">🔑 Activar Vortex</button>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button id="cfg-license" class="btn primary" onclick="if(window.__vtxOpenLicense)window.__vtxOpenLicense()">🔑 Activar Vortex</button>
+            <span style="font-size:12.5px;color:var(--text-muted)">Versión: <b id="cfg-ver">Vortex v${(window.__VTX_VER||'—')}</b></span>
+            <button class="btn sm" onclick="cfgCheckUpdate(this)">Buscar actualización</button>
+          </div>
+          <div id="cfg-updmsg" style="font-size:12.5px;color:var(--text-faint);margin-top:8px"></div>
         </div>
         ${admin ? `
         <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
@@ -2392,7 +2397,24 @@
           </div>
         </div>` : `<p style="color:var(--text-faint);font-size:13px">Contacta al administrador para las opciones de configuración de datos.</p>`}
       </div>`;
+    try{ setTimeout(function(){ if(window.cfgCheckUpdate)cfgCheckUpdate(); },150); }catch(e){}
   }
+  // Versión actual y verificación de nueva versión (para el panel de Licencia).
+  function cfgCheckUpdate(btn){
+    var msg=document.getElementById('cfg-updmsg');
+    if(!window.__vtxVersionInfo){ if(msg)msg.textContent='La verificación de nuevas versiones está disponible en la app de escritorio.'; return; }
+    if(btn){btn.disabled=true;btn.textContent='Buscando…';}
+    if(msg)msg.textContent='Verificando…';
+    window.__vtxVersionInfo(function(info){
+      if(btn){btn.disabled=false;btn.textContent='Buscar actualización';}
+      var v=document.getElementById('cfg-ver');if(v&&info.current)v.textContent='Vortex v'+info.current;
+      if(!msg)return;
+      if(info.hasUpdate){ msg.innerHTML='🔔 Hay una nueva versión disponible: <b>v'+info.latest+'</b>. Cierra y vuelve a abrir Vortex (o presiona F5) para actualizar automáticamente.'; }
+      else if(info.latest){ msg.innerHTML='✅ Tienes la última versión (v'+info.current+').'; }
+      else { msg.textContent='No se pudo verificar ahora. Revisa tu conexión a Internet.'; }
+    });
+  }
+  window.cfgCheckUpdate=cfgCheckUpdate;
   // Datos de la empresa: guardar, logo (reescalado para no llenar el almacenamiento).
   function saveCompany(){
     const v=id=>((document.getElementById(id)||{}).value||'').trim();
@@ -2926,7 +2948,7 @@
         prefill=prefill||{};
         editCliIdx=(prefill.edit!=null)?prefill.edit:null;
         cliOrigin=prefill.origin||'facturacion';
-        const back=cliOrigin==='clientes'?"go('clientes')":"FA.openClientPicker()";
+        const back=cliOrigin==='clientes'?"closeModal()":"FA.openClientPicker()";
         const isEdit=editCliIdx!=null;
         document.getElementById('modal').innerHTML=`
           <div class="modal-head"><div class="modal-title">${isEdit?'Editar cliente':'Nuevo cliente'}</div><button class="modal-x" onclick="${back}">✕</button></div>
@@ -3368,11 +3390,16 @@
         {go:'facturacion',sel:'#fa-cedula',title:'Facturación · Cliente',body:'Escribe la cédula/RIF para buscar o registrar al cliente. También puedes elegirlo de la lista.',plus:true},
         {go:'facturacion',sel:'#fa-cajero',title:'Facturación · Cajero de turno',body:'Selecciona quién atiende; queda en la factura y el cierre.',plus:true},
         {go:'facturacion',sel:'#fa-search',title:'Facturación · Productos',body:'Busca un producto y presiona Enter, o abre la lista completa con la flecha ▾.'},
-        {go:'facturacion',sel:'#fa-emit',title:'Facturación · Emitir',body:'Registra las formas de pago (Bs./USD/EUR) y pulsa <b>Emitir factura</b>. Se imprime y descuenta el inventario.',plus:true},
+        {go:'facturacion',sel:'#fa-totals',title:'Facturación · Resumen fiscal',body:'A medida que agregas productos, aquí se calcula solo la <b>base, el IVA y el IGTF</b>, con el total en Bs. y en USD.'},
+        {go:'facturacion',sel:'#fa-condseg',title:'Facturación · Contado o Crédito',body:'<b>Contado</b>: se paga ahora. <b>Crédito</b>: queda pendiente en Cuentas por cobrar, con su vencimiento.'},
+        {go:'facturacion',sel:'.payadd',title:'Facturación · Pagos multimoneda ⭐',body:'Elige el método (Bs., <b>USD</b>, <b>EUR</b>, Pago móvil, Zelle…) y pulsa <b>Agregar</b>. Puedes combinar varias monedas hasta cubrir el total.',plus:true},
+        {go:'facturacion',sel:'#fa-bal',title:'Facturación · Falta por cobrar',body:'Muestra el saldo <b>en USD y Bs. a la vez</b>, para saber al instante cuánto falta o cuánto es el vuelto.',plus:true},
+        {go:'facturacion',sel:'#fa-emit',title:'Facturación · Emitir',body:'Cuando el pago cubre el total, pulsa <b>Emitir factura</b>. Se imprime y descuenta el inventario.',plus:true},
         {go:'cotizaciones',sel:nav('cotizaciones'),title:'Cotizaciones',body:'Presupuestos para tus clientes; con un clic los conviertes en factura.'},
         {go:'cxc',sel:nav('cxc'),title:'Cuentas por cobrar',body:'Controla lo que te deben tus clientes, con vencimientos y registro de cobros.'},
         {go:'devol',sel:nav('devol'),title:'Devoluciones (NC / ND)',body:'Notas de crédito y débito que ajustan facturas ya emitidas (documentos fiscales).'},
-        {go:'inventario',sel:nav('inventario'),title:'Inventario',body:'Tus productos con existencia, costo promedio y precio por % de ganancia.'},
+        {go:'inventario',sel:nav('inventario'),title:'Inventario',body:'Tus productos con existencia, costo promedio y precio por % de ganancia; con alertas de bajo mínimo y agotados.'},
+        {go:'almacenes',sel:nav('almacenes'),title:'Almacenes',body:'Resumen por depósito: productos con stock, unidades y valor del inventario en cada almacén.'},
         {go:'kardex',sel:nav('kardex'),title:'Kardex',body:'Todas las entradas y salidas de tu inventario en un solo lugar.'},
         {go:'ajustes',sel:nav('ajustes'),title:'Ajustes y traslados',body:'Corrige existencias y mueve mercancía entre tus depósitos/almacenes.'},
         {go:'compras',sel:nav('compras'),title:'Compras',body:'Registra las facturas de tus proveedores con <b>retenciones de IVA/ISLR</b>; la mercancía entra al inventario.',plus:true},
@@ -3380,7 +3407,8 @@
         {go:'lventas',sel:nav('lventas'),title:'Libros fiscales (SENIAT)',body:'Libro de Ventas y de Compras listos para el SENIAT, exportables e imprimibles.',plus:true},
         {go:'reten',sel:nav('reten'),title:'Retenciones',body:'Centro de retenciones de IVA e ISLR: las que practicas y las que te soportan.'},
         {go:'bcv',sel:nav('bcv'),title:'Tasa BCV',body:'La tasa oficial del dólar y el euro, con su histórico. Se actualiza sola cada día.',plus:true},
-        {go:'reportes',sel:nav('reportes'),title:'Reportes',body:'Gráficas y métricas del negocio con una <b>barra inteligente</b> para encontrar cualquier reporte.',plus:true},
+        {go:'reportes',sel:'#rep-q',title:'Reportes · Barra inteligente',body:'Escribe lo que quieres ver (ej. "ventas", "cobrar", "inventario") y toca el reporte que aparece.',plus:true},
+        {go:'reportes',sel:'.viewtog',title:'Reportes · Gráficas',body:'Ve cada reporte en <b>Barras, Líneas, Dona o Tabla</b>, con métricas al instante, y exporta a CSV o PDF.',plus:true},
         {go:'cierre',sel:nav('cierre'),title:'Cierre de caja',body:'Resumen del día por forma de pago (Reporte Z), listo para imprimir o guardar en PDF.'},
         {go:'tesoreria',sel:nav('tesoreria'),title:'Bancos y caja',body:'Saldos de tus cuentas de caja y bancos, con sus movimientos.'},
         {go:'config',sel:'#cfg-license',title:'Configuración · Licencia',body:'Activa tu licencia y personaliza tu empresa, logo, PIN, numeración y más.',plus:true},
@@ -3588,7 +3616,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.29";
+  var CURRENT_FALLBACK = "1.2.30";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -3629,6 +3657,16 @@
       bar.style.display = "flex";
     }).catch(function(){});
   }
+  // Consulta de versión para el panel de Configuración: devuelve {current, latest, hasUpdate}.
+  window.__vtxVersionInfo = function(cb){
+    var cur = CURRENT_FALLBACK;
+    Promise.resolve(getCurrent()).then(function(c){ cur=c||cur;
+      fetch(API,{cache:"no-store"}).then(function(r){return r.json();}).then(function(j){
+        var v=(j&&j.version&&j.version.semver)||null, url=(j&&j.version&&j.version.fileUrl)||RELEASES;
+        cb({current:cur, latest:v, hasUpdate:(v?cmp(v,cur)>0:false), url:url});
+      }).catch(function(){ cb({current:cur, latest:null, hasUpdate:false, url:RELEASES}); });
+    });
+  };
   setTimeout(function(){
     Promise.resolve(getCurrent()).then(function(cur){
       cur = cur || CURRENT_FALLBACK;
