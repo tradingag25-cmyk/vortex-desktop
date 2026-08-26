@@ -491,6 +491,14 @@
   function getBcv(){try{const j=JSON.parse(localStorage.getItem('vortex_bcv')||'null');if(j&&j.usd>0)return j;}catch(e){}return null;}
   function saveBcv(usd,eur){try{const rec={usd:usd,eur:eur,date:todayISO(),ts:Date.now()};localStorage.setItem('vortex_bcv',JSON.stringify(rec));let h=[];try{h=JSON.parse(localStorage.getItem('vortex_bcv_hist')||'[]');if(!Array.isArray(h))h=[];}catch(e){}h=h.filter(x=>x.date!==rec.date);h.push(rec);if(h.length>90)h=h.slice(-90);localStorage.setItem('vortex_bcv_hist',JSON.stringify(h));}catch(e){}}
   function bcvHist(){try{const h=JSON.parse(localStorage.getItem('vortex_bcv_hist')||'[]');return Array.isArray(h)?h:[];}catch(e){return[];}}
+  // Personalización de documentos: mensaje de pie de página y mostrar/ocultar QR.
+  function getDocs(){try{const j=JSON.parse(localStorage.getItem('vortex_docs')||'null');if(j)return j;}catch(e){}return {footer:'',showQr:true};}
+  const docFooterHtml=()=>{const d=getDocs();return d.footer?String(d.footer).replace(/</g,'&lt;')+'<br>':'';};
+  const docQrHtml=()=>getDocs().showQr!==false?'<div class="p-qr"></div>':'';
+  window.getDocs=getDocs;
+  // Preferencias del sistema (valores por defecto).
+  function getPrefs(){try{const j=JSON.parse(localStorage.getItem('vortex_prefs')||'null');if(j)return j;}catch(e){}return {cotizDias:15,credDias:30,autoTouch:false};}
+  window.getPrefs=getPrefs;
   function _price(o){if(!o)return null;const v=+(o.price||o.promedio||o.value||o.venta||0);return v>0?v:null;}
   async function _json(url){try{const r=await fetch(url,{cache:'no-store'});if(r.ok)return await r.json();}catch(e){}return null;}
   async function fetchBcv(){
@@ -1311,7 +1319,7 @@
     const editing=id?COTIZ.find(c=>c.id===id):null;
     const cls=(window.FA&&FA.clients)?FA.clients():[];
     if(editing){cotizDraft={id:editing.id,num:editing.num,date:editing.date,status:editing.status,cli:editing.cli,rif:editing.rif,vendor:editing.vendor,validez:editing.validez,items:editing.items.map(i=>({...i}))};}
-    else{const c0=cls[0]||{};cotizDraft={cli:c0.name||'',rif:c0.rif||'',vendor:c0.vendor||'',validez:15,items:[]};}
+    else{const c0=cls[0]||{};cotizDraft={cli:c0.name||'',rif:c0.rif||'',vendor:c0.vendor||'',validez:(getPrefs().cotizDias||15),items:[]};}
     renderCotizModal();
     document.getElementById('modalOverlay').classList.add('show');
   }
@@ -2057,7 +2065,7 @@
     {t:'Configuración tributaria',ic:'receipt',q:'Parámetros fiscales: alícuotas de IVA, letra fiscal (G/R/A/E) y la tasa de IGTF.',usa:['Ajusta las alícuotas de IVA si el SENIAT las cambia.','Modifica la tasa de IGTF, o ponla en 0 si no la aplicas.','Estos valores alimentan todos los cálculos del sistema.'],f:[['IGTF','Pago en divisa × tasa configurada (por defecto 3%)']]},
     {t:'Tasa BCV',ic:'coin',q:'Tasa oficial del BCV (dólar y euro) con su histórico del día.',usa:['Se actualiza sola al iniciar sesión y al abrir Facturación.','"Actualizar tasa del día" la consulta al instante.','El histórico guarda una tasa por fecha.'],f:[]},
     {t:'Bancos y caja',ic:'bank',q:'Tesorería: saldos de tus cuentas de caja y bancos, y sus movimientos.',usa:['"Nueva cuenta" agrega una caja o banco (en Bs. o USD).','"Registrar movimiento" suma un ingreso o resta un egreso.','El historial muestra cada movimiento con su concepto.'],f:[['Saldo','Saldo anterior + ingresos − egresos']]},
-    {t:'Configuración · Datos de la empresa',ic:'cog',q:'Nombre, RIF, dirección, teléfono, correo y logo de tu empresa.',usa:['En Configuración, panel "Datos de la empresa", edita los campos y el logo.','"Guardar": los datos aparecen en la cabecera de todas las facturas y documentos.','Desde aquí también activas/cambias la licencia sin reinstalar.'],f:[]},
+    {t:'Configuración',ic:'cog',q:'Centro de ajustes: empresa, seguridad, numeración, cajeros, documentos y más.',usa:['Datos de la empresa: nombre, RIF, dirección, teléfono, correo y logo (salen en todas las facturas).','Seguridad: cambia los PIN de Administrador y Cajero.','Numeración fiscal: prefijo de factura y número de control.','Cajeros/Vendedores: agrega o elimina cajeros.','Documentos: mensaje de pie y mostrar/ocultar el QR de la factura.','Preferencias: validez de cotizaciones, crédito por defecto y abrir en Modo Touch.','Respaldo: copia de seguridad y recordatorio.','Depósitos: renombra tus almacenes.','Activar Vortex: ingresa o cambia la licencia sin reinstalar.'],f:[]},
     {t:'Respaldo e Importar',ic:'box',q:'Pasar toda la información de un computador a otro (o guardar copia de seguridad).',usa:['"Respaldo" descarga un archivo .vortex con todos los datos (incluye los de tu empresa).','En el otro equipo, "Importar" carga ese archivo.'],f:[]},
     {t:'Roles y acceso',ic:'users',q:'Dos tipos de usuario con permisos distintos.',usa:['Al abrir el programa, elige el rol y escribe el PIN.','Administrador: acceso total. Cajero: solo Facturación, Facturas y Cierre.'],f:[]},
   ];
@@ -2253,6 +2261,31 @@
           <div id="caj-list" style="display:flex;flex-direction:column;gap:6px;max-width:420px">${renderCajeroList()}</div>
           <div style="display:flex;gap:8px;margin-top:10px;max-width:420px"><input id="caj-new" placeholder="Nombre del cajero" style="flex:1;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();addConfigCajero();}"><button class="btn primary" onclick="addConfigCajero()">Agregar</button></div>
         </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Documentos (facturas)</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Mensaje al pie de la factura y mostrar/ocultar el código QR.</p>
+          <div class="field" style="max-width:520px"><label>Mensaje de pie de página</label><input id="doc-footer" value="${(getDocs().footer||'').replace(/"/g,'&quot;')}" placeholder="Ej. ¡Gracias por su compra!"></div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="doc-qr" ${getDocs().showQr!==false?'checked':''}> Mostrar código QR en la factura</label>
+          <div style="margin-top:10px"><button class="btn primary" onclick="saveConfigDocs()">Guardar documentos</button></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Preferencias</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Valores por defecto del sistema.</p>
+          <div class="g2" style="max-width:520px"><div class="field"><label>Validez de cotizaciones (días)</label><input id="pref-cotiz" type="number" min="1" value="${getPrefs().cotizDias||15}"></div><div class="field"><label>Crédito por defecto (días)</label><input id="pref-cred" type="number" min="1" value="${getPrefs().credDias||30}"></div></div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="pref-touch" ${getPrefs().autoTouch?'checked':''}> Abrir Facturación en Modo Touch</label>
+          <div style="margin-top:10px"><button class="btn primary" onclick="saveConfigPrefs()">Guardar preferencias</button></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Respaldo</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Descarga una copia de seguridad y configura el recordatorio. Último respaldo: <b>${lastBackupTs()?new Date(lastBackupTs()).toLocaleDateString('es-VE'):'nunca'}</b>.</p>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;max-width:520px"><div class="field" style="flex:1;min-width:180px"><label>Recordarme respaldar cada</label><select class="selm" id="bk-days">${[['0','Nunca'],['7','7 días'],['15','15 días'],['30','30 días']].map(([v,l])=>`<option value="${v}" ${String(getBackupPref())===v?'selected':''}>${l}</option>`).join('')}</select></div><button class="btn" onclick="saveConfigBackup()">Guardar</button><button class="btn primary" onclick="doBackup()">💾 Descargar respaldo ahora</button></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Nombres de los depósitos</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Renombra tus almacenes; se reflejan en Inventario, Almacenes y traslados.</p>
+          ${(function(){const d=(window.IN&&IN.deps)?IN.deps():{PRIN:'Principal',SUC:'Sucursal',DEP:'Depósito'};return `<div class="g2" style="max-width:640px"><div class="field"><label>Depósito 1</label><input id="dep-PRIN" value="${(d.PRIN||'').replace(/"/g,'&quot;')}"></div><div class="field"><label>Depósito 2</label><input id="dep-SUC" value="${(d.SUC||'').replace(/"/g,'&quot;')}"></div><div class="field"><label>Depósito 3</label><input id="dep-DEP" value="${(d.DEP||'').replace(/"/g,'&quot;')}"></div></div>`;})()}
+          <div style="margin-top:10px"><button class="btn primary" onclick="saveConfigDeps()">Guardar depósitos</button></div>
+        </div>
         <div style="border-top:1px solid var(--border);padding-top:16px">
           <div style="font-weight:700;font-size:14px;margin-bottom:4px">Datos de prueba (solo administrador)</div>
           <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Carga información de ejemplo para probar el sistema, o vacía todo para dejar el equipo en blanco. Solo afecta a este equipo.</p>
@@ -2314,6 +2347,38 @@
     go('config');toast('Cajero eliminado',true);
   }
   window.renderCajeroList=renderCajeroList;window.addConfigCajero=addConfigCajero;window.delConfigCajero=delConfigCajero;
+  // Documentos
+  function saveConfigDocs(){
+    const footer=((document.getElementById('doc-footer')||{}).value||'').trim();
+    const showQr=!!(document.getElementById('doc-qr')||{}).checked;
+    try{localStorage.setItem('vortex_docs',JSON.stringify({footer:footer,showQr:showQr}));}catch(e){}
+    toast('Documentos guardados',true);
+  }
+  window.saveConfigDocs=saveConfigDocs;
+  // Preferencias
+  function saveConfigPrefs(){
+    const cotizDias=Math.max(1,parseInt((document.getElementById('pref-cotiz')||{}).value,10)||15);
+    const credDias=Math.max(1,parseInt((document.getElementById('pref-cred')||{}).value,10)||30);
+    const autoTouch=!!(document.getElementById('pref-touch')||{}).checked;
+    try{localStorage.setItem('vortex_prefs',JSON.stringify({cotizDias:cotizDias,credDias:credDias,autoTouch:autoTouch}));}catch(e){}
+    toast('Preferencias guardadas',true);
+  }
+  window.saveConfigPrefs=saveConfigPrefs;
+  // Respaldo
+  function saveConfigBackup(){
+    const v=((document.getElementById('bk-days')||{}).value||'7');
+    try{localStorage.setItem('vortex_backup_days',v);}catch(e){}
+    toast('Recordatorio de respaldo guardado',true);
+  }
+  window.saveConfigBackup=saveConfigBackup;
+  // Depósitos
+  function saveConfigDeps(){
+    const map={PRIN:((document.getElementById('dep-PRIN')||{}).value||'').trim(),SUC:((document.getElementById('dep-SUC')||{}).value||'').trim(),DEP:((document.getElementById('dep-DEP')||{}).value||'').trim()};
+    if(!map.PRIN||!map.SUC||!map.DEP){toast('Los tres depósitos deben tener nombre',false);return;}
+    if(window.IN&&IN.setDepNames)IN.setDepNames(map);
+    toast('Nombres de depósitos guardados',true);
+  }
+  window.saveConfigDeps=saveConfigDeps;
 
   // ══════════════ DASHBOARD ══════════════
   function renderDashboard(view){
@@ -2490,7 +2555,7 @@
     const getNumb=()=>{try{const j=JSON.parse(localStorage.getItem('vortex_numbering')||'null');if(j)return j;}catch(e){}return {facPrefix:'F-',ctrl:'00-00483'};};
     const _n0=getNumb();
     let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum=_n0.ctrl||'00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
-    let editCliIdx=null,cliOrigin='facturacion',cliQ='';
+    let editCliIdx=null,cliOrigin='facturacion',cliQ='',autoTouchDone=false;
     const docNum=()=>(getNumb().facPrefix||'F-')+String(docCounter).padStart(6,'0');
     const pUsd=p=>p.cur==='USD'?p.a:p.cur==='EUR'?(p.a*rateEur)/rate:p.a/rate; // pago → unidades USD
     const showN=u=>cur==='USD'?usd(u):money(u*rate);
@@ -2501,7 +2566,7 @@
     function credVenceTxt(){const d=new Date();d.setDate(d.getDate()+credDias);return d.toLocaleDateString('es-VE',{day:'2-digit',month:'2-digit',year:'numeric'});}
     function render(view){
       const c=CLI[ci];
-      const isCred=/cr[eé]dito/i.test(c.payCond||'');credito=isCred;credDias=isCred?(parseInt((c.payCond.match(/\d+/)||[30])[0],10)||30):30;
+      const _cd=(getPrefs().credDias||30);const isCred=/cr[eé]dito/i.test(c.payCond||'');credito=isCred;credDias=isCred?(parseInt((c.payCond.match(/\d+/)||[_cd])[0],10)||_cd):_cd;
       view.innerHTML=`
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
         <div style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">Factura <b class="mono" style="color:var(--text)">${docNum()}</b> · <span>Nº control</span><input class="cin mono" style="width:110px;border:1px solid var(--border);padding:5px 8px;" value="${ctrlNum}" oninput="FA.setCtrl(this.value)"> · Borrador</div>
@@ -2550,6 +2615,7 @@
       se.addEventListener('keydown',onKey);
       renderItems();renderTotals();renderPays();
       try{ autoBcv(false); }catch(e){} // refresca la tasa BCV del día en segundo plano
+      if(!autoTouchDone && getPrefs().autoTouch && !touchOn){autoTouchDone=true;setTimeout(function(){try{FA.enterTouch();}catch(e){}},30);}
     }
     function seed(){[0,1,4].forEach(i=>lines.push({id:uid++,sku:CAT[i].sku,name:CAT[i].name,qty:1,p:CAT[i].p,disc:0,iva:CAT[i].iva}));lines[0].qty=10;lines[1].qty=12;lines[2].qty=5;}
     function renderItems(){
@@ -2892,7 +2958,7 @@
             ${retBlock}
           </table></div>
           ${payBlock}
-          <div class="p-foot"><div class="p-qr"></div>Documento generado electrónicamente conforme a la Providencia SENIAT sobre emisión de facturas y otros documentos. Representación impresa de factura digital.</div>`;
+          <div class="p-foot">${docQrHtml()}${docFooterHtml()}Documento generado electrónicamente conforme a la Providencia SENIAT sobre emisión de facturas y otros documentos. Representación impresa de factura digital.</div>`;
         document.getElementById('paper').innerHTML=paperHtml;
         if(window.recordFactura)window.recordFactura({num,cli:c.name,rif:c.rif,cajero:loadCajero(),date:todayDMY(),dateISO:todayISO(),ctrl:ctrlNum,totalUsd:t.total,totalBs:t.total*r,base_ex:t.ex*r,base_gr:t.gr*r,iva:t.iv*r,igtf:t.ig*r,neto:t.neto*r,methods:pays.filter(p=>p.a>0).map(p=>PL[p.m]),status:'Emitida',html:paperHtml});
         // Venta a crédito con saldo pendiente → generar cuenta por cobrar
@@ -2914,6 +2980,7 @@
   const IN=(()=>{
     const IVAT={GENERAL:['16%','gen'],REDUCIDA:['8%','gen'],EXENTO:['Exento','ex'],ADICIONAL:['31%','ad']};
     const DEPS={PRIN:'Principal',SUC:'Sucursal Este',DEP:'Depósito Central'};
+    try{const j=JSON.parse(localStorage.getItem('vortex_deps')||'null');if(j&&typeof j==='object')['PRIN','SUC','DEP'].forEach(function(k){if(j[k])DEPS[k]=j[k];});}catch(e){}
     let prods=[
       {id:1,sku:'HAR-001',name:'Harina de trigo 1kg',unit:'UND',iva:'GENERAL',p:0.90,cost:0.62,min:60,st:{PRIN:12,SUC:0,DEP:0},kx:[{t:'in',d:'18/07',q:100,b:100},{t:'out',d:'19/07',q:-45,b:55},{t:'out',d:'21/07',q:-43,b:12}]},
       {id:2,sku:'ACE-010',name:'Aceite vegetal 1L',unit:'UND',iva:'GENERAL',p:2.20,cost:1.58,min:80,st:{PRIN:180,SUC:40,DEP:20},kx:[{t:'in',d:'15/07',q:300,b:300},{t:'out',d:'20/07',q:-60,b:240}]},
@@ -3065,6 +3132,7 @@
       allKardex(){const out=[];prods.forEach(p=>{(p.kx||[]).forEach((m,idx)=>{out.push({sku:p.sku,name:p.name,unit:p.unit,cat:p.cat,t:m.t,d:m.d,q:m.q,b:m.b,idx});});});return out;},
       products(){return prods.map(p=>({sku:p.sku,name:p.name}));},
       deps(){return Object.assign({},DEPS);},
+      setDepNames(map){try{['PRIN','SUC','DEP'].forEach(function(k){if(map&&(map[k]||'').trim())DEPS[k]=map[k].trim();});localStorage.setItem('vortex_deps',JSON.stringify({PRIN:DEPS.PRIN,SUC:DEPS.SUC,DEP:DEPS.DEP}));}catch(e){}return Object.assign({},DEPS);},
       stockByDep(sku){const p=prods.find(x=>x.sku===sku);return p?Object.assign({},p.st):null;},
       // Resumen por almacén: productos con stock, unidades y valor (a costo).
       depsSummary(){return Object.keys(DEPS).map(k=>{let u=0,val=0,n=0;prods.forEach(p=>{const s=p.st[k]||0;if(s>0){n++;u+=s;val+=s*p.cost;}});return {key:k,name:DEPS[k],products:n,units:u,value:val};});},
@@ -3140,6 +3208,7 @@
     buildNav();
     try{ autoBcv(true); }catch(e){} // tasa BCV del día al iniciar sesión
     go(currentRole==='CAJERO'?'facturacion':'dashboard');
+    try{ backupReminder(); }catch(e){}
   }
   window.doLogin=doLogin;
   function updateLoginHint(){try{const h=document.querySelector('.login-hint');if(h)h.textContent=pinsAreCustom()?'Ingresa el PIN de tu rol.':'Demo — Administrador: 1234 · Cajero: 4321';}catch(e){}}
@@ -3183,9 +3252,15 @@
     const a=document.createElement('a');a.href=url;a.download='vortex-respaldo-'+stamp+'.vortex';
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(function(){URL.revokeObjectURL(url);},1500);
+    try{localStorage.setItem('vortex_last_backup',String(Date.now()));}catch(e){}
     window.__vtxDownloaded('vortex-respaldo-'+stamp+'.vortex');
   }
   window.doBackup=doBackup;
+  // Recordatorio de respaldo: avisa si pasaron más de N días desde el último.
+  function getBackupPref(){try{const v=parseInt(localStorage.getItem('vortex_backup_days')||'',10);if(isFinite(v))return v;}catch(e){}return 7;}
+  function lastBackupTs(){try{const v=parseInt(localStorage.getItem('vortex_last_backup')||'',10);return isFinite(v)?v:0;}catch(e){return 0;}}
+  function backupReminder(){const days=getBackupPref();if(days<=0)return;const last=lastBackupTs();const over=!last||(Date.now()-last)>days*86400000;if(over){setTimeout(function(){toast('Recuerda hacer respaldo de tus datos (Configuración → Respaldo).',true);},1800);}}
+  window.getBackupPref=getBackupPref;window.lastBackupTs=lastBackupTs;
   function doImport(){document.getElementById('importFile').click();}
   window.doImport=doImport;
   document.getElementById('importFile').addEventListener('change',function(e){
@@ -3215,7 +3290,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.18";
+  var CURRENT_FALLBACK = "1.2.19";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -3342,7 +3417,7 @@
   if(cancelBtn) cancelBtn.addEventListener("click", closeGate);
   // Abrir la activación desde el programa (para pasar de demo/otra clave a la nueva licencia).
   window.__vtxOpenLicense = function(){ try{ input.value=""; }catch(e){} try{ clearErr(); }catch(e){} openGate("Ingresa la clave de tu licencia para activar tu plan.", true); try{ input.focus(); }catch(e){} };
-  var DATA_KEYS=["vortex_cierre","vortex_cli","vortex_cobros","vortex_compras","vortex_cotiz","vortex_cxc","vortex_cxp","vortex_egresos","vortex_facturas","vortex_ncnd","vortex_notas","vortex_ordenes","vortex_prods","vortex_prov","vortex_soportadas","vortex_company","vortex_cajeros","vortex_igtf_rate","vortex_teso"];
+  var DATA_KEYS=["vortex_cierre","vortex_cli","vortex_cobros","vortex_compras","vortex_cotiz","vortex_cxc","vortex_cxp","vortex_egresos","vortex_facturas","vortex_ncnd","vortex_notas","vortex_ordenes","vortex_prods","vortex_prov","vortex_soportadas","vortex_company","vortex_cajeros","vortex_igtf_rate","vortex_teso","vortex_pins","vortex_numbering","vortex_docs","vortex_prefs","vortex_deps","vortex_backup_days"];
   var ALWAYS=["dashboard","config","ayuda"];
   var enabledMods=null;
   function applyModules(){
