@@ -2231,7 +2231,7 @@
             </div>
             <div class="cli"><div class="cli-av">${c.c}</div><div style="flex:1"><div class="cli-name">${c.name}</div>
               <div class="cli-meta"><span class="mono">${c.idKind==='CI'?'C.I. ':''}${c.rif}</span> · ${c.addr} · ${c.tipo==='ESPECIAL'?'<span class="badge esp">Contribuyente especial</span>':c.tipo==='ORDINARIO'?'<span class="badge">Contribuyente ordinario</span>':c.tipo==='FORMAL'?'<span class="badge muted">Contribuyente formal</span>':'<span class="badge muted">Consumidor final</span>'}</div>
-              <div class="cli-meta" style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;"><span class="chip">${c.payCond||'Contado'}</span><span class="chip">Vend.: ${c.vendor||'—'}</span>${(c.limit>0)?`<span class="chip">Límite: ${money(c.limit)}</span>`:''}</div></div></div>
+              <div class="cli-meta" style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;"><span class="chip">${c.payCond||'Contado'}</span><span class="chip" title="Cajero de turno (selector de arriba)">Vend.: ${loadCajero()}</span>${(c.limit>0)?`<span class="chip">Límite: ${money(c.limit)}</span>`:''}</div></div></div>
           </div>
           <div class="card">
             <div class="card-head"><div class="card-title">${svg(I.box)} Renglones</div><span class="label" id="fa-count"></span></div>
@@ -2337,7 +2337,7 @@
       // Cajero de turno: cambia quién atiende la caja (se registra en factura y cierre).
       setCajeroTurno(v){
         if(v==='__add__'){const s=document.getElementById('fa-cajero');if(s)s.value=loadCajero();FA.addCajero();return;}
-        saveCajero(v);toast('Cajero de turno · '+v,true);
+        saveCajero(v);if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cajero de turno · '+v,true);
       },
       addCajero(){
         document.getElementById('modal').innerHTML=`
@@ -2541,8 +2541,8 @@
         const paperHtml=`
           <div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Factura · digital SENIAT</span><div class="p-num">${num}</div><div class="p-ctrl">Nº control ${ctrlNum}</div><div class="p-mut" style="margin-top:6px">${todayDMY()} · ${nowTime()}</div></div></div>
           <div class="p-body"><div class="p-parts">
-            <div class="p-box"><div class="pk">Cliente</div><div class="pn">${c.name}</div><div class="p-mut">${c.idKind==='CI'?'C.I. ':''}${c.rif}${c.addr&&c.addr!=='—'?' · '+c.addr:''}<br><span class="p-chip">${tipo}</span> · ${credito?('Crédito '+credDias+' días'):'Contado'}${c.vendor&&c.vendor!=='—'?` · Vend.: ${c.vendor}`:''}</div></div>
-            <div class="p-box"><div class="pk">Referencia cambiaria</div><div class="pn">Bs. ${r.toFixed(2)} / USD</div><div class="p-mut">Total en divisa: ${usd(t.total)}<br>Cajero: ${loadCajero()}</div></div>
+            <div class="p-box"><div class="pk">Cliente</div><div class="pn">${c.name}</div><div class="p-mut">${c.idKind==='CI'?'C.I. ':''}${c.rif}${c.addr&&c.addr!=='—'?' · '+c.addr:''}<br><span class="p-chip">${tipo}</span> · ${credito?('Crédito '+credDias+' días'):'Contado'} · Vend.: ${loadCajero()}</div></div>
+            <div class="p-box"><div class="pk">Referencia cambiaria</div><div class="pn">Bs. ${r.toFixed(2)} / USD</div><div class="p-mut">Total en divisa: ${usd(t.total)}</div></div>
           </div>
           <table><thead><tr><th>Descripción</th><th class="num">Cant.</th><th class="num">Precio</th><th>IVA</th><th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table></div>
           <div class="p-tt"><table>
@@ -2861,7 +2861,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.11";
+  var CURRENT_FALLBACK = "1.2.12";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
