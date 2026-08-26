@@ -808,6 +808,51 @@
   function deleteCompra(id){const c=COMPRAS.find(x=>x.id===id);if(!c)return;if(!confirm('¿Eliminar la factura de compra '+c.provInvoice+' de '+c.prov+'? No revierte el inventario ya ingresado.'))return;COMPRAS=COMPRAS.filter(x=>x.id!==id);saveCompras();go('compras');toast('Factura de compra eliminada',true);}
   window.renderCompras=renderCompras;window.setCompraClient=setCompraClient;window.openCompraEditor=openCompraEditor;window.setCompraProv=setCompraProv;window.compraUseExisting=compraUseExisting;window.setCompraCond=setCompraCond;window.setCompraAgente=setCompraAgente;window.setCompraRiva=setCompraRiva;window.setCompraIslr=setCompraIslr;window.setCompraQty=setCompraQty;window.setCompraCost=setCompraCost;window.addCompraItem=addCompraItem;window.createCompraProduct=createCompraProduct;window.rmCompraItem=rmCompraItem;window.saveCompra=saveCompra;window.printCompraRet=printCompraRet;window.deleteCompra=deleteCompra;
 
+  // ══════════════ PROVEEDORES (módulo dedicado) ══════════════
+  let provQ='';
+  function renderProveedores(view){
+    view.innerHTML=`
+      <div class="toolbar">
+        <div class="search"><span>${svg(I.search)}</span><input id="prov-q" placeholder="Buscar por nombre o RIF…" value="${provQ}"></div>
+        <div style="flex:1"></div>
+        <button class="btn primary" onclick="openProvEditor()">${svg(I.plus)} Nuevo proveedor</button>
+      </div>
+      <div class="panel" style="margin-top:14px"><div class="overflow-x"><table style="min-width:640px"><thead><tr><th>Proveedor</th><th>RIF</th><th>Tipo</th><th class="num">Acciones</th></tr></thead><tbody id="prov-body"></tbody></table></div></div>`;
+    const qi=document.getElementById('prov-q');if(qi)qi.addEventListener('input',e=>{provQ=e.target.value;provBody();});
+    provBody();
+  }
+  function provBody(){
+    const el=document.getElementById('prov-body');if(!el)return;
+    const q=provQ.trim().toLowerCase();
+    const list=PROV.filter(p=>!q||(p.name||'').toLowerCase().includes(q)||(p.rif||'').toLowerCase().includes(q));
+    el.innerHTML=list.map(p=>`<tr><td style="font-weight:600">${p.name}</td><td class="mono">${p.rif}</td><td>${p.tipo==='ESPECIAL'?'<span class="badge esp">Especial</span>':'<span class="badge">Ordinario</span>'}</td><td class="num"><div style="display:inline-flex;gap:4px;justify-content:flex-end"><button class="del" onclick="openProvEditor(${p.id})" title="Editar">${svg(I.edit)}</button><button class="del" onclick="deleteProvEntry(${p.id})" title="Eliminar">${svg(I.trash)}</button></div></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;padding:26px;color:var(--text-faint)">Sin proveedores registrados.</td></tr>';
+  }
+  function openProvEditor(id){
+    const e=id?PROV.find(p=>p.id===id):null;
+    document.getElementById('modal').innerHTML=`
+      <div class="modal-head"><div class="modal-title">${e?'Editar':'Nuevo'} proveedor</div><button class="modal-x" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="field"><label>Nombre / Razón social *</label><input id="pv-name" value="${e?(e.name||'').replace(/"/g,'&quot;'):''}" placeholder="Proveedor, C.A."></div>
+        <div class="field"><label>RIF *</label><input id="pv-rif" class="mono" value="${e?e.rif:''}" placeholder="J-12345678-9"></div>
+        <div class="field"><label>Tipo de contribuyente</label><select id="pv-tipo"><option value="ORDINARIO" ${e&&e.tipo==='ORDINARIO'?'selected':''}>Contribuyente ordinario</option><option value="ESPECIAL" ${e&&e.tipo==='ESPECIAL'?'selected':''}>Contribuyente especial</option></select></div>
+      </div>
+      <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveProvEntry(${id||0})">${e?'Guardar cambios':'Agregar proveedor'}</button></div>`;
+    document.getElementById('modalOverlay').classList.add('show');
+    setTimeout(function(){const i=document.getElementById('pv-name');if(i)i.focus();},30);
+  }
+  function saveProvEntry(id){
+    const name=(document.getElementById('pv-name').value||'').trim();
+    const rif=(document.getElementById('pv-rif').value||'').trim().toUpperCase();
+    const tipo=document.getElementById('pv-tipo').value;
+    if(!name){toast('Indica el nombre del proveedor',false);return;}
+    if(!rif){toast('Indica el RIF del proveedor',false);return;}
+    if(id){const p=PROV.find(x=>x.id===id);if(p){p.name=name;p.rif=rif;p.tipo=tipo;}toast('Proveedor actualizado',true);}
+    else{if(PROV.some(x=>(x.rif||'').toUpperCase()===rif)){toast('Ya existe un proveedor con ese RIF',false);return;}PROV.push({id:provUid++,name,rif,tipo});toast('Proveedor agregado',true);}
+    saveProv();closeModal();go('prov');
+  }
+  function deleteProvEntry(id){const p=PROV.find(x=>x.id===id);if(!p)return;if(!confirm('¿Eliminar el proveedor '+p.name+'?'))return;PROV=PROV.filter(x=>x.id!==id);saveProv();go('prov');toast('Proveedor eliminado',true);}
+  window.renderProveedores=renderProveedores;window.openProvEditor=openProvEditor;window.saveProvEntry=saveProvEntry;window.deleteProvEntry=deleteProvEntry;
+
   // ══════════════ CUENTAS POR PAGAR ══════════════
   const CXP_TODAY=new Date();
   let cxpUid=1;
@@ -1964,8 +2009,8 @@
     {id:'almacenes',label:'Almacenes',icon:'layers',group:'Inventario',crumb:'Inventario · Almacenes'},
     {id:'kardex',label:'Kardex',icon:'chart',group:'Inventario',crumb:'Inventario · Kardex'},
     {id:'ajustes',label:'Ajustes y traslados',icon:'swap',group:'Inventario',crumb:'Inventario · Ajustes y traslados'},
-    {id:'clientes',label:'Clientes',icon:'users',group:'Terceros',crumb:'Terceros · Clientes'},
-    {id:'prov',label:'Proveedores',icon:'users',group:'Terceros',crumb:'Terceros · Proveedores'},
+    {id:'clientes',label:'Clientes',icon:'users',group:'Terceros',crumb:'Terceros · Clientes',render:c=>FA.renderClientes(c)},
+    {id:'prov',label:'Proveedores',icon:'users',group:'Terceros',crumb:'Terceros · Proveedores',render:renderProveedores},
     {id:'lventas',label:'Libro de Ventas',icon:'book',group:'Fiscal',crumb:'Fiscal · Libro de Ventas (SENIAT)',render:renderLVentas},
     {id:'lcompras',label:'Libro de Compras',icon:'book',group:'Fiscal',crumb:'Fiscal · Libro de Compras (SENIAT)',render:renderLCompras},
     {id:'reten',label:'Retenciones',icon:'tag',group:'Fiscal',crumb:'Fiscal · Retenciones IVA/ISLR',render:renderReten},
@@ -2198,6 +2243,7 @@
     function nextDocSeq(){let mx=482;try{(FACTURAS||[]).forEach(f=>{const m=/(\d+)/.exec(f.num||'');if(m)mx=Math.max(mx,parseInt(m[1],10));});}catch(e){}return mx+1;}
     const _b0=getBcv()||{};
     let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum='00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
+    let editCliIdx=null,cliOrigin='facturacion',cliQ='';
     const docNum=()=>'F-'+String(docCounter).padStart(6,'0');
     const pUsd=p=>p.cur==='USD'?p.a:p.cur==='EUR'?(p.a*rateEur)/rate:p.a/rate; // pago → unidades USD
     const showN=u=>cur==='USD'?usd(u):money(u*rate);
@@ -2445,10 +2491,15 @@
       selectClient(i){ci=i;lines=[];pays=[];closeModal();const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cliente cambiado · factura en blanco',true);},
       deleteClient(i){if(CLI.length<=1){toast('Debe existir al menos un cliente',false);return;}const wasSel=(i===ci);CLI.splice(i,1);saveCli();if(wasSel)ci=0;else if(i<ci)ci--;this.filterClients(document.getElementById('cliQ').value);toast('Cliente eliminado del sistema',true);},
       openNewClient(prefill){
+        prefill=prefill||{};
+        editCliIdx=(prefill.edit!=null)?prefill.edit:null;
+        cliOrigin=prefill.origin||'facturacion';
+        const back=cliOrigin==='clientes'?"go('clientes')":"FA.openClientPicker()";
+        const isEdit=editCliIdx!=null;
         document.getElementById('modal').innerHTML=`
-          <div class="modal-head"><div class="modal-title">Nuevo cliente</div><button class="modal-x" onclick="FA.openClientPicker()">✕</button></div>
+          <div class="modal-head"><div class="modal-title">${isEdit?'Editar cliente':'Nuevo cliente'}</div><button class="modal-x" onclick="${back}">✕</button></div>
           <div class="modal-body">
-            ${prefill&&prefill.ident?`<div style="display:flex;align-items:center;gap:9px;background:var(--accent-soft,rgba(47,192,206,.12));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--text)">${svg(I.user)}<span>No está registrado. Identificación <b class="mono">${prefill.ident}</b> tomada de tu consulta — completa el nombre y guarda.</span></div>`:''}
+            ${prefill.ident&&!isEdit?`<div style="display:flex;align-items:center;gap:9px;background:var(--accent-soft,rgba(47,192,206,.12));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--text)">${svg(I.user)}<span>No está registrado. Identificación <b class="mono">${prefill.ident}</b> tomada de tu consulta — completa el nombre y guarda.</span></div>`:''}
             <div class="field"><label>Tipo de identificación</label>
               <div class="g2">
                 <select id="n-doctype" onchange="FA.onDocType()"><option value="RIF">RIF (jurídico / natural)</option><option value="CI">Cédula (C.I.) — persona natural</option></select>
@@ -2466,14 +2517,23 @@
             </div>
             <div class="field"><label>Vendedor asignado</label><select id="n-vendor">${VENDORS.map(v=>`<option>${v}</option>`).join('')}</select></div>
           </div>
-          <div class="modal-foot"><button class="btn" onclick="FA.openClientPicker()">Cancelar</button><button class="btn primary" onclick="FA.saveClient()">Guardar cliente</button></div>`;
+          <div class="modal-foot"><button class="btn" onclick="${back}">Cancelar</button><button class="btn primary" onclick="FA.saveClient()">${isEdit?'Guardar cambios':'Guardar cliente'}</button></div>`;
         document.getElementById('modalOverlay').classList.add('show'); // mostrar la ventana (funciona llamado directo o desde el selector)
         this.onDocType();
-        if(prefill){
+        const setV=(id,v)=>{const el=document.getElementById(id);if(el!=null&&v!=null)el.value=v;};
+        if(isEdit){
+          const c=CLI[editCliIdx]||{};
+          const kind=c.idKind||'RIF';const digs=(c.rif||'').replace(/[^0-9]/g,'');const pm=(c.rif||'').toUpperCase().match(/[VEJGPC]/);
+          const dt=document.getElementById('n-doctype');if(dt){dt.value=kind;this.onDocType();}
+          const pf=document.getElementById('n-prefix');if(pf&&pm)pf.value=pm[0];
+          setV('n-idnum',digs);setV('n-name',c.name||'');setV('n-tipo',c.tipo||'ORDINARIO');
+          setV('n-addr',(c.addr&&c.addr!=='—')?c.addr:'');setV('n-phone',c.phone||'');setV('n-email',c.email||'');
+          setV('n-pay',c.payCond||'Contado');setV('n-limit',c.limit||'');setV('n-vendor',c.vendor||VENDORS[0]);
+          const nm=document.getElementById('n-name');if(nm)nm.focus();
+        }else if(prefill.kind||prefill.digits||prefill.name){
           const dt=document.getElementById('n-doctype');if(dt&&prefill.kind){dt.value=prefill.kind;this.onDocType();}
           const pf=document.getElementById('n-prefix');if(pf&&prefill.prefix){pf.value=prefill.prefix;}
-          const idn=document.getElementById('n-idnum');if(idn&&prefill.digits){idn.value=prefill.digits;}
-          const nm=document.getElementById('n-name');if(nm){if(prefill.name)nm.value=prefill.name;nm.focus();}
+          setV('n-idnum',prefill.digits);const nm=document.getElementById('n-name');if(nm){if(prefill.name)nm.value=prefill.name;nm.focus();}
         }else{
           document.getElementById('n-idnum').focus();
         }
@@ -2497,14 +2557,45 @@
         // construir identidad
         const ident = kind==='CI' ? `${prefix}-${digits}`
           : (digits.length>=9 ? `${prefix}-${digits.slice(0,8)}-${digits.slice(8)}` : `${prefix}-${digits}`);
-        if(!idErr && CLI.some(c=>c.rif.toUpperCase()===ident.toUpperCase())) idErr='Ya existe un cliente con esa identificación';
+        if(!idErr && CLI.some((c,i)=>i!==editCliIdx && (c.rif||'').toUpperCase()===ident.toUpperCase())) idErr='Ya existe un cliente con esa identificación';
         setErr('id', idErr);
         setErr('name', !name?'Indica la razón social o nombre':'');
         if(!ok)return;
-        const c={c:name.slice(0,2).toUpperCase(),name,idKind:kind,rif:ident,tipo:document.getElementById('n-tipo').value,
+        const data={c:name.slice(0,2).toUpperCase(),name,idKind:kind,rif:ident,tipo:document.getElementById('n-tipo').value,
           addr:document.getElementById('n-addr').value.trim()||'—',phone:document.getElementById('n-phone').value.trim(),email:document.getElementById('n-email').value.trim(),
           payCond:document.getElementById('n-pay').value,limit:parseFloat(document.getElementById('n-limit').value)||0,vendor:document.getElementById('n-vendor').value};
-        CLI.push(c);ci=CLI.length-1;saveCli();lines=[];pays=[];credito=false;closeModal();if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cliente “'+name+'” creado · factura en blanco',true);
+        if(editCliIdx!=null){
+          CLI[editCliIdx]=Object.assign(CLI[editCliIdx]||{},data);saveCli();const idx=editCliIdx;editCliIdx=null;closeModal();
+          if(cliOrigin==='clientes'){go('clientes');}else{ci=idx;if(touchOn){FA.renderTouch();}else{go('facturacion');}}
+          toast('Cliente “'+name+'” actualizado',true);return;
+        }
+        CLI.push(data);saveCli();
+        if(cliOrigin==='clientes'){closeModal();go('clientes');toast('Cliente “'+name+'” creado',true);return;}
+        ci=CLI.length-1;lines=[];pays=[];credito=false;closeModal();if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cliente “'+name+'” creado · factura en blanco',true);
+      },
+      // ── Módulo Clientes (tabla con editar/eliminar) ──
+      renderClientes(view){
+        view.innerHTML=`
+          <div class="toolbar">
+            <div class="search"><span>${svg(I.search)}</span><input id="cl-q" placeholder="Buscar por nombre o RIF…" value="${cliQ}"></div>
+            <div style="flex:1"></div>
+            <button class="btn primary" onclick="FA.openNewClient({origin:'clientes'})">${svg(I.plus)} Nuevo cliente</button>
+          </div>
+          <div class="panel" style="margin-top:14px"><div class="overflow-x"><table style="min-width:820px"><thead><tr><th>Cliente</th><th>RIF / C.I.</th><th>Tipo</th><th>Cond. pago</th><th>Vendedor</th><th class="num">Acciones</th></tr></thead><tbody id="cl-body"></tbody></table></div></div>`;
+        const qi=document.getElementById('cl-q');if(qi)qi.addEventListener('input',e=>{cliQ=e.target.value;FA._cliBody();});
+        FA._cliBody();
+      },
+      _cliBody(){
+        const el=document.getElementById('cl-body');if(!el)return;
+        const q=cliQ.trim().toLowerCase();
+        const rows=CLI.map((c,i)=>({c,i})).filter(({c})=>!q||(c.name||'').toLowerCase().includes(q)||(c.rif||'').toLowerCase().includes(q));
+        const tipoLbl=t=>t==='ESPECIAL'?'<span class="badge esp">Especial</span>':t==='ORDINARIO'?'<span class="badge">Ordinario</span>':t==='FORMAL'?'<span class="badge muted">Formal</span>':'<span class="badge muted">Consumidor final</span>';
+        el.innerHTML=rows.map(({c,i})=>`<tr><td style="font-weight:600">${c.name||'<span style=\"color:var(--text-faint)\">(sin nombre)</span>'}</td><td class="mono">${c.idKind==='CI'?'C.I. ':''}${c.rif}</td><td>${tipoLbl(c.tipo)}</td><td style="color:var(--text-muted);font-size:12.5px">${c.payCond||'Contado'}</td><td style="color:var(--text-muted);font-size:12.5px">${c.vendor&&c.vendor!=='—'?c.vendor:'—'}</td><td class="num"><div style="display:inline-flex;gap:4px;justify-content:flex-end"><button class="del" onclick="FA.openNewClient({edit:${i},origin:'clientes'})" title="Editar">${svg(I.edit)}</button><button class="del" onclick="FA.deleteClientRow(${i})" title="Eliminar">${svg(I.trash)}</button></div></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:26px;color:var(--text-faint)">Sin clientes registrados.</td></tr>';
+      },
+      deleteClientRow(i){
+        if(CLI.length<=1){toast('Debe existir al menos un cliente',false);return;}
+        const c=CLI[i];if(!c)return;if(!confirm('¿Eliminar el cliente '+(c.name||c.rif)+'?'))return;
+        CLI.splice(i,1);if(ci>=CLI.length)ci=CLI.length-1;else if(i<ci)ci--;saveCli();go('clientes');toast('Cliente eliminado',true);
       },
       setCtrl(v){ctrlNum=v;},
       edit(id,f,v){const l=lines.find(x=>x.id===id);if(!l)return;if(f==='qty')l.qty=Math.max(0,parseFloat(v)||0);else if(f==='p')l.p=Math.max(0,parseFloat(v)||0);else if(f==='disc')l.disc=Math.min(100,Math.max(0,parseFloat(v)||0));else if(f==='name')l.name=v;else if(f==='iva')l.iva=v;const c=lc(l);const cell=document.getElementById('fa-lt-'+id);if(cell)cell.textContent=showN(c.t);renderTotals();},
@@ -2861,7 +2952,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.12";
+  var CURRENT_FALLBACK = "1.2.13";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
