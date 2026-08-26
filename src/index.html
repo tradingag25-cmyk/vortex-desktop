@@ -1990,53 +1990,107 @@
   window.renderReten=renderReten;window.setRetenTab=setRetenTab;window.setRetenMonth=setRetenMonth;window.openSop=openSop;window.sopFillRif=sopFillRif;window.saveSop=saveSop;window.editSop=editSop;window.deleteSop=deleteSop;window.exportPractCsv=exportPractCsv;window.exportSopCsv=exportSopCsv;
 
   // ══════════════ REPORTES (PANEL DE ANÁLISIS) ══════════════
-  let repMonth=todayISO().slice(0,7);
+  // ══════════════ CENTRO DE REPORTES ══════════════
+  let repMonth=todayISO().slice(0,7), repId='ventas-dia', repChart='bar', repQ='';
+  const REP_PAL=['#2fc0ce','#e0a83e','#6b4fa0','#3ecb8c','#d9644a','#4a86c5','#c74f8a','#12736b','#b07b2e','#8a8f98'];
+  const repFmt=unit=>unit==='u'?(v=>fmtN(v)):(unit==='usd'?(v=>usd(v)):(v=>money(v)));
+  const MMYY=key=>key.slice(5)+'/'+key.slice(2,4);
+  function svgBars(rows,unit){
+    const f=repFmt(unit);const W=720,H=300,padL=8,padR=8,padT=18,padB=52;
+    const n=Math.max(1,rows.length),max=Math.max(1,...rows.map(r=>r.value));
+    const iw=W-padL-padR,ih=H-padT-padB,bw=iw/n;let bars='',labels='';
+    rows.forEach((r,i)=>{const bh=Math.max(0,Math.round(r.value/max*ih));const x=padL+i*bw,y=padT+ih-bh,w=Math.max(2,bw*0.62),bx=x+(bw-w)/2;const col=r.color||REP_PAL[i%REP_PAL.length];
+      bars+=`<rect x="${bx.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh}" rx="3" fill="${col}"><title>${r.label}: ${f(r.value)}</title></rect>`;
+      if(n<=14&&bh>16)bars+=`<text x="${(bx+w/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${f(r.value)}</text>`;
+      const lbl=String(r.label),short=n>12?lbl.slice(0,3):(lbl.length>11?lbl.slice(0,10)+'…':lbl),cxp2=(x+bw/2);
+      labels+=`<text x="${cxp2.toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="10" fill="var(--text-muted)" transform="rotate(${n>8?35:0} ${cxp2.toFixed(1)} ${H-padB+16})">${short}</text>`;});
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:320px"><line x1="${padL}" y1="${padT+ih}" x2="${W-padR}" y2="${padT+ih}" stroke="var(--border)"/>${bars}${labels}</svg>`;
+  }
+  function svgLine(rows,unit){
+    const f=repFmt(unit);const W=720,H=300,padL=48,padR=14,padT=18,padB=46;
+    const n=Math.max(1,rows.length),max=Math.max(1,...rows.map(r=>r.value));
+    const iw=W-padL-padR,ih=H-padT-padB,step=n>1?iw/(n-1):0;
+    const pts=rows.map((r,i)=>[padL+i*step,padT+ih-(r.value/max*ih)]);
+    const path=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    const area=`M${padL} ${padT+ih} `+pts.map(p=>'L'+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')+` L${(padL+(n>1?iw:0)).toFixed(1)} ${padT+ih} Z`;
+    let dots='',labels='';pts.forEach((p,i)=>{dots+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="#2fc0ce"><title>${rows[i].label}: ${f(rows[i].value)}</title></circle>`;const show=n<=16||i%Math.ceil(n/12)===0;if(show)labels+=`<text x="${p[0].toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${String(rows[i].label).slice(0,5)}</text>`;});
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:320px"><line x1="${padL}" y1="${padT+ih}" x2="${W-padR}" y2="${padT+ih}" stroke="var(--border)"/><text x="${padL-6}" y="${padT+6}" text-anchor="end" font-size="9" fill="var(--text-faint)">${f(max)}</text><path d="${area}" fill="#2fc0ce" opacity="0.12"/><path d="${path}" fill="none" stroke="#2fc0ce" stroke-width="2"/>${dots}${labels}</svg>`;
+  }
+  function svgDonut(rows,unit){
+    const f=repFmt(unit);const total=rows.reduce((a,r)=>a+r.value,0)||1;const cx=150,cy=150,r=112,rin=66;let ang=-Math.PI/2,paths='';
+    rows.forEach((row,i)=>{const frac=row.value/total;const a2=ang+frac*Math.PI*2;const col=row.color||REP_PAL[i%REP_PAL.length];
+      const x1=cx+r*Math.cos(ang),y1=cy+r*Math.sin(ang),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
+      const xi1=cx+rin*Math.cos(a2),yi1=cy+rin*Math.sin(a2),xi2=cx+rin*Math.cos(ang),yi2=cy+rin*Math.sin(ang);const large=frac>0.5?1:0;
+      paths+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L${xi1.toFixed(1)} ${yi1.toFixed(1)} A${rin} ${rin} 0 ${large} 0 ${xi2.toFixed(1)} ${yi2.toFixed(1)} Z" fill="${col}"><title>${row.label}: ${f(row.value)} (${Math.round(frac*100)}%)</title></path>`;ang=a2;});
+    const legend=rows.map((row,i)=>`<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:6px"><span style="width:11px;height:11px;border-radius:3px;background:${row.color||REP_PAL[i%REP_PAL.length]};flex:0 0 auto"></span><span style="flex:1;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${row.label}</span><span style="font-weight:650">${f(row.value)}</span></div>`).join('');
+    return `<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center"><svg viewBox="0 0 300 300" style="width:210px;height:210px;flex:0 0 auto">${paths}<text x="150" y="146" text-anchor="middle" font-size="12" fill="var(--text-faint)">Total</text><text x="150" y="167" text-anchor="middle" font-size="15" font-weight="700" fill="var(--text)">${f(total)}</text></svg><div style="flex:1;min-width:200px">${legend}</div></div>`;
+  }
+  function repVentasDia(){const p=repMonth.split('-').map(Number),last=new Date(p[0],p[1],0).getDate(),days={};FACTURAS.forEach(f=>{const iso=(f.dateISO||'').slice(0,10);if(iso.slice(0,7)===repMonth)days[iso.slice(8,10)]=(days[iso.slice(8,10)]||0)+(f.totalBs||0);});const rows=[];for(let i=1;i<=last;i++){const dd=String(i).padStart(2,'0');rows.push({label:dd,value:days[dd]||0});}return rows;}
+  function repIgtfDia(){const p=repMonth.split('-').map(Number),last=new Date(p[0],p[1],0).getDate(),days={};FACTURAS.forEach(f=>{const iso=(f.dateISO||'').slice(0,10);if(iso.slice(0,7)===repMonth)days[iso.slice(8,10)]=(days[iso.slice(8,10)]||0)+(f.igtf||0);});const rows=[];for(let i=1;i<=last;i++){const dd=String(i).padStart(2,'0');rows.push({label:dd,value:days[dd]||0});}return rows;}
+  function repMeses(kind){const rows=[],now=new Date();for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1),key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');let v=0;if(kind==='ventas')FACTURAS.forEach(f=>{if((f.dateISO||'').slice(0,7)===key)v+=(f.totalBs||0);});else COMPRAS.forEach(c=>{if((libroIso(c)||'').slice(0,7)===key)v+=(c.total||0)*RATE;});rows.push({label:MMYY(key),value:v});}return rows;}
+  function agingCxc(){let vig=0,pv=0,ven=0;CXC.forEach(x=>{const s=cxcSaldo(x);if(s<=0)return;const d=cxcDias(x);if(d>0)ven+=s;else if(d>=-5)pv+=s;else vig+=s;});return [{label:'Vigente',value:vig,color:'#3ecb8c'},{label:'Por vencer',value:pv,color:'#e0a83e'},{label:'Vencido',value:ven,color:'#d9644a'}];}
+  function agingCxp(){const arr=(typeof CXP!=='undefined'?CXP:[]);let vig=0,pv=0,ven=0;arr.forEach(x=>{const s=cxpSaldo(x);if(s<=0)return;const d=cxpDias(x);if(d>0)ven+=s;else if(d>=-5)pv+=s;else vig+=s;});return [{label:'Vigente',value:vig,color:'#3ecb8c'},{label:'Por vencer',value:pv,color:'#e0a83e'},{label:'Vencido',value:ven,color:'#d9644a'}];}
+  function tesoRows(){const a=(typeof TESO!=='undefined'&&TESO.accounts)?TESO.accounts:[];return a.map(x=>({label:x.name,value:x.cur==='USD'?x.bal*RATE:x.bal}));}
+  function REPORTS(){
+    const facM=FACTURAS.filter(f=>(f.dateISO||'').slice(0,7)===repMonth);
+    const compM=(typeof COMPRAS!=='undefined'?COMPRAS:[]).filter(c=>(libroIso(c)||'').slice(0,7)===repMonth);
+    const byKey=(arr,kf,vf)=>{const m={};arr.forEach(x=>{const k=kf(x)||'—';m[k]=(m[k]||0)+vf(x);});return Object.keys(m).map(k=>({label:k,value:m[k]}));};
+    const topN=(rows,n)=>rows.slice().sort((a,b)=>b.value-a.value).slice(0,n);
+    return [
+      {id:'ventas-dia',name:'Ventas por día',kw:'ventas dia diario evolucion',unit:'Bs',charts:['bar','line','table'],rows:()=>repVentasDia()},
+      {id:'ventas-mes',name:'Ventas por mes',kw:'ventas mes tendencia mensual',unit:'Bs',charts:['line','bar','table'],rows:()=>repMeses('ventas')},
+      {id:'ventas-cliente',name:'Ventas por cliente',kw:'ventas cliente top clientes',unit:'Bs',charts:['bar','donut','table'],rows:()=>topN(byKey(facM,f=>f.cli,f=>f.totalBs||0),10)},
+      {id:'ventas-cajero',name:'Ventas por cajero',kw:'ventas cajero vendedor turno',unit:'Bs',charts:['bar','donut','table'],rows:()=>byKey(facM,f=>f.cajero||'—',f=>f.totalBs||0)},
+      {id:'formas-pago',name:'Formas de pago',kw:'formas pago metodo efectivo divisa cobros',unit:'Bs',charts:['donut','bar','table'],rows:()=>{const m={};(typeof CIERRE!=='undefined'?CIERRE:[]).forEach(x=>{const k=ML[x.m]||x.m;m[k]=(m[k]||0)+bsOf(x);});return Object.keys(m).map(k=>({label:k,value:m[k]}));}},
+      {id:'igtf-dia',name:'IGTF por día',kw:'igtf divisa impuesto',unit:'Bs',charts:['bar','line','table'],rows:()=>repIgtfDia()},
+      {id:'productos',name:'Productos con más salidas',kw:'productos vendidos salidas mas vendido inventario',unit:'u',charts:['bar','table'],rows:()=>topN((window.IN&&IN.unitsByProduct?IN.unitsByProduct():[]),10)},
+      {id:'compras-prov',name:'Compras por proveedor',kw:'compras proveedor',unit:'Bs',charts:['bar','donut','table'],rows:()=>topN(byKey(compM,c=>c.prov,c=>(c.total||0)*RATE),10)},
+      {id:'compras-mes',name:'Compras por mes',kw:'compras mes tendencia',unit:'Bs',charts:['line','bar','table'],rows:()=>repMeses('compras')},
+      {id:'iva',name:'IVA — débito vs crédito',kw:'iva debito credito declarar seniat pagar',unit:'Bs',charts:['bar','table'],rows:()=>{const deb=facM.reduce((a,f)=>a+(f.iva||0),0),cre=compM.reduce((a,c)=>a+(c.iva||0)*RATE,0);return [{label:'IVA débito (ventas)',value:deb,color:'#2fc0ce'},{label:'IVA crédito (compras)',value:cre,color:'#e0a83e'}];}},
+      {id:'cxc',name:'Cuentas por cobrar (antigüedad)',kw:'cuentas cobrar cartera aging vencido clientes',unit:'Bs',charts:['bar','donut','table'],rows:()=>agingCxc()},
+      {id:'cxp',name:'Cuentas por pagar (antigüedad)',kw:'cuentas pagar aging vencido proveedores',unit:'Bs',charts:['bar','donut','table'],rows:()=>agingCxp()},
+      {id:'inv-cat',name:'Inventario por categoría',kw:'inventario categoria valor stock existencia',unit:'Bs',charts:['donut','bar','table'],rows:()=>(window.IN&&IN.valueByCategory?IN.valueByCategory():[]).map(x=>({label:x.label,value:x.value*RATE})).sort((a,b)=>b.value-a.value)},
+      {id:'tesoreria',name:'Tesorería (saldos)',kw:'tesoreria bancos caja saldo flujo',unit:'Bs',charts:['bar','table'],rows:()=>tesoRows()},
+      {id:'retenciones',name:'Retenciones',kw:'retenciones practicadas soportadas iva islr',unit:'Bs',charts:['bar','table'],rows:()=>{const pract=compM.reduce((a,c)=>a+((c.retIva||0)+(c.retIslr||0))*RATE,0),sop=(typeof SOPORTADAS!=='undefined'?SOPORTADAS:[]).filter(s=>(libroIso(s)||'').slice(0,7)===repMonth).reduce((a,s)=>a+(s.ivaRet||0)+(s.islrRet||0),0);return [{label:'Practicadas (por enterar)',value:pract,color:'#6b4fa0'},{label:'Soportadas (descontable)',value:sop,color:'#3ecb8c'}];}},
+    ];
+  }
+  function repTableHtml(rep,rows){const f=repFmt(rep.unit),tot=rows.reduce((a,r)=>a+r.value,0);return `<div class="overflow-x"><table style="min-width:360px"><thead><tr><th>Concepto</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.label}</td><td class="num">${f(r.value)}</td></tr>`).join('')||'<tr><td colspan="2" style="text-align:center;color:var(--text-faint);padding:18px">Sin datos.</td></tr>'}</tbody><tfoot><tr style="font-weight:750"><td>Total</td><td class="num">${f(tot)}</td></tr></tfoot></table></div>`;}
+  function repChartHtml(rep,rows){
+    if(!rows.length||rows.every(r=>!r.value))return '<div style="text-align:center;color:var(--text-faint);padding:40px 0">Sin datos en el período seleccionado.</div>';
+    if(repChart==='line')return svgLine(rows,rep.unit);
+    if(repChart==='donut')return svgDonut(rows.filter(r=>r.value>0),rep.unit);
+    if(repChart==='table')return repTableHtml(rep,rows);
+    return svgBars(rows,rep.unit);
+  }
+  function repExportCsv(){const rep=REPORTS().find(x=>x.id===repId);if(!rep)return;const rows=rep.rows();let c='Concepto;Valor\n';rows.forEach(r=>{c+='"'+r.label+'";'+(rep.unit==='u'?r.value:(r.value||0).toFixed(2))+'\n';});dlCsv('reporte-'+rep.id+'-'+repMonth+'.csv',c);}
+  function repPrint(){const rep=REPORTS().find(x=>x.id===repId);if(!rep)return;const rows=rep.rows(),f=repFmt(rep.unit),tot=rows.reduce((a,r)=>a+r.value,0);const inner=`<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Reporte</span><div class="p-num" style="font-size:14px">${rep.name}</div><div class="p-mut" style="margin-top:6px">Período ${repMonth} · ${todayDMY()}</div></div></div><div class="p-body"><table><thead><tr><th>Concepto</th><th class="num">Valor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.label}</td><td class="num">${f(r.value)}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight:800;border-top:2px solid #12433f"><td>Total</td><td class="num">${f(tot)}</td></tr></tfoot></table></div><div class="p-foot">${rep.name} · Período ${repMonth} · ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;openPaper(inner);}
   function setRepMonth(v){repMonth=v||repMonth;go('reportes');}
+  function setRepId(id){repId=id;const r=REPORTS().find(x=>x.id===id);if(r&&r.charts.indexOf(repChart)<0)repChart=r.charts[0];go('reportes');}
+  function setRepChart(c){repChart=c;go('reportes');}
+  window.setRepId=setRepId;window.setRepChart=setRepChart;window.repExportCsv=repExportCsv;window.repPrint=repPrint;
   function renderReportes(view){
-    const inM=iso=>(iso||'').slice(0,7)===repMonth;
-    const facMes=FACTURAS.filter(f=>inM(libroIso(f)));
-    const ventasFac=facMes.reduce((a,f)=>a+(f.totalBs||0),0);
-    const ivaDebFac=facMes.reduce((a,f)=>a+(f.iva||0),0);
-    const devMes=(typeof DEVOL!=='undefined'?DEVOL:[]).filter(d=>inM(libroIso(d)));
-    let ivaDebDev=0,ventasDev=0;devMes.forEach(d=>{const s=d.tipo==='NC'?-1:1;ventasDev+=s*(d.totalBs||0);ivaDebDev+=s*(d.ivaT||0)*RATE;});
-    const ventas=ventasFac+ventasDev, ivaDebito=ivaDebFac+ivaDebDev;
-    const compMes=(typeof COMPRAS!=='undefined'?COMPRAS:[]).filter(c=>inM(libroIso(c)));
-    const compras=compMes.reduce((a,c)=>a+(c.total||0)*RATE,0);
-    const ivaCredito=compMes.reduce((a,c)=>a+(c.iva||0)*RATE,0);
-    const ivaAPagar=ivaDebito-ivaCredito;
-    const porCobrar=CXC.filter(x=>cxcSaldo(x)>0).reduce((a,x)=>a+cxcSaldo(x),0);
-    const vencidoC=CXC.filter(x=>cxcSaldo(x)>0&&cxcDias(x)>0).reduce((a,x)=>a+cxcSaldo(x),0);
-    const porPagar=(typeof CXP!=='undefined'?CXP:[]).filter(x=>cxpSaldo(x)>0).reduce((a,x)=>a+cxpSaldo(x),0);
-    const inv=(window.IN&&IN.summary)?IN.summary():{val:0,low:0,out:0,count:0};
-    const retPract=compMes.reduce((a,c)=>a+((c.retIva||0)+(c.retIslr||0))*RATE,0);
-    const retSop=(typeof SOPORTADAS!=='undefined'?SOPORTADAS:[]).filter(s=>inM(libroIso(s))).reduce((a,s)=>a+(s.ivaRet||0)+(s.islrRet||0),0);
-    const fp={};(typeof CIERRE!=='undefined'?CIERRE:[]).forEach(x=>{fp[x.m]=(fp[x.m]||0)+bsOf(x);});
-    const fpArr=Object.keys(fp).map(k=>[ML[k]||k,fp[k]]).sort((a,b)=>b[1]-a[1]);
-    const fpMax=Math.max(1,...fpArr.map(x=>x[1]));
-    const tc={};facMes.forEach(f=>{tc[f.cli]=(tc[f.cli]||0)+(f.totalBs||0);});
-    const tcArr=Object.keys(tc).map(k=>[k,tc[k]]).sort((a,b)=>b[1]-a[1]).slice(0,5);const tcMax=Math.max(1,...tcArr.map(x=>x[1]));
-    const tp={};compMes.forEach(c=>{tp[c.prov]=(tp[c.prov]||0)+(c.total||0)*RATE;});
-    const tpArr=Object.keys(tp).map(k=>[k,tp[k]]).sort((a,b)=>b[1]-a[1]).slice(0,5);const tpMax=Math.max(1,...tpArr.map(x=>x[1]));
-    const carMax=Math.max(1,porCobrar,porPagar);
-    const bar=(label,val,max,color)=>`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;gap:8px"><span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span><span style="font-weight:650;white-space:nowrap">${money(val)}</span></div><div style="height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${max>0?Math.max(2,Math.round(val/max*100)):0}%;background:${color};border-radius:5px"></div></div></div>`;
-    const dl=(k,v,col)=>`<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px"><span style="color:var(--text-muted)">${k}</span><span style="font-weight:700${col?';color:'+col:''}">${v}</span></div>`;
-    const panel=(title,ic,body)=>`<div class="card"><div class="card-head"><div class="card-title">${svg(I[ic])} ${title}</div></div><div style="padding:14px 16px">${body}</div></div>`;
+    const reps=REPORTS();const rep=reps.find(x=>x.id===repId)||reps[0];repId=rep.id;
+    if(rep.charts.indexOf(repChart)<0)repChart=rep.charts[0];
+    const rows=rep.rows();
+    const chipHtml=q=>{q=(q||'').trim().toLowerCase();return reps.filter(r=>!q||r.name.toLowerCase().includes(q)||r.kw.indexOf(q)>=0).map(r=>`<button class="chipf ${r.id===repId?'on':''}" onclick="setRepId('${r.id}')">${r.name}</button>`).join('')||'<span style="color:var(--text-faint);font-size:13px">Sin reportes que coincidan con tu búsqueda.</span>';};
+    const chartTypes=[['bar','Barras'],['line','Líneas'],['donut','Dona'],['table','Tabla']].filter(x=>rep.charts.indexOf(x[0])>=0);
     view.innerHTML=`
-      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap"><div class="field"><label>Período</label><input class="selm" type="month" value="${repMonth}" onchange="setRepMonth(this.value)"></div></div>
-      <div class="kgrid">
-        ${kpiC('Ventas del período',money(ventas),usd(ventas/RATE)+' · '+facMes.length+' facturas','coin')}
-        ${kpiC('Compras del período',money(compras),usd(compras/RATE)+' · '+compMes.length+' facturas','cart')}
-        ${kpiC(ivaAPagar>=0?'IVA a pagar':'IVA a favor',money(Math.abs(ivaAPagar)),'débito '+money(ivaDebito)+' − crédito '+money(ivaCredito),'book')}
-        ${kpiC('Valor de inventario',money(inv.val*RATE),inv.count+' productos · '+inv.low+' bajo mínimo','box')}
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="search" style="flex:1;min-width:240px"><span>${svg(I.search)}</span><input id="rep-q" placeholder="Escribe el reporte que quieres… (ej. ventas, IVA, inventario, cobrar)" value="${repQ}" autocomplete="off"></div>
+        <div class="field"><label>Período</label><input class="selm" type="month" value="${repMonth}" onchange="setRepMonth(this.value)"></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:16px">
-        ${panel('Cartera','coin',bar('Por cobrar (total)',porCobrar,carMax,'var(--good)')+bar('· Vencido',vencidoC,carMax,'var(--crit)')+'<div style="height:6px"></div>'+bar('Por pagar (total)',porPagar,carMax,'var(--warn)'))}
-        ${panel('Formas de pago (cobros)','card',fpArr.length?fpArr.map(x=>bar(x[0],x[1],fpMax,'var(--accent)')).join(''):'<div style="color:var(--text-faint);font-size:13px">Sin cobros registrados.</div>')}
-        ${panel('Top 5 clientes','users',tcArr.length?tcArr.map(x=>bar(x[0],x[1],tcMax,'var(--accent)')).join(''):'<div style="color:var(--text-faint);font-size:13px">Sin ventas en el período.</div>')}
-        ${panel('Top 5 proveedores','truck',tpArr.length?tpArr.map(x=>bar(x[0],x[1],tpMax,'var(--violet)')).join(''):'<div style="color:var(--text-faint);font-size:13px">Sin compras en el período.</div>')}
-        ${panel('Retenciones','tag',dl('Practicadas (por enterar)',money(retPract),'var(--violet)')+dl('Soportadas (descontable)',money(retSop),'var(--good)'))}
-        ${panel('Inventario','box',dl('Productos',inv.count)+dl('Bajo mínimo',inv.low,'var(--warn)')+dl('Agotados',inv.out,'var(--crit)'))}
+      <div class="chips" id="rep-chips">${chipHtml(repQ)}</div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-head" style="flex-wrap:wrap;gap:10px"><div class="card-title">${svg(I.chart)} ${rep.name}</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div class="viewtog">${chartTypes.map(x=>`<button class="${repChart===x[0]?'on':''}" onclick="setRepChart('${x[0]}')">${x[1]}</button>`).join('')}</div>
+            <button class="btn sm" onclick="repExportCsv()">${svg(I.printer)} CSV</button>
+            <button class="btn sm primary" onclick="repPrint()">Imprimir / PDF</button>
+          </div>
+        </div>
+        <div style="padding:16px">${repChartHtml(rep,rows)}${repChart!=='table'?('<div style="margin-top:16px">'+repTableHtml(rep,rows)+'</div>'):''}</div>
       </div>`;
+    const qi=document.getElementById('rep-q');if(qi)qi.addEventListener('input',e=>{repQ=e.target.value;const c=document.getElementById('rep-chips');if(c)c.innerHTML=chipHtml(repQ);});
   }
   window.renderReportes=renderReportes;window.setRepMonth=setRepMonth;
 
@@ -2061,7 +2115,7 @@
     {t:'Libro de Ventas',ic:'book',q:'Registro fiscal mensual de ventas para el SENIAT (facturas + NC/ND).',usa:['Elige el período fiscal.','Revisa el detalle y los totales.','Exporta a CSV o imprime el libro.'],f:[['IVA débito fiscal','Suma del IVA de todas las ventas del mes']]},
     {t:'Libro de Compras',ic:'book',q:'Registro fiscal mensual de compras para el SENIAT.',usa:['Elige el período fiscal.','Exporta a CSV o imprime el libro.'],f:[['IVA crédito fiscal','Suma del IVA de todas las compras del mes']]},
     {t:'Retenciones',ic:'tag',q:'Centro de retenciones de IVA e ISLR, en dos sentidos.',usa:['"Practicadas": las que tú retienes a proveedores (salen de Compras) → total a enterar al SENIAT.','"Soportadas": registra el comprobante que te dio un cliente que te retuvo.'],f:[['Practicadas','Por enterar al SENIAT'],['Soportadas · IVA','Crédito descontable de tu IVA'],['Soportadas · ISLR','Anticipo de tu impuesto sobre la renta']]},
-    {t:'Reportes',ic:'chart',q:'Panel de análisis del negocio por período.',usa:['Elige el mes.','Revisa ventas, compras, cartera, formas de pago, top clientes/proveedores e inventario.'],f:[['IVA a pagar','IVA débito (ventas) − IVA crédito (compras)']]},
+    {t:'Reportes',ic:'chart',q:'Centro de reportes: escribe lo que quieres ver y elige el tipo de gráfica.',usa:['En la barra inteligente escribe el reporte (ej. "ventas", "IVA", "inventario", "cobrar") y toca el que aparece.','Cambia entre Barras, Líneas, Dona o Tabla.','Exporta a CSV o imprime/guarda como PDF.','Elige el período (mes) para los reportes mensuales.'],f:[['IVA a pagar','IVA débito (ventas) − IVA crédito (compras)'],['Reportes','ventas por día/mes/cliente/cajero, formas de pago, IGTF, productos, compras, cartera, inventario, tesorería, retenciones']]},
     {t:'Configuración tributaria',ic:'receipt',q:'Parámetros fiscales: alícuotas de IVA, letra fiscal (G/R/A/E) y la tasa de IGTF.',usa:['Ajusta las alícuotas de IVA si el SENIAT las cambia.','Modifica la tasa de IGTF, o ponla en 0 si no la aplicas.','Estos valores alimentan todos los cálculos del sistema.'],f:[['IGTF','Pago en divisa × tasa configurada (por defecto 3%)']]},
     {t:'Tasa BCV',ic:'coin',q:'Tasa oficial del BCV (dólar y euro) con su histórico del día.',usa:['Se actualiza sola al iniciar sesión y al abrir Facturación.','"Actualizar tasa del día" la consulta al instante.','El histórico guarda una tasa por fecha.'],f:[]},
     {t:'Bancos y caja',ic:'bank',q:'Tesorería: saldos de tus cuentas de caja y bancos, y sus movimientos.',usa:['"Nueva cuenta" agrega una caja o banco (en Bs. o USD).','"Registrar movimiento" suma un ingreso o resta un egreso.','El historial muestra cada movimiento con su concepto.'],f:[['Saldo','Saldo anterior + ingresos − egresos']]},
@@ -3133,6 +3187,9 @@
       products(){return prods.map(p=>({sku:p.sku,name:p.name}));},
       deps(){return Object.assign({},DEPS);},
       setDepNames(map){try{['PRIN','SUC','DEP'].forEach(function(k){if(map&&(map[k]||'').trim())DEPS[k]=map[k].trim();});localStorage.setItem('vortex_deps',JSON.stringify({PRIN:DEPS.PRIN,SUC:DEPS.SUC,DEP:DEPS.DEP}));}catch(e){}return Object.assign({},DEPS);},
+      // Valor de inventario (a costo) agrupado por categoría — para reportes.
+      valueByCategory(){const m={};prods.forEach(function(p){const s=Object.values(p.st).reduce(function(a,b){return a+b;},0);const cat=p.cat||'General';m[cat]=(m[cat]||0)+s*p.cost;});return Object.keys(m).map(function(k){return {label:k,value:m[k]};});},
+      unitsByProduct(){const m={};prods.forEach(function(p){(p.kx||[]).forEach(function(k){if(k.t==='out')m[p.name]=(m[p.name]||0)+Math.abs(k.q);});});return Object.keys(m).map(function(k){return {label:k,value:m[k]};});},
       stockByDep(sku){const p=prods.find(x=>x.sku===sku);return p?Object.assign({},p.st):null;},
       // Resumen por almacén: productos con stock, unidades y valor (a costo).
       depsSummary(){return Object.keys(DEPS).map(k=>{let u=0,val=0,n=0;prods.forEach(p=>{const s=p.st[k]||0;if(s>0){n++;u+=s;val+=s*p.cost;}});return {key:k,name:DEPS[k],products:n,units:u,value:val};});},
@@ -3290,7 +3347,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.19";
+  var CURRENT_FALLBACK = "1.2.20";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
