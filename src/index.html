@@ -431,7 +431,7 @@
         <div class="page-crumb" id="pcrumb">Inicio · Panel general</div>
       </div>
       <div class="spacer"></div>
-      <div class="rate-chip"><span class="d"></span> BCV USD 737,23 · EUR 840,85 · 22 jul</div>
+      <div class="rate-chip" id="rateChip"><span class="d"></span> BCV USD 737,23 · EUR 840,85</div>
       <span class="badge" id="roleBadge">Administrador</span>
       <span id="ownerTools" style="display:inline-flex;gap:8px;">
         <button class="icon-btn" onclick="doBackup()" title="Respaldo (guardar datos)" aria-label="Respaldo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
@@ -517,12 +517,15 @@
   // Actualiza en segundo plano (una vez al día salvo force) y refresca Facturación si está abierta.
   async function autoBcv(force){
     const cur=getBcv();
-    if(!force && cur && cur.date===todayISO()){ if(window.FA&&FA.applyRate)FA.applyRate(cur.usd,cur.eur); return cur; }
+    if(!force && cur && cur.date===todayISO()){ if(window.FA&&FA.applyRate)FA.applyRate(cur.usd,cur.eur); refreshRateChip(); return cur; }
     const res=await fetchBcv();
-    if(res&&res.usd){const eur=res.eur||(cur&&cur.eur)||RATE_EUR;saveBcv(res.usd,eur);if(window.FA&&FA.applyRate)FA.applyRate(res.usd,eur);return{usd:res.usd,eur:eur};}
-    return cur;
+    if(res&&res.usd){const eur=res.eur||(cur&&cur.eur)||RATE_EUR;saveBcv(res.usd,eur);if(window.FA&&FA.applyRate)FA.applyRate(res.usd,eur);refreshRateChip();return{usd:res.usd,eur:eur};}
+    refreshRateChip();return cur;
   }
   window.autoBcv=autoBcv;
+  // Etiqueta de tasa BCV del top bar — refleja la tasa en vivo (USD y EUR).
+  function refreshRateChip(){try{const chip=document.getElementById('rateChip');if(!chip)return;const b=getBcv()||{};const u=b.usd||RATE,e=b.eur||RATE_EUR;const nf=v=>v.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});let d='';if(b.date){try{d=' · '+new Date(b.date+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'short'});}catch(_){}}chip.innerHTML='<span class="d"></span> BCV USD '+nf(u)+' · EUR '+nf(e)+d;}catch(err){}}
+  window.refreshRateChip=refreshRateChip;
   // ── Cajero de turno (persistente, compartido entre Facturación y Cierre) ──
   let CAJEROS=(function(){try{const j=JSON.parse(localStorage.getItem('vortex_cajeros')||'null');if(Array.isArray(j)&&j.length)return j;}catch(e){}return['José Márquez','Ana Rodríguez','Luis Pérez'];})();
   function saveCajerosList(){try{localStorage.setItem('vortex_cajeros',JSON.stringify(CAJEROS));}catch(e){}}
@@ -2476,24 +2479,43 @@
 
   // ══════════════ DASHBOARD ══════════════
   function renderDashboard(view){
-    const kpi=(l,v,s,ic)=>`<div class="card kpi"><div class="kpi-l">${svg(I[ic])} ${l}</div><div class="kpi-v">${v}</div><div class="kpi-s">${s}</div></div>`;
     const qa=(ic,t,d,id)=>`<div class="qa" onclick="go('${id}')"><div class="qa-ic">${svg(I[ic])}</div><div><div style="font-weight:600;font-size:14px;">${t}</div><div style="font-size:12px;color:var(--text-muted);">${d}</div></div></div>`;
-    const FAC = (typeof FACTURAS!=='undefined'?FACTURAS:[]);
-    const todayIso = new Date().toISOString().slice(0,10);
-    const hoy = FAC.filter(f=>String(f.dateISO||'').slice(0,10)===todayIso);
-    const ventasHoy = hoy.reduce((a,f)=>a+(f.totalBs||0),0);
-    const ivaHoy = hoy.reduce((a,f)=>a+(f.iva||0),0);
-    const baseHoy = hoy.reduce((a,f)=>a+(f.base_gr||0),0);
-    const igtfHoy = hoy.reduce((a,f)=>a+(f.igtf||0),0);
-    const recientes = FAC.slice(-4).reverse();
-    const CXCL = (typeof CXC!=='undefined'?CXC:[]);
-    view.innerHTML=`
-      <div class="kgrid">
-        ${kpi('Ventas de hoy',money(ventasHoy),usd(ventasHoy/RATE),'coin')}
-        ${kpi('IVA débito fiscal',money(ivaHoy),'Base gravada '+money(baseHoy),'receipt')}
-        ${kpi('IGTF cobrado',money(igtfHoy),igtfPct()+'% sobre divisas','coin')}
-        ${(()=>{const p=CXCL.filter(x=>cxcSaldo(x)>0);const tot=p.reduce((a,x)=>a+cxcSaldo(x),0);const nv=p.filter(x=>cxcDias(x)>0).length;return kpi('Por cobrar',money(tot),usd(tot/RATE)+(nv?' · '+nv+' vencida'+(nv>1?'s':''):''),'warn');})()}
+    const FAC=(typeof FACTURAS!=='undefined'?FACTURAS:[]);
+    const todayIso=todayISO(), month=todayIso.slice(0,7);
+    const hoy=FAC.filter(f=>String(f.dateISO||'').slice(0,10)===todayIso);
+    const mesFac=FAC.filter(f=>String(f.dateISO||'').slice(0,7)===month);
+    const ventasHoy=hoy.reduce((a,f)=>a+(f.totalBs||0),0);
+    const ventasMes=mesFac.reduce((a,f)=>a+(f.totalBs||0),0);
+    const ivaHoy=hoy.reduce((a,f)=>a+(f.iva||0),0);
+    const inv=(window.IN&&IN.summary)?IN.summary():{val:0,low:0,out:0,count:0};
+    const CXCL=(typeof CXC!=='undefined'?CXC:[]);
+    const pc=CXCL.filter(x=>cxcSaldo(x)>0);const porCobrar=pc.reduce((a,x)=>a+cxcSaldo(x),0);const nvenc=pc.filter(x=>cxcDias(x)>0).length;
+    const recientes=FAC.slice(-5).reverse();
+    const fpm={};(typeof CIERRE!=='undefined'?CIERRE:[]).forEach(x=>{const k=ML[x.m]||x.m;fpm[k]=(fpm[k]||0)+bsOf(x);});
+    const fpRows=Object.keys(fpm).map(k=>({label:k,value:fpm[k]}));
+    const cjm={};mesFac.forEach(f=>{const k=f.cajero||'—';cjm[k]=(cjm[k]||0)+(f.totalBs||0);});
+    const cjRows=Object.keys(cjm).map(k=>({label:k,value:cjm[k]}));
+    const invRows=[{label:'En stock',value:Math.max(0,inv.count-inv.low-inv.out),color:'#3ecb8c'},{label:'Bajo mínimo',value:inv.low,color:'#e0a83e'},{label:'Agotado',value:inv.out,color:'#d9644a'}];
+    const d7=[];const now=new Date();for(let i=6;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');let v=0;FAC.forEach(f=>{if(String(f.dateISO||'').slice(0,10)===iso)v+=(f.totalBs||0);});d7.push({label:String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),value:v});}
+    const h=new Date().getHours(),greet=h<12?'Buenos días':(h<19?'Buenas tardes':'Buenas noches');
+    const fechaLarga=new Date().toLocaleDateString('es-VE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    const cnt=(v,unit)=>{const pre=unit==='u'?'':'Bs. ',suf='',dec=unit==='u'?0:2;return `<span class="rep-cnt" data-to="${v||0}" data-dec="${dec}" data-pre="${pre}" data-suf="${suf}">${pre}0</span>`;};
+    const tile=(l,v,s)=>`<div class="rep-tile"><div class="rep-tile-l">${l}</div><div class="rep-tile-v">${v}</div>${s?`<div class="rep-tile-s">${s}</div>`:''}</div>`;
+    const donutCard=(title,ic,rows,unit)=>`<div class="card"><div class="card-head"><div class="card-title">${svg(I[ic])} ${title}</div></div><div style="padding:16px">${rows.filter(r=>r.value>0).length?svgDonut(rows.filter(r=>r.value>0),unit||'Bs'):'<div style="text-align:center;color:var(--text-faint);padding:30px 0">Sin datos aún.</div>'}</div></div>`;
+    view.innerHTML=REP_STYLE+`<div class="rep-wrap">
+      <div style="margin-bottom:18px"><div style="font-size:22px;font-weight:800;letter-spacing:-.01em">${greet}${(typeof CO!=='undefined'&&CO.name)?' · '+CO.name:''}</div><div style="font-size:13px;color:var(--text-faint);margin-top:2px;text-transform:capitalize">${fechaLarga}</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px">
+        ${tile('Ventas de hoy',cnt(ventasHoy),usd(ventasHoy/RATE)+' · '+hoy.length+' facturas')}
+        ${tile('Ventas del mes',cnt(ventasMes),usd(ventasMes/RATE)+' · '+mesFac.length+' facturas')}
+        ${tile('IVA débito (hoy)',cnt(ivaHoy),'Débito fiscal del día')}
+        ${tile('Por cobrar',cnt(porCobrar),usd(porCobrar/RATE)+(nvenc?' · '+nvenc+' vencida'+(nvenc>1?'s':''):''))}
       </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px">
+        ${donutCard('Formas de pago (hoy)','card',fpRows,'Bs')}
+        ${donutCard('Ventas por cajero (mes)','users',cjRows,'Bs')}
+        ${donutCard('Estado del inventario','box',invRows,'u')}
+      </div>
+      <div class="card" style="margin-bottom:16px"><div class="card-head"><div class="card-title">${svg(I.chart)} Ventas últimos 7 días</div></div><div style="padding:16px">${d7.some(x=>x.value>0)?svgBars(d7,'Bs'):'<div style="text-align:center;color:var(--text-faint);padding:24px 0">Sin ventas en los últimos 7 días.</div>'}</div></div>
       <div class="row2">
         <div class="card">
           <div class="card-head"><div class="card-title">${svg(I.invoice)} Actividad reciente</div></div>
@@ -2506,8 +2528,11 @@
           ${qa('invoice','Nueva factura','POS multi-divisa con IVA/IGTF','facturacion')}
           ${qa('box','Inventario','Stock, costo promedio, kardex','inventario')}
           ${qa('receipt','Registrar compra','Recepción con retenciones','compras')}
+          ${qa('chart','Reportes','Gráficos y métricas del negocio','reportes')}
+          ${qa('receipt','Cierre de caja','Reporte Z del día','cierre')}
         </div>
-      </div>`;
+      </div></div>`;
+    animateReportCounters();
   }
 
   // Datos del emisor — se toman de la licencia del cliente; si no hay, usa el demo.
@@ -2758,11 +2783,11 @@
       setRate(v){rate=parseFloat(v)||1;renderItems();renderTotals();},
       setRateEur(v){rateEur=parseFloat(v)||1;renderTotals();},
       // Refresca los campos de tasa con un valor recibido (auto-actualización).
-      applyRate(usd,eur){if(usd>0)rate=usd;if(eur>0)rateEur=eur;const ri=document.getElementById('fa-rate');if(ri)ri.value=(+rate).toFixed(2);const re=document.getElementById('fa-reur');if(re)re.value=(+rateEur).toFixed(2);try{renderItems();renderTotals();}catch(e){}},
+      applyRate(usd,eur){if(usd>0)rate=usd;if(eur>0)rateEur=eur;const ri=document.getElementById('fa-rate');if(ri)ri.value=(+rate).toFixed(2);const re=document.getElementById('fa-reur');if(re)re.value=(+rateEur).toFixed(2);try{renderItems();renderTotals();}catch(e){}try{if(window.refreshRateChip)refreshRateChip();}catch(e){}},
       // Consulta la tasa BCV real del día (pydolarve/dolarapi) y la aplica.
       async liveRate(btn){const orig=btn?btn.textContent:'';if(btn){btn.textContent='Actualizando…';btn.disabled=true;}
         const res=await fetchBcv();
-        if(res&&res.usd>0){const eur=res.eur||rateEur;rate=res.usd;rateEur=eur;saveBcv(rate,eur);const ri=document.getElementById('fa-rate');if(ri)ri.value=(+rate).toFixed(2);const re=document.getElementById('fa-reur');if(re)re.value=(+rateEur).toFixed(2);renderItems();renderTotals();toast('Tasa BCV del día · USD '+rate.toFixed(2)+(res.eur?' · EUR '+eur.toFixed(2):''),true);}
+        if(res&&res.usd>0){const eur=res.eur||rateEur;rate=res.usd;rateEur=eur;saveBcv(rate,eur);const ri=document.getElementById('fa-rate');if(ri)ri.value=(+rate).toFixed(2);const re=document.getElementById('fa-reur');if(re)re.value=(+rateEur).toFixed(2);renderItems();renderTotals();try{if(window.refreshRateChip)refreshRateChip();}catch(e){}toast('Tasa BCV del día · USD '+rate.toFixed(2)+(res.eur?' · EUR '+eur.toFixed(2):''),true);}
         else{toast('No se pudo obtener la tasa BCV. Revisa tu conexión a Internet.',false);}
         if(btn){btn.textContent=orig;btn.disabled=false;}},
       quickCedula(){
@@ -3387,7 +3412,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.21";
+  var CURRENT_FALLBACK = "1.2.22";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
