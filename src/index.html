@@ -626,15 +626,19 @@
     {fac:'F-000486',cli:'Distribuidora Sur',m:'EFECTIVO_EUR',cur:'EUR',ref:'',amt:20},
     {fac:'F-000487',cli:'Comercial El Sol',m:'PAGO_MOVIL',cur:'VES',ref:'2201450',amt:1875.60},
     {fac:'F-000488',cli:'Farmacia Vida',m:'PUNTO_VENTA',cur:'VES',ref:'LOTE-78',amt:3320},
-  ].map(x=>({id:cierreUid++,...x}));
+  ].map(x=>({id:cierreUid++,date:todayISO(),...x}));
   try{const s=localStorage.getItem('vortex_cierre');if(s){const a=JSON.parse(s);if(Array.isArray(a)){CIERRE=a;cierreUid=a.reduce((m,x)=>Math.max(m,x.id||0),0)+1;}}}catch(e){}
   const saveCierre=()=>{try{localStorage.setItem('vortex_cierre',JSON.stringify(CIERRE));}catch(e){}};
   function deleteCierre(id){CIERRE=CIERRE.filter(x=>x.id!==id);saveCierre();go('cierre');toast('Operación eliminada del cierre',true);}
   window.deleteCierre=deleteCierre;
   const ML={EFECTIVO_VES:'Efectivo Bs.',EFECTIVO_USD:'Efectivo USD',EFECTIVO_EUR:'Efectivo EUR',PAGO_MOVIL:'Pago móvil',PUNTO_VENTA:'Punto de venta',TRANSFERENCIA_VES:'Transferencia Bs.',TRANSFERENCIA_USD:'Transferencia USD',TRANSFERENCIA_EUR:'Transferencia EUR',ZELLE:'Zelle'};
   const bsOf=x=>x.cur==='VES'?x.amt:x.cur==='USD'?x.amt*RATE:x.amt*RATE_EUR;
-  let cierreFilter='ALL';
+  let cierreFilter='ALL', cierreDate=todayISO();
+  const cierreDayMatch=x=>((x.date||todayISO())===cierreDate);
+  function setCierreDate(v){cierreDate=v||todayISO();go('cierre');}
+  window.setCierreDate=setCierreDate;
   function cierreMatch(x){
+    if(!cierreDayMatch(x))return false;
     if(cierreFilter==='ALL')return true;
     if(cierreFilter==='DIVISA')return x.cur!=='VES';
     if(cierreFilter==='EFECTIVO')return x.m.startsWith('EFECTIVO');
@@ -650,16 +654,18 @@
   function setCierreFilter(f){cierreFilter=f;go('cierre');}
   window.setCierreFilter=setCierreFilter;
   function renderCierre(view){
+    const dayList=CIERRE.filter(cierreDayMatch);
     const groups={};
-    CIERRE.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,div:0,cur:x.cur};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur!=='VES')groups[k].div+=x.amt;});
-    const totalBs=CIERRE.reduce((a,x)=>a+bsOf(x),0);
-    const totUsd=CIERRE.filter(x=>x.cur==='USD').reduce((a,x)=>a+x.amt,0);
-    const totEur=CIERRE.filter(x=>x.cur==='EUR').reduce((a,x)=>a+x.amt,0);
+    dayList.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,div:0,cur:x.cur};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur!=='VES')groups[k].div+=x.amt;});
+    const totalBs=dayList.reduce((a,x)=>a+bsOf(x),0);
+    const totUsd=dayList.filter(x=>x.cur==='USD').reduce((a,x)=>a+x.amt,0);
+    const totEur=dayList.filter(x=>x.cur==='EUR').reduce((a,x)=>a+x.amt,0);
+    const facturasDia=new Set(dayList.map(x=>x.fac)).size;
     const order=['EFECTIVO_VES','EFECTIVO_USD','EFECTIVO_EUR','PAGO_MOVIL','PUNTO_VENTA','TRANSFERENCIA_VES','ZELLE'];
     const cards=Object.keys(groups).sort((a,b)=>order.indexOf(a)-order.indexOf(b)).map(k=>{const g=groups[k];const div=g.cur==='USD'?` · ${usd(g.div)}`:g.cur==='EUR'?` · € ${g.div.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2})}`:'';return `<div class="card" style="padding:13px 15px"><div style="font-size:11.5px;color:var(--text-muted);font-weight:600">${ML[k]}</div><div style="font-size:19px;font-weight:720;margin-top:5px;font-variant-numeric:tabular-nums">${money(g.bs)}</div><div style="font-size:11.5px;color:var(--text-faint);margin-top:2px">${g.n} oper.${div}</div></div>`;}).join('');
     view.innerHTML=`
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-        <div class="field"><label>Fecha</label><input class="selm" type="date" value="${todayISO()}"></div>
+        <div class="field"><label>Fecha</label><input class="selm" type="date" value="${cierreDate}" onchange="setCierreDate(this.value)"></div>
         <div class="field"><label>Cajero de turno</label><select class="selm" onchange="saveCajero(this.value)">${CAJEROS.map(v=>`<option value="${v}" ${v===loadCajero()?'selected':''}>${v}</option>`).join('')}</select></div>
         <div style="flex:1"></div>
         <button class="btn" onclick="printCierre()">${svg('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="7"/>')} Imprimir / PDF</button>
@@ -667,7 +673,7 @@
       </div>
       <div class="kgrid">
         ${kpiC('Total del día',money(totalBs),usd(totalBs/RATE)+' equiv.','coin')}
-        ${kpiC('Operaciones',String(CIERRE.length),'facturas cobradas','invoice')}
+        ${kpiC('Operaciones',String(dayList.length),facturasDia+' factura'+(facturasDia===1?'':'s')+' del día','invoice')}
         ${kpiC('Divisas recibidas',usd(totUsd),'€ '+totEur.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}),'coin')}
         ${kpiC('IGTF ('+igtfPct()+'% divisas)',money((totUsd*RATE+totEur*RATE_EUR)*getIgtf()),'sobre pagos en divisa','receipt')}
       </div>
@@ -1767,7 +1773,7 @@
     // Reflejar el abono en el cierre de caja del día
     const cur=m.endsWith('_USD')?'USD':m.endsWith('_EUR')?'EUR':'VES';
     const amtCur=cur==='USD'?amt/RATE:cur==='EUR'?amt/RATE_EUR:amt;
-    CIERRE.unshift({id:cierreUid++,fac:x.num,cli:x.cli,m,cur,ref:ref||'Abono CxC',amt:amtCur});saveCierre();
+    CIERRE.unshift({id:cierreUid++,date:todayISO(),fac:x.num,cli:x.cli,m,cur,ref:ref||'Abono CxC',amt:amtCur});saveCierre();
     // Registrar el cobro y generar el recibo (no fiscal) imprimible
     const rec={seq:reciboSeq,num:'RC-'+String(reciboSeq).padStart(6,'0'),fecha:todayDMY(),doc:x.num,cli:x.cli,m,ref,amt,saldoAntes,saldoDespues};
     reciboSeq++;COBROS.unshift(rec);saveCobros();
@@ -2263,10 +2269,10 @@
   window.viewFactura=viewFactura;
   function viewFacturaByNum(num){const f=FACTURAS.find(x=>x.num===num&&x.html);if(f){document.getElementById('paper').innerHTML=f.html;document.getElementById('printOverlay').classList.add('show');}else{toast('No hay factura guardada para '+num+' (documento de ejemplo). Las facturas emitidas desde el sistema sí abren su detalle.',false);}}
   window.viewFacturaByNum=viewFacturaByNum;
-  let facCli='ALL',facQ='';
-  function setFacCli(v){facCli=v;facBody();}
-  window.setFacCli=setFacCli;
-  function facMatch(f){if(facCli!=='ALL'&&f.cli!==facCli)return false;if(facQ&&!((f.num||'').toLowerCase().includes(facQ)||(f.cli||'').toLowerCase().includes(facQ)))return false;return true;}
+  let facDate='',facQ='';
+  function setFacDate(v){facDate=v||'';go('facturas');}
+  window.setFacDate=setFacDate;
+  function facMatch(f){if(facDate&&String(f.dateISO||'').slice(0,10)!==facDate)return false;if(facQ&&!((f.num||'').toLowerCase().includes(facQ)||(f.cli||'').toLowerCase().includes(facQ)))return false;return true;}
   function facBody(){
     const el=document.getElementById('fx-body');if(!el)return;
     const list=FACTURAS.filter(facMatch);
@@ -2276,11 +2282,11 @@
     el.innerHTML=list.map(f=>`<tr><td><span class="mono" style="color:var(--accent);font-weight:600;cursor:pointer" onclick="viewFactura(${f.id})">${f.num}</span></td><td>${f.date}</td><td>${f.cli}</td><td style="font-size:12px;color:var(--text-muted)">${(f.methods||[]).join(', ')||'—'}</td><td class="num">${money(f.totalBs||0)}</td><td><span class="chip" style="background:var(--good-soft);color:var(--good)">${f.status||'Emitida'}</span></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:26px;color:var(--text-faint)">Sin facturas para este filtro.</td></tr>';
   }
   function renderFacturas(view){
-    const clientes=[...new Set(FACTURAS.map(f=>f.cli))];
     view.innerHTML=`
       <div class="toolbar">
         <div class="search"><span>${svg(I.search)}</span><input id="fx-q" placeholder="Buscar por Nº o cliente…" value="${facQ}"></div>
-        <select class="selm" onchange="setFacCli(this.value)"><option value="ALL">Todos los clientes</option>${clientes.map(c=>`<option value="${(c||'').replace(/"/g,'&quot;')}" ${facCli===c?'selected':''}>${c}</option>`).join('')}</select>
+        <div class="field" style="margin:0"><input class="selm" type="date" value="${facDate}" onchange="setFacDate(this.value)" title="Filtrar por fecha"></div>
+        ${facDate?`<button class="btn sm" onclick="setFacDate('')">Ver todas</button>`:''}
       </div>
       <div id="fx-summary"></div>
       <div class="panel"><div class="overflow-x"><table style="min-width:720px"><thead><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Formas de pago</th><th class="num">Total</th><th>Estado</th></tr></thead><tbody id="fx-body"></tbody></table></div></div>`;
@@ -2667,19 +2673,21 @@
     const cEl=document.querySelector('.view select.selm');
     const cajero=(cEl&&cEl.value)||loadCajero()||'—';
     const eur=v=>'€ '+v.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const dayList=CIERRE.filter(x=>((x.date||todayISO())===fecha));
+    const facturasDia=new Set(dayList.map(x=>x.fac)).size;
     const groups={};
-    CIERRE.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,usd:0,eur:0};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur==='USD')groups[k].usd+=x.amt;if(x.cur==='EUR')groups[k].eur+=x.amt;});
+    dayList.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,usd:0,eur:0};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur==='USD')groups[k].usd+=x.amt;if(x.cur==='EUR')groups[k].eur+=x.amt;});
     const order=['EFECTIVO_VES','EFECTIVO_USD','EFECTIVO_EUR','PAGO_MOVIL','PUNTO_VENTA','TRANSFERENCIA_VES','TRANSFERENCIA_USD','TRANSFERENCIA_EUR','ZELLE'];
     const keys=Object.keys(groups).sort((a,b)=>order.indexOf(a)-order.indexOf(b));
-    const totalBs=CIERRE.reduce((a,x)=>a+bsOf(x),0);
-    const totUsd=CIERRE.filter(x=>x.cur==='USD').reduce((a,x)=>a+x.amt,0);
-    const totEur=CIERRE.filter(x=>x.cur==='EUR').reduce((a,x)=>a+x.amt,0);
+    const totalBs=dayList.reduce((a,x)=>a+bsOf(x),0);
+    const totUsd=dayList.filter(x=>x.cur==='USD').reduce((a,x)=>a+x.amt,0);
+    const totEur=dayList.filter(x=>x.cur==='EUR').reduce((a,x)=>a+x.amt,0);
     const igtf=(totUsd*RATE+totEur*RATE_EUR)*getIgtf();
     const rows=keys.map(k=>{const g=groups[k];const divisa=g.usd?usd(g.usd):g.eur?eur(g.eur):'—';return `<tr><td>${ML[k]}</td><td class="num">${g.n}</td><td class="num">${divisa}</td><td class="num">${money(g.bs)}</td></tr>`;}).join('');
     let fechaFmt=fecha; try{fechaFmt=new Date(fecha+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'long',year:'numeric'});}catch(e){}
     return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Cierre de caja · Reporte Z</span><div class="p-num">Z-${fecha.replace(/-/g,'')}</div><div class="p-mut" style="margin-top:6px">${fechaFmt} · ${nowTime()}</div></div></div>
       <div class="p-body">
-        <div class="p-parts"><div class="p-box"><div class="pk">Cajero</div><div class="pn">${cajero}</div></div><div class="p-box"><div class="pk">Operaciones del día</div><div class="pn">${CIERRE.length} facturas cobradas</div></div></div>
+        <div class="p-parts"><div class="p-box"><div class="pk">Cajero</div><div class="pn">${cajero}</div></div><div class="p-box"><div class="pk">Operaciones del día</div><div class="pn">${facturasDia} factura${facturasDia===1?'':'s'} · ${dayList.length} cobros</div></div></div>
         <table><thead><tr><th>Forma de pago</th><th class="num">Oper.</th><th class="num">Divisa</th><th class="num">Equiv. Bs.</th></tr></thead><tbody>${rows}</tbody></table>
       </div>
       <div class="p-tt"><table>
@@ -3136,7 +3144,7 @@
         // Contado: exigir pago completo (para dejar saldo pendiente, marca la factura como Crédito)
         if(!credito){const paidU=pays.reduce((s,p)=>s+pUsd(p),0);if(paidU<t.total-0.01){toast('Falta por cobrar '+bothN(t.total-paidU)+'. Marca la venta como “Crédito” o completa el pago.',false);return;}}
         // Registrar la venta en el cierre de caja (una fila por pago recibido)
-        pays.filter(p=>p.a>0).forEach(p=>CIERRE.unshift({id:cierreUid++,fac:num,cli:c.name,m:p.m,cur:p.cur,ref:(p.d&&p.d.ref)||'',amt:p.a}));
+        pays.filter(p=>p.a>0).forEach(p=>CIERRE.unshift({id:cierreUid++,date:todayISO(),fac:num,cli:c.name,m:p.m,cur:p.cur,ref:(p.d&&p.d.ref)||'',amt:p.a}));
         saveCierre();
         // Descontar del inventario los renglones facturados (salida + kardex)
         if(window.IN&&window.IN.sell)window.IN.sell(lines.map(l=>({sku:l.sku,qty:l.qty})));
@@ -3683,7 +3691,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.32";
+  var CURRENT_FALLBACK = "1.2.33";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
