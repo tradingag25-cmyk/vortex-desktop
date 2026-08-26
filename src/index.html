@@ -2235,6 +2235,24 @@
           </div>
           <div style="margin-top:12px"><button class="btn primary" onclick="saveCompany()">Guardar datos de la empresa</button></div>
         </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Seguridad · PIN de acceso</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Cambia los PIN con los que se entra al sistema. Guárdalos en un lugar seguro.</p>
+          <div class="g2" style="max-width:420px"><div class="field"><label>PIN Administrador</label><input id="pin-admin" type="text" inputmode="numeric" class="mono" value="${PINS.ADMIN}" maxlength="8"></div><div class="field"><label>PIN Cajero</label><input id="pin-cajero" type="text" inputmode="numeric" class="mono" value="${PINS.CAJERO}" maxlength="8"></div></div>
+          <div style="margin-top:10px"><button class="btn primary" onclick="saveConfigPins()">Guardar PIN</button></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Numeración fiscal</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Prefijo del número de factura y número de control de tu talonario.</p>
+          <div class="g2" style="max-width:420px"><div class="field"><label>Prefijo de factura</label><input id="num-prefix" class="mono" value="${getNumbCfg().facPrefix||'F-'}" placeholder="F-"></div><div class="field"><label>Nº de control</label><input id="num-ctrl" class="mono" value="${getNumbCfg().ctrl||'00-00483'}" placeholder="00-00483"></div></div>
+          <div style="margin-top:10px"><button class="btn primary" onclick="saveConfigNumbering()">Guardar numeración</button></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Cajeros / Vendedores</div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Lista de cajeros que aparece en Facturación (selector de cajero de turno).</p>
+          <div id="caj-list" style="display:flex;flex-direction:column;gap:6px;max-width:420px">${renderCajeroList()}</div>
+          <div style="display:flex;gap:8px;margin-top:10px;max-width:420px"><input id="caj-new" placeholder="Nombre del cajero" style="flex:1;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:8px 10px;border-radius:9px;outline:none" onkeydown="if(event.key==='Enter'){event.preventDefault();addConfigCajero();}"><button class="btn primary" onclick="addConfigCajero()">Agregar</button></div>
+        </div>
         <div style="border-top:1px solid var(--border);padding-top:16px">
           <div style="font-weight:700;font-size:14px;margin-bottom:4px">Datos de prueba (solo administrador)</div>
           <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Carga información de ejemplo para probar el sistema, o vacía todo para dejar el equipo en blanco. Solo afecta a este equipo.</p>
@@ -2261,6 +2279,41 @@
   }
   function clearCompanyLogo(){const hid=document.getElementById('co-logo');if(hid)hid.value='';const pv=document.getElementById('co-logoprev');if(pv){pv.style.backgroundImage='';pv.textContent='Logo';}}
   window.saveCompany=saveCompany;window.pickCompanyLogo=pickCompanyLogo;window.clearCompanyLogo=clearCompanyLogo;
+  // Seguridad · PIN
+  function saveConfigPins(){
+    const a=((document.getElementById('pin-admin')||{}).value||'').trim();const c=((document.getElementById('pin-cajero')||{}).value||'').trim();
+    if(!a||!c){toast('Ambos PIN son obligatorios',false);return;}
+    if(a===c){toast('Los PIN de Administrador y Cajero deben ser distintos',false);return;}
+    PINS={ADMIN:a,CAJERO:c};savePins();try{updateLoginHint();}catch(e){}toast('PIN actualizados',true);
+  }
+  window.saveConfigPins=saveConfigPins;
+  // Numeración fiscal
+  function getNumbCfg(){try{const j=JSON.parse(localStorage.getItem('vortex_numbering')||'null');if(j)return j;}catch(e){}return {facPrefix:'F-',ctrl:'00-00483'};}
+  function saveConfigNumbering(){
+    const p=((document.getElementById('num-prefix')||{}).value||'').trim()||'F-';const ct=((document.getElementById('num-ctrl')||{}).value||'').trim()||'00-00483';
+    try{localStorage.setItem('vortex_numbering',JSON.stringify({facPrefix:p,ctrl:ct}));}catch(e){}
+    try{if(window.FA&&FA.applyNumbering)FA.applyNumbering();}catch(e){}
+    toast('Numeración guardada',true);
+  }
+  window.getNumbCfg=getNumbCfg;window.saveConfigNumbering=saveConfigNumbering;
+  // Cajeros / Vendedores
+  function renderCajeroList(){
+    const list=(typeof CAJEROS!=='undefined')?CAJEROS:[];
+    return list.map(function(nm){return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--border);border-radius:9px;padding:8px 12px"><span>${(nm||'').replace(/</g,'&lt;')}</span><button class="del" onclick="delConfigCajero('${(nm||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" title="Eliminar">${svg(I.trash)}</button></div>`;}).join('')||'<div style="color:var(--text-faint);font-size:13px">Sin cajeros.</div>';
+  }
+  function addConfigCajero(){
+    const el=document.getElementById('caj-new');const nm=((el&&el.value)||'').trim();if(!nm){toast('Escribe el nombre del cajero',false);if(el)el.focus();return;}
+    if(!CAJEROS.includes(nm)){CAJEROS.push(nm);saveCajerosList();}
+    go('config');toast('Cajero agregado',true);
+  }
+  function delConfigCajero(nm){
+    if(CAJEROS.length<=1){toast('Debe existir al menos un cajero',false);return;}
+    if(!confirm('¿Eliminar al cajero '+nm+'?'))return;
+    CAJEROS=CAJEROS.filter(function(x){return x!==nm;});saveCajerosList();
+    if(loadCajero()===nm)saveCajero(CAJEROS[0]);
+    go('config');toast('Cajero eliminado',true);
+  }
+  window.renderCajeroList=renderCajeroList;window.addConfigCajero=addConfigCajero;window.delConfigCajero=delConfigCajero;
 
   // ══════════════ DASHBOARD ══════════════
   function renderDashboard(view){
@@ -2434,9 +2487,11 @@
     // Próximo número de factura: uno más que el mayor ya emitido (persistido en FACTURAS). Evita números repetidos entre sesiones.
     function nextDocSeq(){let mx=482;try{(FACTURAS||[]).forEach(f=>{const m=/(\d+)/.exec(f.num||'');if(m)mx=Math.max(mx,parseInt(m[1],10));});}catch(e){}return mx+1;}
     const _b0=getBcv()||{};
-    let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum='00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
+    const getNumb=()=>{try{const j=JSON.parse(localStorage.getItem('vortex_numbering')||'null');if(j)return j;}catch(e){}return {facPrefix:'F-',ctrl:'00-00483'};};
+    const _n0=getNumb();
+    let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum=_n0.ctrl||'00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
     let editCliIdx=null,cliOrigin='facturacion',cliQ='';
-    const docNum=()=>'F-'+String(docCounter).padStart(6,'0');
+    const docNum=()=>(getNumb().facPrefix||'F-')+String(docCounter).padStart(6,'0');
     const pUsd=p=>p.cur==='USD'?p.a:p.cur==='EUR'?(p.a*rateEur)/rate:p.a/rate; // pago → unidades USD
     const showN=u=>cur==='USD'?usd(u):money(u*rate);
     const bothN=u=>usd(u)+' · '+money(u*rate); // muestra siempre USD y Bs (para el cajero)
@@ -2790,6 +2845,7 @@
         CLI.splice(i,1);if(ci>=CLI.length)ci=CLI.length-1;else if(i<ci)ci--;saveCli();go('clientes');toast('Cliente eliminado',true);
       },
       setCtrl(v){ctrlNum=v;},
+      applyNumbering(){ctrlNum=getNumb().ctrl||ctrlNum;},
       edit(id,f,v){const l=lines.find(x=>x.id===id);if(!l)return;if(f==='qty')l.qty=Math.max(0,parseFloat(v)||0);else if(f==='p')l.p=Math.max(0,parseFloat(v)||0);else if(f==='disc')l.disc=Math.min(100,Math.max(0,parseFloat(v)||0));else if(f==='name')l.name=v;else if(f==='iva')l.iva=v;const c=lc(l);const cell=document.getElementById('fa-lt-'+id);if(cell)cell.textContent=showN(c.t);renderTotals();},
       rm(id){lines=lines.filter(l=>l.id!==id);renderItems();renderTotals();},
       pick,
@@ -3040,7 +3096,9 @@
 
   // ── Autenticación (splash → login → app por rol) ──
   let selectedRole=null;
-  const PINS={ADMIN:'1234',CAJERO:'4321'};
+  let PINS=(function(){try{const j=JSON.parse(localStorage.getItem('vortex_pins')||'null');if(j&&j.ADMIN&&j.CAJERO)return j;}catch(e){}return {ADMIN:'1234',CAJERO:'4321'};})();
+  function savePins(){try{localStorage.setItem('vortex_pins',JSON.stringify(PINS));}catch(e){}}
+  const pinsAreCustom=()=>{try{return !!localStorage.getItem('vortex_pins');}catch(e){return false;}};
   const ROLE_LABEL={ADMIN:'Administrador',CAJERO:'Cajero'};
   // Sonido futurista corto (Web Audio API — sin archivos externos)
   let _sndDone=false;
@@ -3084,7 +3142,9 @@
     go(currentRole==='CAJERO'?'facturacion':'dashboard');
   }
   window.doLogin=doLogin;
-  function logout(){currentRole=null;selectedRole=null;document.querySelector('.app').style.display='none';document.getElementById('login').style.display='flex';const p=document.getElementById('loginPin');if(p)p.value='';document.getElementById('role-ADMIN').classList.remove('sel');document.getElementById('role-CAJERO').classList.remove('sel');document.getElementById('loginErr').textContent='';}
+  function updateLoginHint(){try{const h=document.querySelector('.login-hint');if(h)h.textContent=pinsAreCustom()?'Ingresa el PIN de tu rol.':'Demo — Administrador: 1234 · Cajero: 4321';}catch(e){}}
+  try{updateLoginHint();}catch(e){}
+  function logout(){currentRole=null;selectedRole=null;document.querySelector('.app').style.display='none';document.getElementById('login').style.display='flex';const p=document.getElementById('loginPin');if(p)p.value='';document.getElementById('role-ADMIN').classList.remove('sel');document.getElementById('role-CAJERO').classList.remove('sel');document.getElementById('loginErr').textContent='';updateLoginHint();}
   window.logout=logout;
 
   // Enter pasa al siguiente campo dentro de los formularios (modales). En el último campo, ejecuta la acción principal.
@@ -3155,7 +3215,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.17";
+  var CURRENT_FALLBACK = "1.2.18";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
