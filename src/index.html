@@ -2618,7 +2618,9 @@
   function refreshCompany(){ CO=readCfgCompany(); EMISOR_INK=buildEmisor(); try{var t=document.querySelector('.tenant'); if(t) t.textContent=CO.name+' · '+CO.rif;}catch(e){} try{var lc=document.querySelector('.login-co'); if(lc) lc.textContent=CO.name;}catch(e){} }
   window.__vtxRefreshCompany=refreshCompany;
   try{ if(localStorage.getItem('vortex_license_cfg')) setTimeout(refreshCompany,0); }catch(e){}
-  function closePrint(){document.getElementById('printOverlay').classList.remove('show');}
+  function closePrint(){document.getElementById('printOverlay').classList.remove('show');
+    try{ if(window.__pendingTouchCed){ window.__pendingTouchCed=false; var tp=document.getElementById('touchPos'); if(tp&&tp.style.display!=='none'&&window.FA&&FA.touchNewClientPrompt){ setTimeout(function(){FA.touchNewClientPrompt();},80); } } }catch(e){}
+  }
   window.closePrint=closePrint;
   function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
   window.closeModal=closeModal;
@@ -2916,7 +2918,7 @@
       touchCredito(v){credito=!!v;if(credito)pays=[];FA.renderTouch();},
       saveDraft(){if(!lines.length){toast('No hay renglones para guardar',false);return;}const c=CLI[ci];const items=lines.map(l=>({sku:l.sku,name:l.name,qty:l.qty,p:l.p,iva:l.iva}));if(window.saveCotizFrom)window.saveCotizFrom(c.name,c.rif,c.vendor,items);lines=[];pays=[];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');if(touchOn)FA.renderTouch();else go('facturacion');toast('Factura guardada en Cotizaciones · factúrala cuando el cliente pague',true);},
       clearInvoice(){if(lines.length&&!confirm('¿Limpiar la factura y dejarla en blanco?'))return;lines=[];pays=[];const c=CLI[ci];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');if(touchOn)FA.renderTouch();else go('facturacion');toast('Factura en blanco',true);},
-      touchEmit(){if(!lines.length){toast('Agrega productos al ticket',false);return;}const before=FACTURAS.length;FA.emit();if(FACTURAS.length>before){lines=[];pays=[];credito=false;touchQ='';FA.renderTouch();FA.touchNewClientPrompt();}},
+      touchEmit(){if(!lines.length){toast('Agrega productos al ticket',false);return;}const before=FACTURAS.length;FA.emit();if(FACTURAS.length>before){lines=[];pays=[];credito=false;touchQ='';FA.renderTouch();window.__pendingTouchCed=true;}},
       // Cuadro grande para pedir la cédula del siguiente cliente (tras emitir, o al abrirlo manualmente).
       touchNewClientPrompt(){
         let el=document.getElementById('tp-cedprompt');
@@ -3691,7 +3693,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.33";
+  var CURRENT_FALLBACK = "1.2.34";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
