@@ -2558,7 +2558,7 @@
     const CXCL=(typeof CXC!=='undefined'?CXC:[]);
     const pc=CXCL.filter(x=>cxcSaldo(x)>0);const porCobrar=pc.reduce((a,x)=>a+cxcSaldo(x),0);const nvenc=pc.filter(x=>cxcDias(x)>0).length;
     const recientes=FAC.slice(-5).reverse();
-    const fpm={};(typeof CIERRE!=='undefined'?CIERRE:[]).forEach(x=>{const k=ML[x.m]||x.m;fpm[k]=(fpm[k]||0)+bsOf(x);});
+    const fpm={};(typeof CIERRE!=='undefined'?CIERRE:[]).filter(x=>((x.date||todayIso)===todayIso)).forEach(x=>{const k=ML[x.m]||x.m;fpm[k]=(fpm[k]||0)+bsOf(x);});
     const fpRows=Object.keys(fpm).map(k=>({label:k,value:fpm[k]}));
     const cjm={};mesFac.forEach(f=>{const k=f.cajero||'—';cjm[k]=(cjm[k]||0)+(f.totalBs||0);});
     const cjRows=Object.keys(cjm).map(k=>({label:k,value:cjm[k]}));
@@ -3698,7 +3698,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.35";
+  var CURRENT_FALLBACK = "1.2.36";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
