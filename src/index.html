@@ -3369,13 +3369,23 @@
         {go:'facturacion',sel:'#fa-cajero',title:'Facturación · Cajero de turno',body:'Selecciona quién atiende; queda en la factura y el cierre.',plus:true},
         {go:'facturacion',sel:'#fa-search',title:'Facturación · Productos',body:'Busca un producto y presiona Enter, o abre la lista completa con la flecha ▾.'},
         {go:'facturacion',sel:'#fa-emit',title:'Facturación · Emitir',body:'Registra las formas de pago (Bs./USD/EUR) y pulsa <b>Emitir factura</b>. Se imprime y descuenta el inventario.',plus:true},
-        {go:'inventario',sel:nav('inventario'),title:'Inventario',body:'Tus productos con existencia, costo promedio y precio por % de ganancia. Puedes ver el <b>Kardex</b>, almacenes y traslados.'},
+        {go:'cotizaciones',sel:nav('cotizaciones'),title:'Cotizaciones',body:'Presupuestos para tus clientes; con un clic los conviertes en factura.'},
+        {go:'cxc',sel:nav('cxc'),title:'Cuentas por cobrar',body:'Controla lo que te deben tus clientes, con vencimientos y registro de cobros.'},
+        {go:'devol',sel:nav('devol'),title:'Devoluciones (NC / ND)',body:'Notas de crédito y débito que ajustan facturas ya emitidas (documentos fiscales).'},
+        {go:'inventario',sel:nav('inventario'),title:'Inventario',body:'Tus productos con existencia, costo promedio y precio por % de ganancia.'},
+        {go:'kardex',sel:nav('kardex'),title:'Kardex',body:'Todas las entradas y salidas de tu inventario en un solo lugar.'},
+        {go:'ajustes',sel:nav('ajustes'),title:'Ajustes y traslados',body:'Corrige existencias y mueve mercancía entre tus depósitos/almacenes.'},
         {go:'compras',sel:nav('compras'),title:'Compras',body:'Registra las facturas de tus proveedores con <b>retenciones de IVA/ISLR</b>; la mercancía entra al inventario.',plus:true},
+        {go:'cxp',sel:nav('cxp'),title:'Cuentas por pagar',body:'Lo que le debes a tus proveedores, con sus vencimientos.'},
         {go:'lventas',sel:nav('lventas'),title:'Libros fiscales (SENIAT)',body:'Libro de Ventas y de Compras listos para el SENIAT, exportables e imprimibles.',plus:true},
         {go:'reten',sel:nav('reten'),title:'Retenciones',body:'Centro de retenciones de IVA e ISLR: las que practicas y las que te soportan.'},
+        {go:'bcv',sel:nav('bcv'),title:'Tasa BCV',body:'La tasa oficial del dólar y el euro, con su histórico. Se actualiza sola cada día.',plus:true},
         {go:'reportes',sel:nav('reportes'),title:'Reportes',body:'Gráficas y métricas del negocio con una <b>barra inteligente</b> para encontrar cualquier reporte.',plus:true},
         {go:'cierre',sel:nav('cierre'),title:'Cierre de caja',body:'Resumen del día por forma de pago (Reporte Z), listo para imprimir o guardar en PDF.'},
+        {go:'tesoreria',sel:nav('tesoreria'),title:'Bancos y caja',body:'Saldos de tus cuentas de caja y bancos, con sus movimientos.'},
         {go:'config',sel:'#cfg-license',title:'Configuración · Licencia',body:'Activa tu licencia y personaliza tu empresa, logo, PIN, numeración y más.',plus:true},
+        {go:'config',sel:'#co-name',title:'Configuración · Tu empresa',body:'Nombre, RIF, dirección y <b>logo</b>: aparecen en todas tus facturas.',plus:true},
+        {go:'ayuda',sel:nav('ayuda'),title:'Ayuda',body:'Manual con la explicación y las fórmulas de cada módulo, siempre a la mano.'},
         {title:'¡Listo! 🎉',body:'Ya conoces Vortex. Toca 🎓 cuando quieras repasar un módulo o ver "lo que nos hace diferentes".'}
       ],
       facturacion:[
@@ -3416,8 +3426,8 @@
       +'.guia-opt b{font-weight:650}'
       +'.guia-ov{position:fixed;inset:0;z-index:2147483200;display:none}'
       +'.guia-ov.show{display:block}'
-      +'.guia-hole{position:fixed;left:0;top:0;width:0;height:0;border-radius:10px;box-shadow:0 0 0 9999px rgba(6,14,16,.72);transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none}'
-      +'.guia-tip{position:fixed;z-index:2147483300;width:308px;max-width:88vw;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 60px -18px rgba(0,0,0,.7);padding:15px 16px;animation:guiaUp .2s ease}'
+      +'.guia-hole{position:fixed;left:0;top:0;width:0;height:0;border-radius:10px;border:2px solid #2fc0ce;box-shadow:0 0 0 9999px rgba(6,14,16,.72),0 0 0 4px rgba(47,192,206,.35);transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:auto}'
+      +'.guia-tip{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483300;width:460px;max-width:93vw;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 24px 60px -18px rgba(0,0,0,.7);padding:16px 18px;animation:guiaUp .2s ease}'
       +'.guia-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#e0a83e,#d9644a);color:#2a1600;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}'
       +'</style>';
     function build(){
@@ -3443,7 +3453,10 @@
     function closePanel(){const p=document.getElementById('guiaPanel');if(p)p.classList.remove('show');}
     function dismissHi(){const h=document.getElementById('guiaHi');if(h)h.classList.remove('show');const f=document.getElementById('guiaFab');if(f)f.classList.remove('pulse');try{localStorage.setItem('vortex_guide_seen','1');}catch(e){}}
     function start(key){build();closePanel();dismissHi();steps=T[key]||T.plus;idx=0;document.getElementById('guiaOv').classList.add('show');show();}
-    function show(){const s=steps[idx];if(!s){finish();return;}if(s.go&&curMod!==s.go){try{go(s.go);curMod=s.go;}catch(e){}}setTimeout(render,s.go?340:60);}
+    function show(){const s=steps[idx];if(!s){finish();return;}
+      try{const tp=document.getElementById('touchPos');if(tp&&tp.style.display!=='none'&&window.FA&&FA.exitTouch)FA.exitTouch();}catch(e){}
+      if(s.go){try{go(s.go);}catch(e){}}
+      setTimeout(render,s.go?380:80);}
     function content(s){
       return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
         +(s.plus?'<span class="guia-badge">⭐ Nuestro plus</span>':'<span style="font-size:11px;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Guía Vortex</span>')
@@ -3458,21 +3471,19 @@
     function render(){
       const s=steps[idx];if(!s)return;
       const ov=document.getElementById('guiaOv'),hole=document.getElementById('guiaHole'),tip=document.getElementById('guiaTip');
-      if(!ov.classList.contains('show'))ov.classList.add('show');
+      ov.classList.add('show');
       tip.innerHTML=content(s);
-      const el=s.sel?document.querySelector(s.sel):null;
-      if(el){
+      let el=null;try{el=s.sel?document.querySelector(s.sel):null;}catch(e){}
+      let r=null;
+      if(el){try{el.scrollIntoView({block:'center',inline:'nearest'});r=el.getBoundingClientRect();}catch(e){r=null;}}
+      if(r&&r.width>2&&r.height>2&&r.bottom>0&&r.top<window.innerHeight){
         ov.style.background='transparent';
-        try{el.scrollIntoView({block:'center',inline:'nearest'});}catch(e){}
-        const r=el.getBoundingClientRect(),pad=8;
-        hole.style.display='block';hole.style.left=(r.left-pad)+'px';hole.style.top=(r.top-pad)+'px';hole.style.width=(r.width+pad*2)+'px';hole.style.height=(r.height+pad*2)+'px';
-        const th=tip.offsetHeight||170,tw=tip.offsetWidth||308,gap=14;
-        let top=r.bottom+gap;if(top+th>window.innerHeight-10)top=Math.max(10,r.top-th-gap);
-        let left=r.left;if(left+tw>window.innerWidth-10)left=window.innerWidth-tw-10;if(left<10)left=10;
-        tip.style.left=left+'px';tip.style.top=top+'px';tip.style.transform='none';
+        const pad=8;hole.style.display='block';hole.style.left=(r.left-pad)+'px';hole.style.top=(r.top-pad)+'px';hole.style.width=(r.width+pad*2)+'px';hole.style.height=(r.height+pad*2)+'px';
+        // La tarjeta va abajo; si el elemento está en la mitad inferior, la subo arriba para no taparlo.
+        if(r.top>window.innerHeight*0.55){tip.style.top='20px';tip.style.bottom='auto';}else{tip.style.top='auto';tip.style.bottom='24px';}
       }else{
         hole.style.display='none';ov.style.background='rgba(6,14,16,.72)';
-        tip.style.left='50%';tip.style.top='50%';tip.style.transform='translate(-50%,-50%)';
+        tip.style.top='auto';tip.style.bottom='24px';
       }
     }
     function next(){idx++;if(idx>=steps.length){finish();return;}show();}
@@ -3559,7 +3570,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.24";
+  var CURRENT_FALLBACK = "1.2.25";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
