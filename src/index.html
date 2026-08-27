@@ -3722,8 +3722,8 @@
 (function(){
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
-  var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.39";
+  var API = "https://vortexsgi.com/api/updates/latest";
+  var CURRENT_FALLBACK = "1.2.40";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -3821,7 +3821,7 @@
 (function(){
   var T = window.__TAURI__;
   if(!T) return; // solo en la app de escritorio
-  var BASE = "https://vortex-platform-murex.vercel.app/api/license/activate?key=";
+  var BASE = "https://vortexsgi.com/api/license/activate?key=";
   var K_KEY = "vortex_license_key", K_CFG = "vortex_license_cfg", K_DEV = "vortex_device_id";
   // Identificador único y persistente de este equipo (para el control de cupos).
   function deviceId(){
