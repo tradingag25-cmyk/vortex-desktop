@@ -3723,7 +3723,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.40";
+  var CURRENT_FALLBACK = "1.3.0";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -3943,10 +3943,36 @@
   };
   window.__vtxClearAll = function(){ if(window.__VTX_DEMO){ try{alert("No disponible en el modo demo. Los datos de ejemplo no se pueden borrar en la prueba.");}catch(e){} return; } try{ DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); }catch(e){} location.reload(); };
   // ── Modo demo ──
+  function showDemoWelcome(){
+    try{ if(document.getElementById('vtx-demo-welcome')) return; }catch(e){}
+    var ov=document.createElement('div'); ov.id='vtx-demo-welcome';
+    ov.style.cssText="position:fixed;inset:0;z-index:2147483300;background:rgba(4,12,14,.72);display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif";
+    ov.innerHTML='<div style="max-width:440px;width:100%;background:#0f2327;border:1px solid #254a50;border-radius:18px;padding:26px 24px;text-align:center;box-shadow:0 30px 80px -20px rgba(0,0,0,.7)">'
+      +'<div style="font-size:40px;line-height:1;margin-bottom:10px">🎮</div>'
+      +'<div style="font-size:20px;font-weight:800;color:#eaf6f6;margin-bottom:12px">¡Bienvenido a tu prueba de Vortex!</div>'
+      +'<p style="font-size:14.5px;color:#a6c2c4;line-height:1.6;margin:0 0 10px">Ya dejamos <b style="color:#eaf6f6">todo listo para ti</b>: el sistema está <b style="color:#3fe0ec">lleno con datos de ejemplo</b> (clientes, facturas de varios días, inventario y cierre de caja) para que pruebes y aprendas a manejarlo <b>sin cargar nada</b>.</p>'
+      +'<p style="font-size:14.5px;color:#a6c2c4;line-height:1.6;margin:0 0 10px">Explora con total confianza: <b>nada de esto es real</b>.</p>'
+      +'<p style="font-size:13px;color:#6f8f92;line-height:1.55;margin:0 0 18px">Cuando actives tu licencia, Vortex arranca <b>en blanco</b> con los datos de tu empresa.</p>'
+      +'<button id="vtx-demo-welcome-ok" style="width:100%;background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;border:none;border-radius:11px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit">Entendido, quiero explorar</button>'
+      +'</div>';
+    document.body.appendChild(ov);
+    try{ document.getElementById('vtx-demo-welcome-ok').addEventListener('click',function(){ try{ov.remove();}catch(e){} }); }catch(e){}
+    ov.addEventListener('click',function(ev){ if(ev.target===ov){ try{ov.remove();}catch(e){} } });
+  }
   function isDemoResp(j){ return !!(j && j.license && j.license.type === "DEMO"); }
   function applyDemoMode(isDemo){
     window.__VTX_DEMO = !!isDemo;
     try{ if(isDemo) localStorage.setItem("vortex_is_demo","1"); else localStorage.removeItem("vortex_is_demo"); }catch(e){}
+    // Primer ingreso al demo: llenar solo con datos de ejemplo y avisar (una vez).
+    if(isDemo){
+      var _seeded=false; try{ _seeded = localStorage.getItem("vortex_demo_seeded")==="1"; }catch(e){}
+      if(!_seeded){
+        try{ localStorage.setItem("vortex_demo_seeded","1"); localStorage.setItem("vortex_demo_welcome","1"); }catch(e){}
+        if(window.__vtxLoadSample){ window.__vtxLoadSample(); return; } // llena y recarga
+      }
+      var _welc=false; try{ _welc = localStorage.getItem("vortex_demo_welcome")==="1"; }catch(e){}
+      if(_welc){ try{ localStorage.removeItem("vortex_demo_welcome"); }catch(e){} try{ setTimeout(showDemoWelcome,500); }catch(e){} }
+    }
     var b=document.getElementById("vtx-demo");
     if(isDemo && !b){
       b=document.createElement("div"); b.id="vtx-demo";
