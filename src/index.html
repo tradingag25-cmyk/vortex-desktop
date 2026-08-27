@@ -965,7 +965,20 @@
     toast('Importados: '+added+' nuevos'+(updated?', '+updated+' actualizados':'')+(skipped?', '+skipped+' omitidos':''),true);
   }
   window.renderProveedores=renderProveedores;window.openProvEditor=openProvEditor;window.saveProvEntry=saveProvEntry;window.deleteProvEntry=deleteProvEntry;
+  function exportProvCSV(){
+    var rows=[['Nombre','RIF','Tipo']];
+    PROV.forEach(function(p){rows.push([p.name||'',p.rif||'',p.tipo||'ORDINARIO']);});
+    window.__vtxDownloadCSV('vortex-proveedores.csv',rows);
+  }
+  function templateProvCSV(){
+    window.__vtxDownloadCSV('plantilla-proveedores.csv',[
+      ['Nombre','RIF','Tipo'],
+      ['Alimentos Polar, C.A.','J-00012345-6','ESPECIAL'],
+      ['Distribuidora Nacional, C.A.','J-30887766-0','ORDINARIO']
+    ]);
+  }
   window.importProv=importProv;window.onImportProvFile=onImportProvFile;window.runImportProv=runImportProv;
+  window.exportProvCSV=exportProvCSV;window.templateProvCSV=templateProvCSV;
 
   // ══════════════ KARDEX (módulo global) ══════════════
   let kxProd='ALL',kxType='ALL';
@@ -2264,6 +2277,49 @@
   }
   window.renderReportes=renderReportes;window.setRepMonth=setRepMonth;
 
+  // ══════════════ IMPORTAR / EXPORTAR (CENTRO DE DATOS) ══════════════
+  // Ayudantes CSV globales (usados por Inventario, Clientes y Proveedores).
+  window.__vtxToCSV=function(rows){
+    var esc=function(v){v=String(v==null?'':v);if(/[";\n\r]/.test(v)){v='"'+v.replace(/"/g,'""')+'"';}return v;};
+    return rows.map(function(r){return r.map(esc).join(';');}).join('\r\n');
+  };
+  window.__vtxDownloadCSV=function(filename,rows){
+    try{
+      var csv='﻿'+window.__vtxToCSV(rows);
+      var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+      setTimeout(function(){try{URL.revokeObjectURL(url);a.remove();}catch(e){}},1200);
+      if(window.toast)toast('Archivo generado: '+filename,true);
+    }catch(e){ try{alert('No se pudo generar el archivo.');}catch(e2){} }
+  };
+  function renderDatos(view){
+    var card=function(icon,title,desc,imp,exp,tpl){
+      return '<div class="card" style="padding:18px 20px;display:flex;flex-direction:column;gap:6px">'
+        +'<div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">'+icon+'</span><div style="font-weight:750;font-size:15px">'+title+'</div></div>'
+        +'<div style="color:var(--text-muted);font-size:13px;margin-bottom:6px">'+desc+'</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn primary" onclick="'+imp+'">📥 Importar</button>'
+        +'<button class="btn" onclick="'+exp+'">📤 Exportar</button>'
+        +'<button class="btn" onclick="'+tpl+'">📄 Descargar plantilla</button>'
+        +'</div></div>';
+    };
+    view.innerHTML=''
+      +'<div style="max-width:760px">'
+      +'<p style="color:var(--text-muted);font-size:13.5px;margin:0 0 16px;line-height:1.55">Trae o saca la información de tu sistema. <b>Importar</b> trae datos desde un archivo CSV (Excel u otro sistema). <b>Exportar</b> baja tus datos a un CSV (respaldo o para tu contador). <b>Plantilla</b> descarga un archivo de ejemplo con las columnas correctas para que lo llenes.</p>'
+      +'<div style="display:grid;gap:12px">'
+      +card('📦','Inventario (productos)','Código, nombre, categoría, unidad, IVA, costo, precio y existencia.',"IN.importFile()","IN.exportCSV()","IN.templateCSV()")
+      +card('👥','Clientes','Nombre, RIF/cédula, teléfono, correo, dirección, tipo, condición de pago, vendedor y límite.',"FA.importClients()","FA.exportClientsCSV()","FA.templateClientsCSV()")
+      +card('🚚','Proveedores','Nombre / razón social, RIF y tipo de contribuyente.',"importProv()","exportProvCSV()","templateProvCSV()")
+      +'</div>'
+      +'<input type="file" id="in-import-file" accept=".csv,.txt" style="display:none" onchange="IN.onImportFile(this)">'
+      +'<input type="file" id="cl-import-file" accept=".csv,.txt" style="display:none" onchange="FA.onImportClientsFile(this)">'
+      +'<input type="file" id="prov-import-file" accept=".csv,.txt" style="display:none" onchange="onImportProvFile(this)">'
+      +'<p style="font-size:12px;color:var(--text-faint);margin-top:16px;line-height:1.5">💡 Si tienes un Excel, guárdalo como CSV (Archivo → Guardar como → CSV) y luego impórtalo. Al importar, los que ya existan (mismo código o RIF) se actualizan; los demás se agregan. Estos mismos botones también están dentro de Inventario, Clientes y Proveedores.</p>'
+      +'</div>';
+  }
+  window.renderDatos=renderDatos;
+
   // ══════════════ AYUDA (MANUAL Y FÓRMULAS) ══════════════
   const AYUDA=[
     {t:'Facturación',ic:'invoice',q:'Es el punto de venta: emite la factura fiscal al cliente y descuenta el inventario.',usa:['Elige el cliente, o escribe su cédula/RIF y pulsa Buscar: si existe lo carga, si es nuevo abre el registro prellenado.','Selecciona el Cajero de turno (arriba); queda registrado en la factura y en el cierre.','Agrega productos (búscalos o abre la lista completa con la flecha ▾).','Marca Contado o Crédito y registra las formas de pago.','Pulsa "Emitir factura".'],f:[['Total','Base + IVA + IGTF'],['IGTF','Pago en divisa × % configurable en Config. tributaria'],['Neto a cobrar','Total − retención IVA (si el cliente es especial)']]},
@@ -2403,6 +2459,7 @@
     {id:'trib',label:'Config. tributaria',icon:'receipt',group:'Fiscal',crumb:'Fiscal · Configuración tributaria y máquina fiscal',render:renderTaxConfig},
     {id:'tesoreria',label:'Bancos y caja',icon:'bank',group:'Sistema',crumb:'Tesorería · Bancos y caja',render:renderTesoreria},
     {id:'reportes',label:'Reportes',icon:'chart',group:'Sistema',crumb:'Reportes · Panel de análisis',render:renderReportes},
+    {id:'datos',label:'Importar / Exportar',icon:'swap',group:'Sistema',crumb:'Sistema · Importar y exportar datos',render:renderDatos},
     {id:'ayuda',label:'Ayuda',icon:'help',group:'Sistema',crumb:'Sistema · Manual y fórmulas del sistema',render:renderAyuda},
     {id:'config',label:'Configuración',icon:'cog',group:'Sistema',crumb:'Configuración',render:renderConfig},
   ];
@@ -3299,6 +3356,19 @@
         saveCli();closeModal();go('clientes');
         toast('Importados: '+added+' nuevos'+(updated?', '+updated+' actualizados':'')+(skipped?', '+skipped+' omitidos':''),true);
       },
+      exportClientsCSV(){
+        var head=['Nombre','RIF_Cedula','Tipo','Telefono','Correo','Direccion','CondicionPago','Vendedor','LimiteCredito'];
+        var rows=[head];
+        CLI.forEach(function(c){rows.push([c.name||'',c.rif||'',c.tipo||'ORDINARIO',c.phone||'',c.email||'',c.addr||'',c.payCond||'Contado',(c.vendor&&c.vendor!=='—')?c.vendor:'',c.limit||0]);});
+        window.__vtxDownloadCSV('vortex-clientes.csv',rows);
+      },
+      templateClientsCSV(){
+        window.__vtxDownloadCSV('plantilla-clientes.csv',[
+          ['Nombre','RIF_Cedula','Tipo','Telefono','Correo','Direccion','CondicionPago','Vendedor','LimiteCredito'],
+          ['Comercial El Sol, C.A.','J-31005588-4','ORDINARIO','0241-555-1234','ventas@elsol.com','Av. Bolívar, Valencia','Crédito 30 días','José Márquez','50000'],
+          ['Juan Pérez','V-12345678','NO','0412-000-0000','','Caracas','Contado','','0']
+        ]);
+      },
       setCtrl(v){ctrlNum=v;},
       applyNumbering(){ctrlNum=getNumb().ctrl||ctrlNum;},
       edit(id,f,v){const l=lines.find(x=>x.id===id);if(!l)return;if(f==='qty')l.qty=Math.max(0,parseFloat(v)||0);else if(f==='p')l.p=Math.max(0,parseFloat(v)||0);else if(f==='disc')l.disc=Math.min(100,Math.max(0,parseFloat(v)||0));else if(f==='name')l.name=v;else if(f==='iva')l.iva=v;const c=lc(l);const cell=document.getElementById('fa-lt-'+id);if(cell)cell.textContent=showN(c.t);renderTotals();},
@@ -3633,6 +3703,21 @@
         });
         saveProds();closeModal();if(container)render(container);
         toast('Importados: '+added+' nuevos'+(updated?', '+updated+' actualizados':'')+(skipped?', '+skipped+' omitidos':''),true);
+      },
+      // Exportar el inventario a CSV.
+      exportCSV(){
+        var head=['Codigo','Nombre','Categoria','Unidad','IVA','Costo','Precio','Existencia','StockMinimo'];
+        var rows=[head];
+        prods.forEach(function(p){var tot=Object.values(p.st||{}).reduce(function(a,b){return a+b;},0);rows.push([p.sku,p.name,p.cat||'',p.unit||'UND',p.iva||'GENERAL',p.cost||0,p.p||0,tot,p.min||0]);});
+        window.__vtxDownloadCSV('vortex-inventario.csv',rows);
+      },
+      // Plantilla CSV de inventario (encabezados + ejemplo).
+      templateCSV(){
+        window.__vtxDownloadCSV('plantilla-inventario.csv',[
+          ['Codigo','Nombre','Categoria','Unidad','IVA','Costo','Precio','Existencia','StockMinimo'],
+          ['ALM-001','Harina de maíz 1kg','Alimentos','UND','GENERAL','0.85','1.20','120','20'],
+          ['BEB-001','Refresco 2L','Bebidas','UND','GENERAL','1.30','1.90','80','24']
+        ]);
       },
       setView(v){view=v;render(container);},setFilter(f){filter=f;render(container);},setDep(v){dep=v;render(container);}};
   })();
@@ -3977,7 +4062,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.3";
+  var CURRENT_FALLBACK = "1.3.4";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -4128,7 +4213,7 @@
   // Abrir la activación desde el programa (para pasar de demo/otra clave a la nueva licencia).
   window.__vtxOpenLicense = function(){ try{ input.value=""; }catch(e){} try{ clearErr(); }catch(e){} openGate("Ingresa la clave de tu licencia para activar tu plan.", true); try{ input.focus(); }catch(e){} };
   var DATA_KEYS=["vortex_cierre","vortex_cli","vortex_cobros","vortex_compras","vortex_cotiz","vortex_cxc","vortex_cxp","vortex_egresos","vortex_facturas","vortex_ncnd","vortex_notas","vortex_ordenes","vortex_prods","vortex_prov","vortex_soportadas","vortex_company","vortex_cajeros","vortex_igtf_rate","vortex_teso","vortex_pins","vortex_numbering","vortex_docs","vortex_prefs","vortex_deps","vortex_backup_days"];
-  var ALWAYS=["dashboard","config","ayuda"];
+  var ALWAYS=["dashboard","config","ayuda","datos"];
   var enabledMods=null;
   function applyModules(){
     if(!enabledMods) return;
