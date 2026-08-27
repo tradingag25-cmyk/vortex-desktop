@@ -2442,7 +2442,8 @@
           <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">Carga información de ejemplo para probar el sistema, o vacía todo para dejar el equipo en blanco. Solo afecta a este equipo.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button id="cfg-sample" class="btn primary" onclick="if(confirm('Esto reemplazará los datos actuales con datos de EJEMPLO para probar. ¿Continuar?')){window.__vtxLoadSample&&window.__vtxLoadSample();}">📋 Cargar datos de ejemplo</button>
-            <button class="btn" onclick="if(confirm('⚠️ Perderás TODO lo ya registrado (empresa, productos, clientes, facturas). No se puede deshacer y tendrás que configurar y cargar todo de nuevo. ¿Vaciar y empezar en blanco?')){window.__vtxClearAll&&window.__vtxClearAll();}">🧹 Vaciar todo (dejar en blanco)</button>
+            <button class="btn" onclick="if(confirm('Se quitarán SOLO los datos de ejemplo (los que trae el sistema para guiarte). Lo que TÚ hayas cargado se conserva. ¿Continuar?')){window.__vtxClearDemo&&window.__vtxClearDemo();}">🧹 Vaciar solo los datos de ejemplo</button>
+            <button class="btn" onclick="if(confirm('⚠️ Perderás TODO lo ya registrado (empresa, productos, clientes, facturas). No se puede deshacer y tendrás que configurar y cargar todo de nuevo. ¿Vaciar y empezar en blanco?')){window.__vtxClearAll&&window.__vtxClearAll();}">🗑️ Vaciar todo (dejar en blanco)</button>
           </div>
         </div>` : `<p style="color:var(--text-faint);font-size:13px">Contacta al administrador para las opciones de configuración de datos.</p>`}
       </div>`;
@@ -3117,6 +3118,8 @@
           <div class="toolbar">
             <div class="search"><span>${svg(I.search)}</span><input id="cl-q" placeholder="Buscar por nombre o RIF…" value="${cliQ}"></div>
             <div style="flex:1"></div>
+            <button class="btn" onclick="FA.importClients()" title="Trae tus clientes desde un archivo CSV (Excel, otro sistema…)">📥 Importar</button>
+            <input type="file" id="cl-import-file" accept=".csv,.txt" style="display:none" onchange="FA.onImportClientsFile(this)">
             <button class="btn primary" onclick="FA.openNewClient({origin:'clientes'})">${svg(I.plus)} Nuevo cliente</button>
           </div>
           <div class="panel" style="margin-top:14px"><div class="overflow-x"><table style="min-width:820px"><thead><tr><th>Cliente</th><th>RIF / C.I.</th><th>Tipo</th><th>Cond. pago</th><th>Vendedor</th><th class="num">Acciones</th></tr></thead><tbody id="cl-body"></tbody></table></div></div>`;
@@ -3134,6 +3137,89 @@
         if(CLI.length<=1){toast('Debe existir al menos un cliente',false);return;}
         const c=CLI[i];if(!c)return;if(!confirm('¿Eliminar el cliente '+(c.name||c.rif)+'?'))return;
         CLI.splice(i,1);if(ci>=CLI.length)ci=CLI.length-1;else if(i<ci)ci--;saveCli();go('clientes');toast('Cliente eliminado',true);
+      },
+      // ── Importar clientes desde un archivo CSV ──
+      importClients(){var f=document.getElementById('cl-import-file');if(f){f.value='';f.click();}},
+      onImportClientsFile(input){
+        var file=input.files&&input.files[0];if(!file)return;
+        var rd=new FileReader();
+        rd.onload=function(){
+          try{
+            var text=String(rd.result||'');
+            if(text.indexOf('�')>=0){var rd2=new FileReader();rd2.onload=function(){try{FA._impCliAfter(String(rd2.result||''));}catch(e){toast('No se pudo leer el archivo.',false);}};rd2.readAsText(file,'windows-1252');return;}
+            FA._impCliAfter(text);
+          }catch(e){toast('No se pudo leer el archivo. Debe ser CSV.',false);}
+        };
+        rd.readAsText(file,'utf-8');
+      },
+      _impCliParse(text){
+        if(text.charCodeAt(0)===65279)text=text.slice(1);
+        var fl=(text.split(/\r?\n/)[0]||'');
+        var delim=',';var cc=(fl.split(',').length-1),sc=(fl.split(';').length-1),tc=(fl.split('\t').length-1);
+        if(sc>cc&&sc>=tc)delim=';';else if(tc>cc&&tc>sc)delim='\t';
+        var rows=[],row=[],field='',i=0,inQ=false,ch;
+        while(i<text.length){ch=text.charAt(i);
+          if(inQ){if(ch==='"'){if(text.charAt(i+1)==='"'){field+='"';i++;}else inQ=false;}else field+=ch;}
+          else{if(ch==='"')inQ=true;else if(ch===delim){row.push(field);field='';}else if(ch==='\n'){row.push(field);rows.push(row);row=[];field='';}else if(ch==='\r'){}else field+=ch;}
+          i++;
+        }
+        if(field.length||row.length){row.push(field);rows.push(row);}
+        rows=rows.filter(function(r){return r.some(function(c){return String(c).trim()!=='';});});
+        var headers=(rows.shift()||[]).map(function(h){return String(h).trim();});
+        return {headers:headers,rows:rows};
+      },
+      _impCliAfter(text){
+        var parsed=FA._impCliParse(text);
+        if(!parsed.rows.length){toast('El archivo no tiene filas de datos.',false);return;}
+        FA._impCli=parsed;FA._impCliMap(parsed);
+      },
+      _impCliMap(parsed){
+        var norm=function(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();};
+        var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});};
+        var KW={name:['nombre','razon','cliente','empresa','contacto'],rif:['rif','cedula','ci','documento','identificacion','nit','dni'],phone:['telefono','celular','movil','whatsapp','tel'],email:['correo','email','mail'],addr:['direccion','domicilio','ubicacion','address'],tipo:['contribuyente','tipo'],payCond:['condicion','pago','credito'],vendor:['vendedor','asesor','representante','agente'],limit:['limite','cupo']};
+        var auto={};
+        Object.keys(KW).forEach(function(f){auto[f]=-1;parsed.headers.forEach(function(h,idx){if(auto[f]>=0)return;var nh=norm(h);if(KW[f].some(function(k){return nh.indexOf(k)>=0;}))auto[f]=idx;});});
+        var mkSel=function(field,label,req){var o='<option value="-1">— No importar —</option>';parsed.headers.forEach(function(h,idx){o+='<option value="'+idx+'"'+(auto[field]===idx?' selected':'')+'>'+esc(h||('Columna '+(idx+1)))+'</option>';});return '<div class="field"><label>'+label+(req?' *':'')+'</label><select id="impc-'+field+'">'+o+'</select></div>';};
+        var prev=parsed.rows.slice(0,5);
+        var thead='<tr>'+parsed.headers.map(function(h){return '<th style="padding:6px 8px;text-align:left;white-space:nowrap">'+esc(h)+'</th>';}).join('')+'</tr>';
+        var tbody=prev.map(function(r){return '<tr>'+parsed.headers.map(function(h,idx){return '<td style="padding:6px 8px;border-top:1px solid var(--border);white-space:nowrap">'+esc(r[idx]||'')+'</td>';}).join('')+'</tr>';}).join('');
+        document.getElementById('modal').innerHTML=
+          '<div class="modal-head"><div class="modal-title">Importar clientes</div><button class="modal-x" onclick="closeModal()">✕</button></div>'
+          +'<div class="modal-body">'
+          +'<p style="color:var(--text-muted);font-size:13px;margin:0 0 10px">Detectamos <b>'+parsed.rows.length+'</b> clientes en el archivo. Confirma a qué campo va cada columna:</p>'
+          +'<div class="g2">'+mkSel('name','Nombre / Razón social',true)+mkSel('rif','RIF / Cédula')+'</div>'
+          +'<div class="g2">'+mkSel('phone','Teléfono')+mkSel('email','Correo')+'</div>'
+          +'<div class="g2">'+mkSel('addr','Dirección')+mkSel('tipo','Tipo de contribuyente')+'</div>'
+          +'<div class="g2">'+mkSel('payCond','Condición de pago')+mkSel('vendor','Vendedor')+'</div>'
+          +'<div class="g2">'+mkSel('limit','Límite de crédito')+'<div></div></div>'
+          +'<div style="font-size:12px;color:var(--text-faint);margin:8px 0 6px">Vista previa (primeras filas):</div>'
+          +'<div class="overflow-x" style="border:1px solid var(--border);border-radius:10px"><table style="font-size:12px;border-collapse:collapse;min-width:100%"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>'
+          +'<div style="font-size:12px;color:var(--text-faint);margin-top:12px;line-height:1.5">💡 ¿Tienes un Excel u otro sistema? Ábrelo y usa <b>Archivo → Guardar como → CSV</b>, y luego impórtalo aquí. Los que ya existan (mismo RIF/cédula) se actualizan; los demás se agregan.</div>'
+          +'</div>'
+          +'<div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="FA.runImportClients()">Importar clientes</button></div>';
+        document.getElementById('modalOverlay').classList.add('show');
+      },
+      runImportClients(){
+        var parsed=FA._impCli;if(!parsed)return;
+        var gv=function(f){var s=document.getElementById('impc-'+f);return s?parseInt(s.value,10):-1;};
+        var mName=gv('name');if(mName<0){toast('Indica cuál columna es el NOMBRE del cliente',false);return;}
+        var mRif=gv('rif'),mPhone=gv('phone'),mEmail=gv('email'),mAddr=gv('addr'),mTipo=gv('tipo'),mPay=gv('payCond'),mVendor=gv('vendor'),mLimit=gv('limit');
+        var g=function(r,idx){return idx>=0?String(r[idx]==null?'':r[idx]).trim():'';};
+        var toNum=function(v){v=String(v==null?'':v).replace(/[^0-9.,-]/g,'').trim();if(!v)return 0;if(v.indexOf(',')>-1&&v.indexOf('.')>-1){if(v.lastIndexOf(',')>v.lastIndexOf('.'))v=v.replace(/\./g,'').replace(',','.');else v=v.replace(/,/g,'');}else if(v.indexOf(',')>-1)v=v.replace(',','.');var n=parseFloat(v);return isNaN(n)?0:n;};
+        var tipoMap=function(x){x=String(x||'').toUpperCase();if(/ESP/.test(x))return 'ESPECIAL';if(/FORM/.test(x))return 'FORMAL';if(/CONSUM|FINAL|^NO$|NINGUN/.test(x))return 'NO';return 'ORDINARIO';};
+        var findRif=function(rif){if(!rif)return null;return CLI.find(function(c){return (c.rif||'').toUpperCase()===rif.toUpperCase();});};
+        var added=0,updated=0,skipped=0;
+        parsed.rows.forEach(function(r){
+          var name=g(r,mName);if(!name){skipped++;return;}
+          var rif=g(r,mRif).toUpperCase();
+          var idKind=/^V|^E/.test(rif)?'CI':'RIF';
+          var data={c:name.slice(0,2).toUpperCase(),name:name,idKind:idKind,rif:rif,tipo:mTipo>=0?tipoMap(g(r,mTipo)):'ORDINARIO',addr:g(r,mAddr)||'—',phone:g(r,mPhone),email:g(r,mEmail),payCond:mPay>=0?(g(r,mPay)||'Contado'):'Contado',limit:mLimit>=0?toNum(g(r,mLimit)):0,vendor:g(r,mVendor)||'—'};
+          var ex=rif?findRif(rif):null;
+          if(ex){Object.assign(ex,data);updated++;}
+          else{CLI.push(data);added++;}
+        });
+        saveCli();closeModal();go('clientes');
+        toast('Importados: '+added+' nuevos'+(updated?', '+updated+' actualizados':'')+(skipped?', '+skipped+' omitidos':''),true);
       },
       setCtrl(v){ctrlNum=v;},
       applyNumbering(){ctrlNum=getNumb().ctrl||ctrlNum;},
@@ -3813,7 +3899,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.1";
+  var CURRENT_FALLBACK = "1.3.2";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
@@ -3984,7 +4070,7 @@
     }catch(e){}
   }
   function blankFirstTime(){
-    try{ if(localStorage.getItem("vortex_blank_done")) return false; DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); localStorage.setItem("vortex_blank_done","1"); return true; }catch(e){ return false; }
+    try{ if(localStorage.getItem("vortex_blank_done")) return false; DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); localStorage.setItem("vortex_blank_done","1"); localStorage.setItem("vortex_paid_welcome_pending","1"); return true; }catch(e){ return false; }
   }
   // Datos de ejemplo / vaciar (solo desde Configuración del administrador).
   // Cargar ejemplo: borra las claves para que el sistema use los datos demo del código.
@@ -4002,7 +4088,20 @@
         {c:'FV',name:'Farmacia Vida, C.A.',idKind:'RIF',rif:'J-30554477-9',addr:'C.C. Metrópolis, Valencia',tipo:'ORDINARIO',payCond:'Contado',vendor:'Ana Rodríguez',limit:20000},
         {c:'CF',name:'Consumidor Final',idKind:'CI',rif:'V-00000000-0',addr:'—',tipo:'NO',payCond:'Contado',vendor:'—',limit:0}
       ];
-      localStorage.setItem('vortex_cli',JSON.stringify(CLI));
+      localStorage.setItem('vortex_cli',JSON.stringify(CLI.map(function(c){return Object.assign({_demo:1},c);})));
+      // Productos de ejemplo (etiquetados como _demo para poder quitarlos luego)
+      var PRODS=[
+        {sku:'ALM-001',name:'Harina de maíz 1kg',unit:'UND',iva:'GENERAL',cat:'Alimentos',p:1.20,cost:0.85,min:20,st:{PRIN:120,SUC:30,DEP:0}},
+        {sku:'ALM-002',name:'Arroz blanco 1kg',unit:'UND',iva:'GENERAL',cat:'Alimentos',p:1.50,cost:1.05,min:20,st:{PRIN:90,SUC:20,DEP:0}},
+        {sku:'ALM-003',name:'Aceite vegetal 1L',unit:'UND',iva:'GENERAL',cat:'Alimentos',p:2.80,cost:2.10,min:15,st:{PRIN:60,SUC:10,DEP:0}},
+        {sku:'BEB-001',name:'Refresco 2L',unit:'UND',iva:'GENERAL',cat:'Bebidas',p:1.90,cost:1.30,min:24,st:{PRIN:80,SUC:15,DEP:0}},
+        {sku:'BEB-002',name:'Agua mineral 600ml',unit:'UND',iva:'EXENTO',cat:'Bebidas',p:0.70,cost:0.40,min:48,st:{PRIN:200,SUC:40,DEP:0}},
+        {sku:'LIM-001',name:'Jabón de baño',unit:'UND',iva:'GENERAL',cat:'Limpieza',p:1.10,cost:0.70,min:20,st:{PRIN:70,SUC:0,DEP:0}},
+        {sku:'LIM-002',name:'Detergente 1kg',unit:'UND',iva:'GENERAL',cat:'Limpieza',p:3.20,cost:2.40,min:10,st:{PRIN:40,SUC:5,DEP:0}}
+      ];
+      var pid=1;
+      PRODS=PRODS.map(function(p){var tot=Object.values(p.st).reduce(function(a,b){return a+b;},0);return Object.assign({id:pid++,img:'',kx:[{t:'in',d:dmy(new Date()),q:tot,b:tot}],_demo:1},p);});
+      localStorage.setItem('vortex_prods',JSON.stringify(PRODS));
       var cajeros=['José Márquez','Ana Rodríguez','Luis Pérez'];
       var methods=[['EFECTIVO_VES','Efectivo Bs.'],['PAGO_MOVIL','Pago móvil'],['PUNTO_VENTA','Punto de venta'],['TRANSFERENCIA_VES','Transferencia Bs.'],['EFECTIVO_USD','Efectivo USD'],['ZELLE','Zelle']];
       var bases=[2400,5600,3200,8100,1500,4300,6700,2900,3800,5100];
@@ -4020,8 +4119,8 @@
           var num='F-'+String(seq).padStart(6,'0');
           var mth=methods[k%methods.length];
           var isDiv=(mth[0]==='EFECTIVO_USD'||mth[0]==='ZELLE');
-          facs.push({id:fid++,num:num,cli:cli.name,rif:cli.rif,cajero:caj,date:dmy(d),dateISO:iso(d),ctrl:'00-'+pad(seq).slice(-5),totalUsd:totalUsd,totalBs:totalBs,base_ex:0,base_gr:base,iva:iva,igtf:0,neto:totalBs,methods:[mth[1]],status:'Emitida'});
-          cierre.push({id:cieId++,date:iso(d),fac:num,cli:cli.name,m:mth[0],cur:isDiv?'USD':'VES',ref:mth[0]==='PAGO_MOVIL'?String(1000000+cieId):'',amt:isDiv?totalUsd:totalBs});
+          facs.push({id:fid++,num:num,cli:cli.name,rif:cli.rif,cajero:caj,date:dmy(d),dateISO:iso(d),ctrl:'00-'+pad(seq).slice(-5),totalUsd:totalUsd,totalBs:totalBs,base_ex:0,base_gr:base,iva:iva,igtf:0,neto:totalBs,methods:[mth[1]],status:'Emitida',_demo:1});
+          cierre.push({id:cieId++,date:iso(d),fac:num,cli:cli.name,m:mth[0],cur:isDiv?'USD':'VES',ref:mth[0]==='PAGO_MOVIL'?String(1000000+cieId):'',amt:isDiv?totalUsd:totalBs,_demo:1});
           seq++; k++;
         }
       });
@@ -4032,7 +4131,52 @@
     location.reload();
   };
   window.__vtxClearAll = function(){ if(window.__VTX_DEMO){ try{alert("No disponible en el modo demo. Los datos de ejemplo no se pueden borrar en la prueba.");}catch(e){} return; } try{ DATA_KEYS.forEach(function(k){ localStorage.setItem(k,"[]"); }); }catch(e){} location.reload(); };
+  // Vaciar SOLO los datos de ejemplo (etiquetados _demo), conservando lo que el usuario cargó.
+  window.__vtxClearDemo = function(){
+    if(window.__VTX_DEMO){ try{alert("No disponible en el modo demo.");}catch(e){} return; }
+    var removed=0;
+    try{ DATA_KEYS.forEach(function(k){
+      var s=localStorage.getItem(k); if(!s) return;
+      var a; try{ a=JSON.parse(s); }catch(e){ return; }
+      if(!Array.isArray(a)) return;
+      var keep=a.filter(function(x){ if(x&&x._demo){ removed++; return false; } return true; });
+      localStorage.setItem(k, JSON.stringify(keep));
+    }); }catch(e){}
+    try{ localStorage.removeItem("vortex_demo_seeded"); }catch(e){}
+    location.reload();
+  };
   // ── Modo demo ──
+  // Modal genérico de pregunta (título, texto, botones).
+  function __vtxAsk(icon,title,html,buttons){
+    try{ var ex=document.getElementById('vtx-ask'); if(ex)ex.remove(); }catch(e){}
+    var ov=document.createElement('div'); ov.id='vtx-ask';
+    ov.style.cssText="position:fixed;inset:0;z-index:2147483300;background:rgba(4,12,14,.72);display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif";
+    var btns=buttons.map(function(b,i){return '<button data-i="'+i+'" style="flex:1;min-width:150px;'+(b.primary?'background:linear-gradient(135deg,#22c5d4,#0e8f9c);color:#04191c;border:none;':'background:transparent;color:#eaf6f6;border:1px solid #254a50;')+'border-radius:11px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">'+b.label+'</button>';}).join('');
+    ov.innerHTML='<div style="max-width:460px;width:100%;background:#0f2327;border:1px solid #254a50;border-radius:18px;padding:26px 24px;text-align:center;box-shadow:0 30px 80px -20px rgba(0,0,0,.7)">'
+      +'<div style="font-size:38px;line-height:1;margin-bottom:10px">'+icon+'</div>'
+      +'<div style="font-size:20px;font-weight:800;color:#eaf6f6;margin-bottom:10px">'+title+'</div>'
+      +'<div style="font-size:14px;color:#a6c2c4;line-height:1.6;margin:0 0 18px">'+html+'</div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap">'+btns+'</div></div>';
+    document.body.appendChild(ov);
+    buttons.forEach(function(b,i){ try{ ov.querySelector('[data-i="'+i+'"]').addEventListener('click',function(){ try{ov.remove();}catch(e){} if(b.onClick)b.onClick(); }); }catch(e){} });
+  }
+  function showPaidWelcome(){
+    __vtxAsk('🚀','¡Bienvenido a Vortex!',
+      'Tu sistema está <b style="color:#3fe0ec">en blanco</b>, listo para los datos de tu empresa.<br><br>¿Quieres cargar <b>datos de ejemplo</b> para guiarte mientras aprendes? Es opcional — después los quitas con un clic desde Configuración.',
+      [{label:'Empezar en blanco'},{label:'Cargar datos de ejemplo',primary:true,onClick:function(){ if(window.__vtxLoadSample)window.__vtxLoadSample(); }}]);
+  }
+  function showDemo2PaidAsk(){
+    __vtxAsk('🎉','¡Licencia activada!',
+      'Veníamos con <b>datos de ejemplo</b> del demo. ¿Qué prefieres?<br><br>Puedes quedarte solo con lo que <b style="color:#3fe0ec">tú</b> cargaste, o conservar todo (incluido lo de ejemplo).',
+      [{label:'Conservar todo'},{label:'Quitar solo lo de ejemplo',primary:true,onClick:function(){ if(window.__vtxClearDemo)window.__vtxClearDemo(); }}]);
+  }
+  function maybeShowPaidPrompts(){
+    try{ if(window.__VTX_DEMO) return; }catch(e){}
+    try{
+      if(localStorage.getItem('vortex_demo2paid_ask')==='1'){ localStorage.removeItem('vortex_demo2paid_ask'); setTimeout(showDemo2PaidAsk,600); return; }
+      if(localStorage.getItem('vortex_paid_welcome_pending')==='1'){ localStorage.removeItem('vortex_paid_welcome_pending'); setTimeout(showPaidWelcome,600); return; }
+    }catch(e){}
+  }
   function showDemoWelcome(){
     try{ if(document.getElementById('vtx-demo-welcome')) return; }catch(e){}
     var ov=document.createElement('div'); ov.id='vtx-demo-welcome';
@@ -4132,10 +4276,10 @@
       var demo=isDemoResp(j);
       applyConfig(j.config); applyDemoMode(demo);
       if(!demo){
-        if(wasDemo){ try{ localStorage.setItem("vortex_blank_done","1"); }catch(e){} location.reload(); return; } // demo→pago: conserva los datos, solo personaliza
+        if(wasDemo){ try{ localStorage.setItem("vortex_blank_done","1"); localStorage.setItem("vortex_demo2paid_ask","1"); }catch(e){} location.reload(); return; } // demo→pago: conserva los datos, solo personaliza (y pregunta si limpiar lo de ejemplo)
         else if(blankFirstTime()){ location.reload(); return; } // instalación nueva pagada: entrega en blanco
       }
-      closeGate(); startPolling();
+      closeGate(); startPolling(); try{ maybeShowPaidPrompts(); }catch(e){}
     }
     else if(j && j.network){ showErr("Sin conexión. Conéctate a internet para activar."); }
     else { showErr((j && j.reason) || "Licencia no válida."); }
@@ -4148,8 +4292,8 @@
     try{ var c=localStorage.getItem(K_CFG); if(c) applyConfig(JSON.parse(c)); }catch(e){}
     if(!stored){ openGate(); try{input.focus();}catch(e){} return; }
     var j = await validate(stored, "check");
-    if(j && j.network){ startPolling(); return; }   // sin internet → permite usar (offline)
-    if(j && j.valid){ applyConfig(j.config); applyDemoMode(isDemoResp(j)); startPolling(); return; }
+    if(j && j.network){ startPolling(); try{ maybeShowPaidPrompts(); }catch(e){} return; }   // sin internet → permite usar (offline)
+    if(j && j.valid){ applyConfig(j.config); applyDemoMode(isDemoResp(j)); startPolling(); try{ maybeShowPaidPrompts(); }catch(e){} return; }
     try{ localStorage.removeItem(K_KEY); }catch(e){}
     openGate((j && j.reason) || "Tu licencia ya no es válida.");
   })();
