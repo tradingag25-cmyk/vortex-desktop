@@ -3238,6 +3238,8 @@
         <select class="selm" id="in-dep" onchange="IN.setDep(this.value)"><option value="ALL">Todos los depósitos</option>${Object.keys(DEPS).map(k=>`<option value="${k}" ${dep===k?'selected':''}>${DEPS[k]}</option>`).join('')}</select>
         <select class="selm" onchange="IN.setCat(this.value)">${['ALL',...new Set(prods.map(p=>p.cat))].map(c=>`<option value="${c}" ${catF===c?'selected':''}>${c==='ALL'?'Todas las categorías':c}</option>`).join('')}</select>
         <div class="viewtog"><button class="${view==='list'?'on':''}" onclick="IN.setView('list')">${svg(I.list)}</button><button class="${view==='grid'?'on':''}" onclick="IN.setView('grid')">${svg(I.grid)}</button></div>
+        <button class="btn" onclick="IN.importFile()" title="Trae tus productos desde un archivo CSV (Excel, otro sistema…)">📥 Importar</button>
+        <input type="file" id="in-import-file" accept=".csv,.txt" style="display:none" onchange="IN.onImportFile(this)">
         <button class="btn primary" onclick="IN.newProduct()">${svg(I.plus)} Nuevo producto</button>
       </div>
       <div class="chips">${[['ALL','Todos',prods.length],['low','Bajo mínimo',ct.low],['out','Agotados',ct.out],['ex','Exentos',ct.ex]].map(([k,l,n])=>`<button class="chipf ${filter===k?'on':''}" onclick="IN.setFilter('${k}')">${l} <span class="n">${n}</span></button>`).join('')}</div>
@@ -3380,6 +3382,94 @@
       setMargin(m){document.getElementById('p-margin').value=m;this.calcPrice();},
       pickImg(input){const f=input.files&&input.files[0];if(!f)return;const rd=new FileReader();rd.onload=function(){const im=new Image();im.onload=function(){const cv=document.createElement('canvas');const max=220;let w=im.width,h=im.height;if(w>=h){if(w>max){h=Math.round(h*max/w);w=max;}}else{if(h>max){w=Math.round(w*max/h);h=max;}}cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);let url;try{url=cv.toDataURL('image/jpeg',0.82);}catch(e){url=rd.result;}document.getElementById('p-img').value=url;const pv=document.getElementById('p-imgprev');if(pv){pv.style.backgroundImage="url('"+url+"')";pv.textContent='';}};im.src=rd.result;};rd.readAsDataURL(f);},
       clearImg(){document.getElementById('p-img').value='';const pv=document.getElementById('p-imgprev');if(pv){pv.style.backgroundImage='';pv.textContent='Sin foto';}},
+      // ── Importar productos desde un archivo CSV (Excel, otro sistema…) ──
+      importFile(){var f=document.getElementById('in-import-file');if(f){f.value='';f.click();}},
+      onImportFile(input){
+        var file=input.files&&input.files[0];if(!file)return;
+        var rd=new FileReader();
+        rd.onload=function(){
+          try{
+            var text=String(rd.result||'');
+            if(text.indexOf('�')>=0){var rd2=new FileReader();rd2.onload=function(){try{IN._afterRead(String(rd2.result||''));}catch(e){toast('No se pudo leer el archivo.',false);}};rd2.readAsText(file,'windows-1252');return;}
+            IN._afterRead(text);
+          }catch(e){toast('No se pudo leer el archivo. Debe ser CSV.',false);}
+        };
+        rd.readAsText(file,'utf-8');
+      },
+      _afterRead(text){
+        var parsed=IN._parseCSV(text);
+        if(!parsed.rows.length){toast('El archivo no tiene filas de datos.',false);return;}
+        IN._imp=parsed;IN._showImportMap(parsed);
+      },
+      _parseCSV(text){
+        if(text.charCodeAt(0)===65279)text=text.slice(1);
+        var fl=(text.split(/\r?\n/)[0]||'');
+        var delim=',';var cc=(fl.split(',').length-1),sc=(fl.split(';').length-1),tc=(fl.split('\t').length-1);
+        if(sc>cc&&sc>=tc)delim=';';else if(tc>cc&&tc>sc)delim='\t';
+        var rows=[],row=[],field='',i=0,inQ=false,ch;
+        while(i<text.length){ch=text.charAt(i);
+          if(inQ){if(ch==='"'){if(text.charAt(i+1)==='"'){field+='"';i++;}else inQ=false;}else field+=ch;}
+          else{if(ch==='"')inQ=true;else if(ch===delim){row.push(field);field='';}else if(ch==='\n'){row.push(field);rows.push(row);row=[];field='';}else if(ch==='\r'){}else field+=ch;}
+          i++;
+        }
+        if(field.length||row.length){row.push(field);rows.push(row);}
+        rows=rows.filter(function(r){return r.some(function(c){return String(c).trim()!=='';});});
+        var headers=(rows.shift()||[]).map(function(h){return String(h).trim();});
+        return {headers:headers,rows:rows};
+      },
+      _showImportMap(parsed){
+        var norm=function(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();};
+        var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});};
+        var KW={name:['nombre','descripcion','producto','articulo','item','detalle'],sku:['codigo','sku','cod','referencia','ref','barra','ean'],price:['precio','venta','pvp','price'],cost:['costo','coste','compra','cost'],stock:['existencia','stock','cantidad','cant','inventario','disponible','qty'],cat:['categoria','familia','rubro','grupo','tipo'],unit:['unidad','medida','um'],iva:['iva','impuesto','alicuota','tax']};
+        var auto={};
+        Object.keys(KW).forEach(function(f){auto[f]=-1;parsed.headers.forEach(function(h,idx){if(auto[f]>=0)return;var nh=norm(h);if(KW[f].some(function(k){return nh.indexOf(k)>=0;}))auto[f]=idx;});});
+        var mkSel=function(field,label,req){var o='<option value="-1">— No importar —</option>';parsed.headers.forEach(function(h,idx){o+='<option value="'+idx+'"'+(auto[field]===idx?' selected':'')+'>'+esc(h||('Columna '+(idx+1)))+'</option>';});return '<div class="field"><label>'+label+(req?' *':'')+'</label><select id="imp-'+field+'">'+o+'</select></div>';};
+        var prev=parsed.rows.slice(0,5);
+        var thead='<tr>'+parsed.headers.map(function(h){return '<th style="padding:6px 8px;text-align:left;white-space:nowrap">'+esc(h)+'</th>';}).join('')+'</tr>';
+        var tbody=prev.map(function(r){return '<tr>'+parsed.headers.map(function(h,idx){return '<td style="padding:6px 8px;border-top:1px solid var(--border);white-space:nowrap">'+esc(r[idx]||'')+'</td>';}).join('')+'</tr>';}).join('');
+        document.getElementById('modal').innerHTML=
+          '<div class="modal-head"><div class="modal-title">Importar productos</div><button class="modal-x" onclick="closeModal()">✕</button></div>'
+          +'<div class="modal-body">'
+          +'<p style="color:var(--text-muted);font-size:13px;margin:0 0 10px">Detectamos <b>'+parsed.rows.length+'</b> productos en el archivo. Confirma a qué campo va cada columna (ya adivinamos algunas):</p>'
+          +'<div class="g2">'+mkSel('name','Nombre',true)+mkSel('sku','Código / SKU')+'</div>'
+          +'<div class="g2">'+mkSel('price','Precio de venta')+mkSel('cost','Costo')+'</div>'
+          +'<div class="g2">'+mkSel('stock','Existencia')+mkSel('cat','Categoría')+'</div>'
+          +'<div class="g2">'+mkSel('unit','Unidad')+mkSel('iva','IVA')+'</div>'
+          +'<div style="font-size:12px;color:var(--text-faint);margin:8px 0 6px">Vista previa (primeras filas):</div>'
+          +'<div class="overflow-x" style="border:1px solid var(--border);border-radius:10px"><table style="font-size:12px;border-collapse:collapse;min-width:100%"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>'
+          +'<div style="font-size:12px;color:var(--text-faint);margin-top:12px;line-height:1.5">💡 ¿Tienes un Excel u otro sistema? Ábrelo y usa <b>Archivo → Guardar como → CSV</b>, y luego impórtalo aquí. Los que ya existan (mismo código) se actualizan; los demás se agregan.</div>'
+          +'</div>'
+          +'<div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="IN.runImport()">Importar productos</button></div>';
+        document.getElementById('modalOverlay').classList.add('show');
+      },
+      runImport(){
+        var parsed=IN._imp;if(!parsed)return;
+        var gv=function(f){var s=document.getElementById('imp-'+f);return s?parseInt(s.value,10):-1;};
+        var mName=gv('name');if(mName<0){toast('Indica cuál columna es el NOMBRE del producto',false);return;}
+        var mSku=gv('sku'),mPrice=gv('price'),mCost=gv('cost'),mStock=gv('stock'),mCat=gv('cat'),mUnit=gv('unit'),mIva=gv('iva');
+        var toNum=function(v){v=String(v==null?'':v).replace(/[^0-9.,-]/g,'').trim();if(!v)return 0;if(v.indexOf(',')>-1&&v.indexOf('.')>-1){if(v.lastIndexOf(',')>v.lastIndexOf('.'))v=v.replace(/\./g,'').replace(',','.');else v=v.replace(/,/g,'');}else if(v.indexOf(',')>-1)v=v.replace(',','.');var n=parseFloat(v);return isNaN(n)?0:n;};
+        var unitMap=function(u){u=String(u||'').trim().toUpperCase();return ['UND','CAJA','KG','LT','SRV'].indexOf(u)>=0?u:'UND';};
+        var ivaMap=function(x){x=String(x||'').toUpperCase();if(/EX/.test(x))return 'EXENTO';if(/8|REDUC/.test(x))return 'REDUCIDA';if(/31|SUNT|ADIC/.test(x))return 'ADICIONAL';return 'GENERAL';};
+        var findSku=function(sku){return prods.find(function(p){return p.sku.toUpperCase()===sku.toUpperCase();});};
+        var d=new Date();var dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+        var added=0,updated=0,skipped=0;
+        parsed.rows.forEach(function(r){
+          var name=String(r[mName]!=null?r[mName]:'').trim();if(!name){skipped++;return;}
+          var sku=mSku>=0?String(r[mSku]||'').trim().toUpperCase():'';
+          var cost=mCost>=0?toNum(r[mCost]):0;
+          var price=mPrice>=0?toNum(r[mPrice]):(cost>0?+(cost*1.3).toFixed(2):0);
+          var stock=mStock>=0?Math.max(0,Math.round(toNum(r[mStock]))):0;
+          var cat=mCat>=0?(String(r[mCat]||'').trim()||'Importados'):'Importados';
+          var unit=mUnit>=0?unitMap(r[mUnit]):'UND';
+          var iva=mIva>=0?ivaMap(r[mIva]):'GENERAL';
+          if(!sku){var n=prods.length+added+1;do{sku='IMP-'+String(n++).padStart(3,'0');}while(findSku(sku));}
+          var ex=findSku(sku);
+          if(ex){ex.name=name;if(mPrice>=0)ex.p=price;if(mCost>=0)ex.cost=cost;if(mCat>=0)ex.cat=cat;if(mUnit>=0)ex.unit=unit;if(mIva>=0)ex.iva=iva;if(mStock>=0){if(!ex.st)ex.st={PRIN:0,SUC:0,DEP:0};ex.st.PRIN=stock;}updated++;}
+          else{prods.push({id:pUid++,sku:sku,name:name,unit:unit,iva:iva,cat:cat,p:price,cost:cost,min:0,img:'',st:{PRIN:stock,SUC:0,DEP:0},kx:stock>0?[{t:'in',d:dd,q:stock,b:stock}]:[]});added++;}
+        });
+        saveProds();closeModal();if(container)render(container);
+        toast('Importados: '+added+' nuevos'+(updated?', '+updated+' actualizados':'')+(skipped?', '+skipped+' omitidos':''),true);
+      },
       setView(v){view=v;render(container);},setFilter(f){filter=f;render(container);},setDep(v){dep=v;render(container);}};
   })();
   window.IN=IN;
@@ -3723,7 +3813,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.0";
+  var CURRENT_FALLBACK = "1.3.1";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
