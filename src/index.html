@@ -851,6 +851,8 @@
       <div class="toolbar">
         <div class="search"><span>${svg(I.search)}</span><input id="prov-q" placeholder="Buscar por nombre o RIF…" value="${provQ}"></div>
         <div style="flex:1"></div>
+        <button class="btn" onclick="importProv()" title="Trae tus proveedores desde un archivo CSV (Excel, otro sistema…)">📥 Importar</button>
+        <input type="file" id="prov-import-file" accept=".csv,.txt" style="display:none" onchange="onImportProvFile(this)">
         <button class="btn primary" onclick="openProvEditor()">${svg(I.plus)} Nuevo proveedor</button>
       </div>
       <div class="panel" style="margin-top:14px"><div class="overflow-x"><table style="min-width:640px"><thead><tr><th>Proveedor</th><th>RIF</th><th>Tipo</th><th class="num">Acciones</th></tr></thead><tbody id="prov-body"></tbody></table></div></div>`;
@@ -887,7 +889,83 @@
     saveProv();closeModal();go('prov');
   }
   function deleteProvEntry(id){const p=PROV.find(x=>x.id===id);if(!p)return;if(!confirm('¿Eliminar el proveedor '+p.name+'?'))return;PROV=PROV.filter(x=>x.id!==id);saveProv();go('prov');toast('Proveedor eliminado',true);}
+  // ── Importar proveedores desde un archivo CSV ──
+  var _impProv=null;
+  function importProv(){var f=document.getElementById('prov-import-file');if(f){f.value='';f.click();}}
+  function onImportProvFile(input){
+    var file=input.files&&input.files[0];if(!file)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var text=String(rd.result||'');
+        if(text.indexOf('�')>=0){var rd2=new FileReader();rd2.onload=function(){try{_impProvAfter(String(rd2.result||''));}catch(e){toast('No se pudo leer el archivo.',false);}};rd2.readAsText(file,'windows-1252');return;}
+        _impProvAfter(text);
+      }catch(e){toast('No se pudo leer el archivo. Debe ser CSV.',false);}
+    };
+    rd.readAsText(file,'utf-8');
+  }
+  function _impProvParse(text){
+    if(text.charCodeAt(0)===65279)text=text.slice(1);
+    var fl=(text.split(/\r?\n/)[0]||'');
+    var delim=',';var cc=(fl.split(',').length-1),sc=(fl.split(';').length-1),tc=(fl.split('\t').length-1);
+    if(sc>cc&&sc>=tc)delim=';';else if(tc>cc&&tc>sc)delim='\t';
+    var rows=[],row=[],field='',i=0,inQ=false,ch;
+    while(i<text.length){ch=text.charAt(i);
+      if(inQ){if(ch==='"'){if(text.charAt(i+1)==='"'){field+='"';i++;}else inQ=false;}else field+=ch;}
+      else{if(ch==='"')inQ=true;else if(ch===delim){row.push(field);field='';}else if(ch==='\n'){row.push(field);rows.push(row);row=[];field='';}else if(ch==='\r'){}else field+=ch;}
+      i++;
+    }
+    if(field.length||row.length){row.push(field);rows.push(row);}
+    rows=rows.filter(function(r){return r.some(function(c){return String(c).trim()!=='';});});
+    var headers=(rows.shift()||[]).map(function(h){return String(h).trim();});
+    return {headers:headers,rows:rows};
+  }
+  function _impProvAfter(text){var parsed=_impProvParse(text);if(!parsed.rows.length){toast('El archivo no tiene filas de datos.',false);return;}_impProv=parsed;_impProvMap(parsed);}
+  function _impProvMap(parsed){
+    var norm=function(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();};
+    var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});};
+    var KW={name:['nombre','razon','proveedor','empresa'],rif:['rif','cedula','documento','identificacion','nit'],tipo:['contribuyente','tipo']};
+    var auto={};
+    Object.keys(KW).forEach(function(f){auto[f]=-1;parsed.headers.forEach(function(h,idx){if(auto[f]>=0)return;var nh=norm(h);if(KW[f].some(function(k){return nh.indexOf(k)>=0;}))auto[f]=idx;});});
+    var mkSel=function(field,label,req){var o='<option value="-1">— No importar —</option>';parsed.headers.forEach(function(h,idx){o+='<option value="'+idx+'"'+(auto[field]===idx?' selected':'')+'>'+esc(h||('Columna '+(idx+1)))+'</option>';});return '<div class="field"><label>'+label+(req?' *':'')+'</label><select id="impp-'+field+'">'+o+'</select></div>';};
+    var prev=parsed.rows.slice(0,5);
+    var thead='<tr>'+parsed.headers.map(function(h){return '<th style="padding:6px 8px;text-align:left;white-space:nowrap">'+esc(h)+'</th>';}).join('')+'</tr>';
+    var tbody=prev.map(function(r){return '<tr>'+parsed.headers.map(function(h,idx){return '<td style="padding:6px 8px;border-top:1px solid var(--border);white-space:nowrap">'+esc(r[idx]||'')+'</td>';}).join('')+'</tr>';}).join('');
+    document.getElementById('modal').innerHTML=
+      '<div class="modal-head"><div class="modal-title">Importar proveedores</div><button class="modal-x" onclick="closeModal()">✕</button></div>'
+      +'<div class="modal-body">'
+      +'<p style="color:var(--text-muted);font-size:13px;margin:0 0 10px">Detectamos <b>'+parsed.rows.length+'</b> proveedores en el archivo. Confirma a qué campo va cada columna:</p>'
+      +'<div class="g2">'+mkSel('name','Nombre / Razón social',true)+mkSel('rif','RIF')+'</div>'
+      +'<div class="g2">'+mkSel('tipo','Tipo de contribuyente')+'<div></div></div>'
+      +'<div style="font-size:12px;color:var(--text-faint);margin:8px 0 6px">Vista previa (primeras filas):</div>'
+      +'<div class="overflow-x" style="border:1px solid var(--border);border-radius:10px"><table style="font-size:12px;border-collapse:collapse;min-width:100%"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>'
+      +'<div style="font-size:12px;color:var(--text-faint);margin-top:12px;line-height:1.5">💡 ¿Tienes un Excel u otro sistema? Guárdalo como <b>CSV</b> e impórtalo aquí. Los que ya existan (mismo RIF) se actualizan; los demás se agregan.</div>'
+      +'</div>'
+      +'<div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="runImportProv()">Importar proveedores</button></div>';
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+  function runImportProv(){
+    var parsed=_impProv;if(!parsed)return;
+    var gv=function(f){var s=document.getElementById('impp-'+f);return s?parseInt(s.value,10):-1;};
+    var mName=gv('name');if(mName<0){toast('Indica cuál columna es el NOMBRE del proveedor',false);return;}
+    var mRif=gv('rif'),mTipo=gv('tipo');
+    var g=function(r,idx){return idx>=0?String(r[idx]==null?'':r[idx]).trim():'';};
+    var tipoMap=function(x){return /ESP/.test(String(x||'').toUpperCase())?'ESPECIAL':'ORDINARIO';};
+    var findRif=function(rif){if(!rif)return null;return PROV.find(function(p){return (p.rif||'').toUpperCase()===rif.toUpperCase();});};
+    var added=0,updated=0,skipped=0;
+    parsed.rows.forEach(function(r){
+      var name=g(r,mName);if(!name){skipped++;return;}
+      var rif=g(r,mRif).toUpperCase();
+      var tipo=mTipo>=0?tipoMap(g(r,mTipo)):'ORDINARIO';
+      var ex=rif?findRif(rif):null;
+      if(ex){ex.name=name;if(mRif>=0)ex.rif=rif;if(mTipo>=0)ex.tipo=tipo;updated++;}
+      else{PROV.push({id:provUid++,name:name,rif:rif,tipo:tipo});added++;}
+    });
+    saveProv();closeModal();go('prov');
+    toast('Importados: '+added+' nuevos'+(updated?', '+updated+' actualizados':'')+(skipped?', '+skipped+' omitidos':''),true);
+  }
   window.renderProveedores=renderProveedores;window.openProvEditor=openProvEditor;window.saveProvEntry=saveProvEntry;window.deleteProvEntry=deleteProvEntry;
+  window.importProv=importProv;window.onImportProvFile=onImportProvFile;window.runImportProv=runImportProv;
 
   // ══════════════ KARDEX (módulo global) ══════════════
   let kxProd='ALL',kxType='ALL';
@@ -3899,7 +3977,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.2";
+  var CURRENT_FALLBACK = "1.3.3";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
