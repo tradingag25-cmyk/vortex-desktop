@@ -302,7 +302,11 @@
   .role-card .ri{width:46px;height:46px;border-radius:12px;background:rgba(47,192,206,.14);color:#2fc0ce;display:grid;place-items:center;margin:0 auto 11px;} .role-card .ri svg{width:23px;height:23px;}
   .role-card .rn{font-weight:700;font-size:14.5px;color:#fff;} .role-card .rd{font-size:11px;color:#8fb3ad;margin-top:4px;line-height:1.4;}
   .login-pin{margin:18px 0 4px;text-align:left;} .login-pin label{font-size:11.5px;color:#9fc4be;display:block;margin-bottom:6px;font-weight:600;}
-  .login-pin input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(120,160,155,.22);border-radius:11px;padding:12px 14px;color:#fff;font-size:17px;letter-spacing:.35em;outline:none;font-family:inherit;box-sizing:border-box;} .login-pin input:focus{border-color:#2fc0ce;}
+  .login-pin input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(120,160,155,.22);border-radius:11px;padding:12px 46px 12px 14px;color:#fff;font-size:17px;letter-spacing:.35em;outline:none;font-family:inherit;box-sizing:border-box;} .login-pin input:focus{border-color:#2fc0ce;}
+  .pin-wrap{position:relative;display:block;}
+  .pin-eye{position:absolute;top:50%;right:7px;transform:translateY(-50%);width:32px;height:32px;display:grid;place-items:center;background:transparent;border:none;border-radius:8px;color:#9fc4be;cursor:pointer;padding:0;}
+  .pin-eye:hover{color:#2fc0ce;background:rgba(47,192,206,.1);}
+  .pin-eye svg{width:19px;height:19px;pointer-events:none;}
   .login-hint{font-size:11px;color:#6a8a85;margin-top:7px;}
   .login-btn{width:100%;margin-top:16px;background:linear-gradient(120deg,#2fc0ce,#1a8f9b);color:#042220;border:none;font-family:inherit;font-weight:700;font-size:15px;padding:13px;border-radius:12px;cursor:pointer;} .login-btn:hover{filter:brightness(1.08);}
   .login-err{color:#e46a63;font-size:12px;margin-top:11px;min-height:15px;}
@@ -425,7 +429,7 @@
       <button class="role-card" id="role-ADMIN" onclick="selectRole('ADMIN')"><div class="ri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div><div class="rn">Administrador</div><div class="rd">Acceso total a todos los módulos</div></button>
       <button class="role-card" id="role-CAJERO" onclick="selectRole('CAJERO')"><div class="ri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18l-2-1.5L15 21l-2-1.5L11 21l-2-1.5L7 21l-2-1.5z"/><path d="M8 8h8M8 12h5"/></svg></div><div class="rn">Cajero</div><div class="rd">Solo la parte de facturación</div></button>
     </div>
-    <div class="login-pin"><label>PIN de acceso</label><input id="loginPin" type="password" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter')doLogin()"><div class="login-hint">Demo — Administrador: 1234 · Cajero: 4321</div></div>
+    <div class="login-pin"><label>PIN de acceso</label><div class="pin-wrap"><input id="loginPin" type="password" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" class="pin-eye" onclick="togglePinView('loginPin',this)" aria-label="Mostrar u ocultar el PIN" title="Mostrar u ocultar" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="login-hint">Demo — Administrador: 1234 · Cajero: 4321</div></div>
     <button class="login-btn" onclick="doLogin()">Entrar</button>
     <div class="login-err" id="loginErr"></div>
   </div>
@@ -3421,6 +3425,16 @@
   window.showLogin=showLogin;
   function selectRole(r){selectedRole=r;document.getElementById('role-ADMIN').classList.toggle('sel',r==='ADMIN');document.getElementById('role-CAJERO').classList.toggle('sel',r==='CAJERO');document.getElementById('loginErr').textContent='';}
   window.selectRole=selectRole;
+  function togglePinView(inputId,btn){
+    var el=document.getElementById(inputId); if(!el) return;
+    var show=el.type==='password';
+    el.type=show?'text':'password';
+    if(btn) btn.innerHTML=show
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    try{el.focus();}catch(e){}
+  }
+  window.togglePinView=togglePinView;
   function doLogin(){
     const err=document.getElementById('loginErr');
     if(!selectedRole){err.textContent='Selecciona un rol';return;}
@@ -3709,7 +3723,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortex-platform-murex.vercel.app/api/updates/latest";
-  var CURRENT_FALLBACK = "1.2.38";
+  var CURRENT_FALLBACK = "1.2.39";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
