@@ -1438,6 +1438,7 @@
       <div class="p-foot"><div class="p-qr"></div>Cotización — documento informativo no fiscal; no genera obligación tributaria. Precios en Bs. a la tasa BCV ${money(RATE)}/USD, sujetos a variación. Válida hasta ${venc}. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function renderCotiz(view){
+    if(window.FA&&FA.docMode&&FA.docMode()==='cotizacion'){FA.render(view);return;}
     const vig=COTIZ.filter(c=>cotizEstado(c).k==='Vigente');
     const totalVig=vig.reduce((a,c)=>a+(c.totalBs||0),0);
     const clientes=[...new Set(COTIZ.map(c=>c.cli))].sort();
@@ -1450,10 +1451,10 @@
       <td>${fmtCot(cotizVence(c))}</td>
       <td class="num" style="font-weight:700">${money(c.totalBs||0)}</td>
       <td>${estPill(est)}</td>
-      <td class="num"><div style="display:inline-flex;gap:4px;align-items:center;justify-content:flex-end">${c.status!=='Facturada'?`<button class="btn sm" onclick="facturarCotiz(${c.id})" title="Convertir en factura">Facturar</button>`:''}<button class="del" onclick="printCotiz(${c.id})" title="Imprimir / PDF">${svg(I.printer)}</button><button class="del" onclick="openCotizEditor(${c.id})" title="Editar">${svg(I.edit)}</button><button class="del" onclick="deleteCotiz(${c.id})" title="Eliminar">${svg(I.trash)}</button></div></td>
+      <td class="num"><div style="display:inline-flex;gap:4px;align-items:center;justify-content:flex-end">${c.status!=='Facturada'?`<button class="btn sm" onclick="facturarCotiz(${c.id})" title="Convertir en factura">Facturar</button>`:''}<button class="del" onclick="printCotiz(${c.id})" title="Imprimir / PDF">${svg(I.printer)}</button><button class="del" onclick="FA.editQuote(${c.id})" title="Editar">${svg(I.edit)}</button><button class="del" onclick="deleteCotiz(${c.id})" title="Eliminar">${svg(I.trash)}</button></div></td>
     </tr>`;}).join('')||`<tr><td colspan="7" style="text-align:center;padding:26px;color:var(--text-faint)">Sin cotizaciones para este filtro.</td></tr>`;
     view.innerHTML=`
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn primary" onclick="openCotizEditor()">${svg(I.plus)} Nueva cotización</button></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn primary" onclick="FA.newQuote()">${svg(I.plus)} Nueva cotización</button></div>
       <div class="kgrid">
         ${kpiC('Cotizaciones',String(COTIZ.length),'emitidas','quote')}
         ${kpiC('Vigentes',String(vig.length),'sin vencer','check')}
@@ -1510,6 +1511,9 @@
   // Guardar la factura en curso como cotización (aparcar la venta para facturar luego)
   function saveCotizFrom(cli,rif,vendor,items){const t=cotizTotals(items);const c={id:cotizUid++,num:nextCotizNum(),date:todayISO(),status:'Vigente',cli:cli,rif:rif||'',vendor:vendor||'',validez:15,items:items.map(i=>({...i})),totalUsd:t.total,totalBs:t.total*RATE};c.html=cotizPaperHtml(c);COTIZ.unshift(c);saveCotizLS();return c;}
   window.saveCotizFrom=saveCotizFrom;
+  // Actualiza una cotización existente (desde el panel robusto en modo edición).
+  function updateCotizFrom(id,cli,rif,vendor,items){const c=COTIZ.find(x=>x.id===id);if(!c)return;const t=cotizTotals(items);Object.assign(c,{cli:cli,rif:rif||'',vendor:vendor||'',items:items.map(i=>({...i})),totalUsd:t.total,totalBs:t.total*RATE});c.html=cotizPaperHtml(c);saveCotizLS();}
+  window.updateCotizFrom=updateCotizFrom;
   window.renderCotiz=renderCotiz;window.setCotizFilter=setCotizFilter;window.setCotizClient=setCotizClient;window.openCotizEditor=openCotizEditor;window.setCotizCli=setCotizCli;window.setCotizVal=setCotizVal;window.setCotizQty=setCotizQty;window.addCotizItem=addCotizItem;window.rmCotizItem=rmCotizItem;window.saveCotiz=saveCotiz;window.printCotiz=printCotiz;window.deleteCotiz=deleteCotiz;window.facturarCotiz=facturarCotiz;
 
   // ══════════════ NOTAS DE ENTREGA ══════════════
@@ -2443,7 +2447,7 @@
 
   const MODULES=[
     {id:'dashboard',label:'Resumen',icon:'home',group:'',crumb:'Inicio · Panel general',render:renderDashboard},
-    {id:'facturacion',label:'Facturación',icon:'invoice',group:'Ventas',crumb:'Ventas · Punto de facturación',render:c=>FA.render(c)},
+    {id:'facturacion',label:'Facturación',icon:'invoice',group:'Ventas',crumb:'Ventas · Punto de facturación',render:c=>{FA.setDocFactura();FA.render(c);}},
     {id:'cotizaciones',label:'Cotizaciones',icon:'quote',group:'Ventas',crumb:'Ventas · Cotizaciones',render:renderCotiz},
     {id:'notas',label:'Notas de entrega',icon:'truck',group:'Ventas',crumb:'Ventas · Notas de entrega',render:renderNotas},
     {id:'devol',label:'Devoluciones (NC/ND)',icon:'back',group:'Ventas',crumb:'Ventas · Notas de crédito/débito',render:renderDev},
@@ -2896,7 +2900,7 @@
     const _b0=getBcv()||{};
     const getNumb=()=>{try{const j=JSON.parse(localStorage.getItem('vortex_numbering')||'null');if(j)return j;}catch(e){}return {facPrefix:'F-',ctrl:'00-00483'};};
     const _n0=getNumb();
-    let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum=_n0.ctrl||'00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='';
+    let cur='USD',rate=_b0.usd||RATE,rateEur=_b0.eur||RATE_EUR,ci=0,lines=[],pays=[],uid=1,results=[],hl=0,ctrlNum=_n0.ctrl||'00-00483',seeded=false,docCounter=nextDocSeq(),credito=false,credDias=30,touchOn=false,touchCat='ALL',touchQ='',docMode='factura',quoteEditId=null;
     let editCliIdx=null,cliOrigin='facturacion',cliQ='',autoTouchDone=false;
     const docNum=()=>(getNumb().facPrefix||'F-')+String(docCounter).padStart(6,'0');
     const pUsd=p=>p.cur==='USD'?p.a:p.cur==='EUR'?(p.a*rateEur)/rate:p.a/rate; // pago → unidades USD
@@ -2941,14 +2945,15 @@
         </div>
         <div class="fcol ftot">
           <div class="card"><div class="card-head"><div class="card-title">${svg(I.receipt)} Resumen fiscal</div></div><div style="padding:8px 0" id="fa-totals"></div>
-            <div class="grand"><div class="grand-l">Total factura</div><div class="grand-m" id="fa-gm">Bs. 0,00</div><div class="grand-a" id="fa-ga">$ 0,00</div></div></div>
-          <div class="card" id="fa-retcard" style="display:none;border-color:var(--violet-soft)"><div class="rethd">${svg(I.tag)} Retención del cliente (especial)</div><div style="padding:0 0 8px" id="fa-ret"></div></div>
+            <div class="grand"><div class="grand-l">Total ${docMode==='cotizacion'?'cotización':docMode==='nota'?'nota':'factura'}</div><div class="grand-m" id="fa-gm">Bs. 0,00</div><div class="grand-a" id="fa-ga">$ 0,00</div></div></div>
+          ${docMode==='factura'?`<div class="card" id="fa-retcard" style="display:none;border-color:var(--violet-soft)"><div class="rethd">${svg(I.tag)} Retención del cliente (especial)</div><div style="padding:0 0 8px" id="fa-ret"></div></div>
           <div class="card"><div class="card-head"><div class="card-title">${svg(I.card)} Formas de pago</div><div class="seg" id="fa-condseg"><button id="fa-cont" class="${!credito?'on':''}" onclick="FA.setCredito(false)">Contado</button><button id="fa-cred" class="${credito?'on':''}" onclick="FA.setCredito(true)">Crédito</button></div></div>
             <div id="fa-credrow" style="display:${credito?'flex':'none'};align-items:center;gap:8px;padding:2px 16px 10px;font-size:12px;color:var(--text-muted)"><span>Plazo</span><select class="selm" id="fa-creddias" onchange="FA.setCredDias(this.value)">${[15,30,45,60,90].map(d=>`<option value="${d}" ${credDias===d?'selected':''}>${d} días</option>`).join('')}</select><span>· vence <b id="fa-credvence" style="color:var(--text)">${credVenceTxt()}</b></span></div>
             <div class="payadd"><select class="selm" id="fa-pm"><option value="EFECTIVO_VES">Efectivo Bs.</option><option value="EFECTIVO_USD">Efectivo USD (divisa)</option><option value="EFECTIVO_EUR">Efectivo EUR (divisa)</option><option value="PAGO_MOVIL">Pago móvil</option><option value="PUNTO_VENTA">Punto de venta</option><option value="TRANSFERENCIA_VES">Transferencia Bs.</option><option value="TRANSFERENCIA_USD">Transferencia USD (divisa)</option><option value="TRANSFERENCIA_EUR">Transferencia EUR (divisa)</option><option value="ZELLE">Zelle (divisa)</option></select><button class="btn sm primary" onclick="FA.addPay()">Agregar</button></div>
-            <div class="paylist" id="fa-pays"></div><div class="balance" id="fa-bal"></div></div>
-          <div class="card ffoot"><button id="fa-emit" class="btn primary block" style="padding:11px" onclick="FA.emit()">Emitir factura</button>
-            <div style="display:flex;gap:9px"><button class="btn block" onclick="FA.quick()">Pago exacto</button><button class="btn block" onclick="FA.saveDraft()">💾 Guardar</button><button class="btn block" onclick="FA.clearInvoice()">🧹 Limpiar</button></div></div>
+            <div class="paylist" id="fa-pays"></div><div class="balance" id="fa-bal"></div></div>`:''}
+          <div class="card ffoot">${docMode==='cotizacion'?`<button class="btn primary block" style="padding:11px" onclick="FA.saveQuote()">💾 Guardar cotización</button>
+            <div style="display:flex;gap:9px"><button class="btn block" onclick="FA.clearInvoice()">🧹 Limpiar</button><button class="btn block" onclick="FA.cancelDoc()">← Volver a la lista</button></div>`:`<button id="fa-emit" class="btn primary block" style="padding:11px" onclick="FA.emit()">Emitir factura</button>
+            <div style="display:flex;gap:9px"><button class="btn block" onclick="FA.quick()">Pago exacto</button><button class="btn block" onclick="FA.saveDraft()">💾 Guardar</button><button class="btn block" onclick="FA.clearInvoice()">🧹 Limpiar</button></div>`}</div>
         </div>
       </div>`;
       seeded=true; // la factura empieza vacía (sin renglones demo)
@@ -2957,7 +2962,7 @@
       se.addEventListener('keydown',onKey);
       renderItems();renderTotals();renderPays();
       try{ autoBcv(false); }catch(e){} // refresca la tasa BCV del día en segundo plano
-      if(!autoTouchDone && getPrefs().autoTouch && !touchOn && !window.__guiaActive){autoTouchDone=true;setTimeout(function(){try{FA.enterTouch();}catch(e){}},30);}
+      if(docMode==='factura' && !autoTouchDone && getPrefs().autoTouch && !touchOn && !window.__guiaActive){autoTouchDone=true;setTimeout(function(){try{FA.enterTouch();}catch(e){}},30);}
     }
     function seed(){[0,1,4].forEach(i=>lines.push({id:uid++,sku:CAT[i].sku,name:CAT[i].name,qty:1,p:CAT[i].p,disc:0,iva:CAT[i].iva}));lines[0].qty=10;lines[1].qty=12;lines[2].qty=5;}
     function renderItems(){
@@ -2983,7 +2988,7 @@
       document.getElementById('fa-gm').textContent=cur==='USD'?usd(t.total):money(t.total*rate);
       document.getElementById('fa-ga').textContent=cur==='USD'?money(t.total*rate):usd(t.total);
       const rc=document.getElementById('fa-retcard');
-      if(t.ret>0){rc.style.display='';document.getElementById('fa-ret').innerHTML=row('Retención IVA <span class="chip ret">75%</span>','−'+showN(t.ret))+`<div class="trow"><span class="l" style="color:var(--text);font-weight:600">Neto a cobrar</span><span class="v" style="color:var(--violet);font-weight:700">${showN(t.neto)}</span></div>`;}else rc.style.display='none';
+      if(rc){if(t.ret>0){rc.style.display='';document.getElementById('fa-ret').innerHTML=row('Retención IVA <span class="chip ret">75%</span>','−'+showN(t.ret))+`<div class="trow"><span class="l" style="color:var(--text);font-weight:600">Neto a cobrar</span><span class="v" style="color:var(--violet);font-weight:700">${showN(t.neto)}</span></div>`;}else rc.style.display='none';}
       renderBal();
     }
     const row=(l,v)=>`<div class="trow"><span class="l">${l}</span><span class="v">${v}</span></div>`;
@@ -3057,6 +3062,13 @@
       cycleCli(){ci=(ci+1)%CLI.length;go('facturacion');},
       clients(){return CLI.map(c=>({name:c.name,rif:c.rif,vendor:c.vendor,payCond:c.payCond}));},
       loadFrom(cliName,items){const idx=CLI.findIndex(c=>c.name===cliName);if(idx>=0)ci=idx;lines=(items||[]).map(it=>({id:uid++,sku:it.sku,name:it.name,qty:it.qty,p:it.p,disc:0,iva:it.iva}));pays=[];seeded=true;go('facturacion');},
+      // ── Modo cotización (reutiliza el panel de facturación) ──
+      docMode(){return docMode;},
+      setDocFactura(){docMode='factura';quoteEditId=null;},
+      newQuote(){docMode='cotizacion';quoteEditId=null;lines=[];pays=[];credito=false;go('cotizaciones');},
+      editQuote(id){const c=(typeof COTIZ!=='undefined'?COTIZ:[]).find(x=>x.id===id);if(!c){toast('Cotización no encontrada',false);return;}docMode='cotizacion';quoteEditId=id;const idx=CLI.findIndex(x=>x.name===c.cli);if(idx>=0)ci=idx;lines=(c.items||[]).map(it=>({id:uid++,sku:it.sku,name:it.name,qty:it.qty,p:it.p,disc:0,iva:it.iva}));pays=[];go('cotizaciones');},
+      saveQuote(){if(!lines.length){toast('Agrega al menos un producto',false);return;}const c=CLI[ci];const items=lines.map(l=>({sku:l.sku,name:l.name,qty:l.qty,p:l.p,iva:l.iva}));const wasEdit=quoteEditId;if(wasEdit&&window.updateCotizFrom){window.updateCotizFrom(wasEdit,c.name,c.rif,c.vendor,items);}else if(window.saveCotizFrom){window.saveCotizFrom(c.name,c.rif,c.vendor,items);}docMode='factura';quoteEditId=null;lines=[];pays=[];go('cotizaciones');toast(wasEdit?'Cotización actualizada':'Cotización guardada',true);},
+      cancelDoc(){docMode='factura';quoteEditId=null;lines=[];pays=[];go('cotizaciones');},
       // ── MODO TOUCH (POS táctil) ──
       enterTouch(){touchOn=true;let el=document.getElementById('touchPos');if(!el){el=document.createElement('div');el.id='touchPos';document.body.appendChild(el);}el.style.display='flex';const c=CLI[ci];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');FA.renderTouch();},
       exitTouch(){touchOn=false;FA.touchCedClose();const el=document.getElementById('touchPos');if(el)el.style.display='none';go('facturacion');},
@@ -4082,7 +4094,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.6";
+  var CURRENT_FALLBACK = "1.3.7";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
