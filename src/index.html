@@ -265,6 +265,9 @@
   .modal-title{font-size:15px;font-weight:650;}
   .modal-x{width:30px;height:30px;border:none;background:var(--surface-2);border-radius:8px;color:var(--text-muted);cursor:pointer;}
   .modal-body{padding:16px 20px;}
+  .fpanel{max-width:820px;margin:2px auto 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px -18px rgba(0,0,0,.4);}
+  .fpanel .modal-head{border-bottom:1px solid var(--border);}
+  .fpanel .modal-body{max-height:none;}
   .modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface);}
   .cli-list{display:flex;flex-direction:column;gap:2px;margin-top:12px;max-height:300px;overflow-y:auto;}
   .cli-row{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;cursor:pointer;}
@@ -874,15 +877,14 @@
   }
   function openProvEditor(id){
     const e=id?PROV.find(p=>p.id===id):null;
-    document.getElementById('modal').innerHTML=`
-      <div class="modal-head"><div class="modal-title">${e?'Editar':'Nuevo'} proveedor</div><button class="modal-x" onclick="closeModal()">✕</button></div>
+    formPanel(`
+      <div class="modal-head"><div class="modal-title">${e?'Editar':'Nuevo'} proveedor</div><button class="modal-x" onclick="go('prov')">✕</button></div>
       <div class="modal-body">
         <div class="field"><label>Nombre / Razón social *</label><input id="pv-name" value="${e?(e.name||'').replace(/"/g,'&quot;'):''}" placeholder="Proveedor, C.A."></div>
         <div class="field"><label>RIF *</label><input id="pv-rif" class="mono" value="${e?e.rif:''}" placeholder="J-12345678-9"></div>
         <div class="field"><label>Tipo de contribuyente</label><select id="pv-tipo"><option value="ORDINARIO" ${e&&e.tipo==='ORDINARIO'?'selected':''}>Contribuyente ordinario</option><option value="ESPECIAL" ${e&&e.tipo==='ESPECIAL'?'selected':''}>Contribuyente especial</option></select></div>
       </div>
-      <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveProvEntry(${id||0})">${e?'Guardar cambios':'Agregar proveedor'}</button></div>`;
-    document.getElementById('modalOverlay').classList.add('show');
+      <div class="modal-foot"><button class="btn" onclick="go('prov')">Cancelar</button><button class="btn primary" onclick="saveProvEntry(${id||0})">${e?'Guardar cambios':'Agregar proveedor'}</button></div>`);
     setTimeout(function(){const i=document.getElementById('pv-name');if(i)i.focus();},30);
   }
   function saveProvEntry(id){
@@ -1439,6 +1441,7 @@
   }
   function renderCotiz(view){
     if(window.FA&&FA.docMode&&FA.docMode()==='cotizacion'){FA.render(view);return;}
+    if(window.FA)FA.setDocFactura();
     const vig=COTIZ.filter(c=>cotizEstado(c).k==='Vigente');
     const totalVig=vig.reduce((a,c)=>a+(c.totalBs||0),0);
     const clientes=[...new Set(COTIZ.map(c=>c.cli))].sort();
@@ -1547,6 +1550,8 @@
       <div class="p-foot"><div class="p-qr"></div>Nota de entrega — ampara el despacho de mercancía; <b>no es documento fiscal</b> y no genera obligación tributaria. La factura fiscal se emite por separado. ${CO.name} · Vortex — Sistema de Gestión Integral.</div>`;
   }
   function renderNotas(view){
+    if(window.FA&&FA.docMode&&FA.docMode()==='nota'){FA.render(view);return;}
+    if(window.FA)FA.setDocFactura();
     const desp=NOTAS.filter(n=>notaEstado(n).k==='Despachada');
     const totalDesp=desp.reduce((a,n)=>a+(n.totalBs||0),0);
     const clientes=[...new Set(NOTAS.map(n=>n.cli))].sort();
@@ -1558,10 +1563,10 @@
       <td>${fmtCot(new Date(n.date+'T00:00:00'))}</td>
       <td class="num" style="font-weight:700">${money(n.totalBs||0)}</td>
       <td>${estPill(est)}</td>
-      <td class="num"><div style="display:inline-flex;gap:4px;align-items:center;justify-content:flex-end">${est.k==='Despachada'?`<button class="btn sm" onclick="facturarNota(${n.id})" title="Convertir en factura">Facturar</button>`:''}<button class="del" onclick="printNota(${n.id})" title="Imprimir / PDF">${svg(I.printer)}</button><button class="del" onclick="openNotaEditor(${n.id})" title="Editar">${svg(I.edit)}</button><button class="del" onclick="deleteNota(${n.id})" title="Eliminar">${svg(I.trash)}</button></div></td>
+      <td class="num"><div style="display:inline-flex;gap:4px;align-items:center;justify-content:flex-end">${est.k==='Despachada'?`<button class="btn sm" onclick="facturarNota(${n.id})" title="Convertir en factura">Facturar</button>`:''}<button class="del" onclick="printNota(${n.id})" title="Imprimir / PDF">${svg(I.printer)}</button><button class="del" onclick="FA.editNota(${n.id})" title="Editar">${svg(I.edit)}</button><button class="del" onclick="deleteNota(${n.id})" title="Eliminar">${svg(I.trash)}</button></div></td>
     </tr>`;}).join('')||`<tr><td colspan="6" style="text-align:center;padding:26px;color:var(--text-faint)">Sin notas de entrega para este filtro.</td></tr>`;
     view.innerHTML=`
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn primary" onclick="openNotaEditor()">${svg(I.plus)} Nueva nota de entrega</button></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn primary" onclick="FA.newNota()">${svg(I.plus)} Nueva nota de entrega</button></div>
       <div class="kgrid">
         ${kpiC('Notas de entrega',String(NOTAS.length),'emitidas','truck')}
         ${kpiC('Despachadas',String(desp.length),'sin facturar','box')}
@@ -1614,6 +1619,10 @@
   function printNota(id){const n=NOTAS.find(x=>x.id===id);if(!n)return;document.getElementById('paper').innerHTML=n.html||notaPaperHtml(n);document.getElementById('printOverlay').classList.add('show');}
   function deleteNota(id){const n=NOTAS.find(x=>x.id===id);if(!n)return;if(!confirm('¿Eliminar la nota de entrega '+n.num+' de '+n.cli+'?'))return;NOTAS=NOTAS.filter(x=>x.id!==id);saveNotasLS();go('notas');toast('Nota de entrega eliminada',true);}
   function facturarNota(id){const n=NOTAS.find(x=>x.id===id);if(!n)return;if(window.FA&&FA.loadFrom){FA.loadFrom(n.cli,n.items);n.status='Facturada';saveNotasLS();toast('Nota cargada en Facturación · revisa y emite la factura (descuenta inventario)',true);}else{toast('Facturación no disponible',false);}}
+  // Crear/actualizar nota de entrega desde el panel robusto.
+  function saveNotaFrom(cli,rif,vendor,items){const t=cotizTotals(items);const n={id:notaUid++,num:nextNotaNum(),date:todayISO(),status:'Despachada',cli:cli,rif:rif||'',vendor:vendor||'',items:items.map(i=>({...i})),totalUsd:t.total,totalBs:t.total*RATE};n.html=notaPaperHtml(n);NOTAS.unshift(n);saveNotasLS();return n;}
+  function updateNotaFrom(id,cli,rif,vendor,items){const n=NOTAS.find(x=>x.id===id);if(!n)return;const t=cotizTotals(items);Object.assign(n,{cli:cli,rif:rif||'',vendor:vendor||'',items:items.map(i=>({...i})),totalUsd:t.total,totalBs:t.total*RATE});n.html=notaPaperHtml(n);saveNotasLS();}
+  window.saveNotaFrom=saveNotaFrom;window.updateNotaFrom=updateNotaFrom;
   window.renderNotas=renderNotas;window.setNotaFilter=setNotaFilter;window.setNotaClient=setNotaClient;window.openNotaEditor=openNotaEditor;window.setNotaCli=setNotaCli;window.setNotaQty=setNotaQty;window.addNotaItem=addNotaItem;window.rmNotaItem=rmNotaItem;window.saveNota=saveNota;window.printNota=printNota;window.deleteNota=deleteNota;window.facturarNota=facturarNota;
 
   // ══════════════ DEVOLUCIONES (NC / ND) ══════════════
@@ -2499,6 +2508,9 @@
     const view=document.getElementById('view');
     if(m.render) m.render(view); else placeholder(view,m);
   }
+  // Muestra un formulario como panel en página (mismo estilo que cotización/nota).
+  function formPanel(html){const v=document.getElementById('view');if(v){v.innerHTML='<div class="fpanel">'+html+'</div>';v.scrollTop=0;}}
+  window.formPanel=formPanel;
   function placeholder(view,m){
     view.innerHTML=`<div class="card"><div class="ph"><div class="ph-ic">${svg(I[m.icon])}</div>
       <h3>${m.label}</h3><p>Módulo registrado en Vortex. La interfaz se construye en su fase de la hoja de ruta; el registro de módulos permite integrarlo sin tocar el shell.</p>
@@ -2951,7 +2963,7 @@
             <div id="fa-credrow" style="display:${credito?'flex':'none'};align-items:center;gap:8px;padding:2px 16px 10px;font-size:12px;color:var(--text-muted)"><span>Plazo</span><select class="selm" id="fa-creddias" onchange="FA.setCredDias(this.value)">${[15,30,45,60,90].map(d=>`<option value="${d}" ${credDias===d?'selected':''}>${d} días</option>`).join('')}</select><span>· vence <b id="fa-credvence" style="color:var(--text)">${credVenceTxt()}</b></span></div>
             <div class="payadd"><select class="selm" id="fa-pm"><option value="EFECTIVO_VES">Efectivo Bs.</option><option value="EFECTIVO_USD">Efectivo USD (divisa)</option><option value="EFECTIVO_EUR">Efectivo EUR (divisa)</option><option value="PAGO_MOVIL">Pago móvil</option><option value="PUNTO_VENTA">Punto de venta</option><option value="TRANSFERENCIA_VES">Transferencia Bs.</option><option value="TRANSFERENCIA_USD">Transferencia USD (divisa)</option><option value="TRANSFERENCIA_EUR">Transferencia EUR (divisa)</option><option value="ZELLE">Zelle (divisa)</option></select><button class="btn sm primary" onclick="FA.addPay()">Agregar</button></div>
             <div class="paylist" id="fa-pays"></div><div class="balance" id="fa-bal"></div></div>`:''}
-          <div class="card ffoot">${docMode==='cotizacion'?`<button class="btn primary block" style="padding:11px" onclick="FA.saveQuote()">💾 Guardar cotización</button>
+          <div class="card ffoot">${docMode!=='factura'?`<button class="btn primary block" style="padding:11px" onclick="FA.${docMode==='nota'?'saveNota':'saveQuote'}()">💾 Guardar ${docMode==='nota'?'nota de entrega':'cotización'}</button>
             <div style="display:flex;gap:9px"><button class="btn block" onclick="FA.clearInvoice()">🧹 Limpiar</button><button class="btn block" onclick="FA.cancelDoc()">← Volver a la lista</button></div>`:`<button id="fa-emit" class="btn primary block" style="padding:11px" onclick="FA.emit()">Emitir factura</button>
             <div style="display:flex;gap:9px"><button class="btn block" onclick="FA.quick()">Pago exacto</button><button class="btn block" onclick="FA.saveDraft()">💾 Guardar</button><button class="btn block" onclick="FA.clearInvoice()">🧹 Limpiar</button></div>`}</div>
         </div>
@@ -3068,7 +3080,10 @@
       newQuote(){docMode='cotizacion';quoteEditId=null;lines=[];pays=[];credito=false;go('cotizaciones');},
       editQuote(id){const c=(typeof COTIZ!=='undefined'?COTIZ:[]).find(x=>x.id===id);if(!c){toast('Cotización no encontrada',false);return;}docMode='cotizacion';quoteEditId=id;const idx=CLI.findIndex(x=>x.name===c.cli);if(idx>=0)ci=idx;lines=(c.items||[]).map(it=>({id:uid++,sku:it.sku,name:it.name,qty:it.qty,p:it.p,disc:0,iva:it.iva}));pays=[];go('cotizaciones');},
       saveQuote(){if(!lines.length){toast('Agrega al menos un producto',false);return;}const c=CLI[ci];const items=lines.map(l=>({sku:l.sku,name:l.name,qty:l.qty,p:l.p,iva:l.iva}));const wasEdit=quoteEditId;if(wasEdit&&window.updateCotizFrom){window.updateCotizFrom(wasEdit,c.name,c.rif,c.vendor,items);}else if(window.saveCotizFrom){window.saveCotizFrom(c.name,c.rif,c.vendor,items);}docMode='factura';quoteEditId=null;lines=[];pays=[];go('cotizaciones');toast(wasEdit?'Cotización actualizada':'Cotización guardada',true);},
-      cancelDoc(){docMode='factura';quoteEditId=null;lines=[];pays=[];go('cotizaciones');},
+      cancelDoc(){var m=docMode;docMode='factura';quoteEditId=null;lines=[];pays=[];go(m==='nota'?'notas':'cotizaciones');},
+      newNota(){docMode='nota';quoteEditId=null;lines=[];pays=[];credito=false;go('notas');},
+      editNota(id){const n=(typeof NOTAS!=='undefined'?NOTAS:[]).find(x=>x.id===id);if(!n){toast('Nota no encontrada',false);return;}docMode='nota';quoteEditId=id;const idx=CLI.findIndex(x=>x.name===n.cli);if(idx>=0)ci=idx;lines=(n.items||[]).map(it=>({id:uid++,sku:it.sku,name:it.name,qty:it.qty,p:it.p,disc:0,iva:it.iva}));pays=[];go('notas');},
+      saveNota(){if(!lines.length){toast('Agrega al menos un producto',false);return;}const c=CLI[ci];const items=lines.map(l=>({sku:l.sku,name:l.name,qty:l.qty,p:l.p,iva:l.iva}));const wasEdit=quoteEditId;if(wasEdit&&window.updateNotaFrom){window.updateNotaFrom(wasEdit,c.name,c.rif,c.vendor,items);}else if(window.saveNotaFrom){window.saveNotaFrom(c.name,c.rif,c.vendor,items);}docMode='factura';quoteEditId=null;lines=[];pays=[];go('notas');toast(wasEdit?'Nota actualizada':'Nota de entrega guardada',true);},
       // ── MODO TOUCH (POS táctil) ──
       enterTouch(){touchOn=true;let el=document.getElementById('touchPos');if(!el){el=document.createElement('div');el.id='touchPos';document.body.appendChild(el);}el.style.display='flex';const c=CLI[ci];credito=/cr[eé]dito/i.test((c&&c.payCond)||'');FA.renderTouch();},
       exitTouch(){touchOn=false;FA.touchCedClose();const el=document.getElementById('touchPos');if(el)el.style.display='none';go('facturacion');},
@@ -3192,9 +3207,10 @@
         prefill=prefill||{};
         editCliIdx=(prefill.edit!=null)?prefill.edit:null;
         cliOrigin=prefill.origin||'facturacion';
-        const back=cliOrigin==='clientes'?"closeModal()":"FA.openClientPicker()";
+        const inPage=cliOrigin==='clientes';
+        const back=inPage?"go('clientes')":"FA.openClientPicker()";
         const isEdit=editCliIdx!=null;
-        document.getElementById('modal').innerHTML=`
+        const _cliHtml=`
           <div class="modal-head"><div class="modal-title">${isEdit?'Editar cliente':'Nuevo cliente'}</div><button class="modal-x" onclick="${back}">✕</button></div>
           <div class="modal-body">
             ${prefill.ident&&!isEdit?`<div style="display:flex;align-items:center;gap:9px;background:var(--accent-soft,rgba(47,192,206,.12));border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12.5px;color:var(--text)">${svg(I.user)}<span>No está registrado. Identificación <b class="mono">${prefill.ident}</b> tomada de tu consulta — completa el nombre y guarda.</span></div>`:''}
@@ -3216,7 +3232,7 @@
             <div class="field"><label>Vendedor asignado</label><select id="n-vendor">${VENDORS.map(v=>`<option>${v}</option>`).join('')}</select></div>
           </div>
           <div class="modal-foot"><button class="btn" onclick="${back}">Cancelar</button><button class="btn primary" onclick="FA.saveClient()">${isEdit?'Guardar cambios':'Guardar cliente'}</button></div>`;
-        document.getElementById('modalOverlay').classList.add('show'); // mostrar la ventana (funciona llamado directo o desde el selector)
+        if(inPage){formPanel(_cliHtml);}else{document.getElementById('modal').innerHTML=_cliHtml;document.getElementById('modalOverlay').classList.add('show');}
         this.onDocType();
         const setV=(id,v)=>{const el=document.getElementById(id);if(el!=null&&v!=null)el.value=v;};
         if(isEdit){
@@ -3541,8 +3557,8 @@
       editingId=id||null;
       const e=editingId?prods.find(p=>p.id===editingId):null;
       const sl=(v,cur)=>v===cur?'selected':'';
-      document.getElementById('modal').innerHTML=`
-        <div class="modal-head"><div class="modal-title">${e?'Editar producto':'Nuevo producto'}</div><button class="modal-x" onclick="closeModal()">✕</button></div>
+      formPanel(`
+        <div class="modal-head"><div class="modal-title">${e?'Editar producto':'Nuevo producto'}</div><button class="modal-x" onclick="go('inventario')">✕</button></div>
         <div class="modal-body">
           <div class="g2">
             <div class="field"><label>Código / SKU *</label><input id="p-sku" class="mono" value="${e?e.sku:''}" placeholder="PRD-001"><div class="err" id="pe-sku"></div></div>
@@ -3573,9 +3589,8 @@
             </div>
           </div>
         </div>
-        <div class="modal-foot"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="IN.saveProduct()">${e?'Guardar cambios':'Guardar producto'}</button></div>`;
-      document.getElementById('modalOverlay').classList.add('show');
-      document.getElementById('p-sku').focus();
+        <div class="modal-foot"><button class="btn" onclick="go('inventario')">Cancelar</button><button class="btn primary" onclick="IN.saveProduct()">${e?'Guardar cambios':'Guardar producto'}</button></div>`);
+      const _fsku=document.getElementById('p-sku');if(_fsku)_fsku.focus();
     }
     function saveProduct(){
       const sku=document.getElementById('p-sku').value.trim().toUpperCase();
@@ -4094,7 +4109,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.7";
+  var CURRENT_FALLBACK = "1.3.8";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
