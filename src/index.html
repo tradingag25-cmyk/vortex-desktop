@@ -4163,7 +4163,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.2";
+  var CURRENT_FALLBACK = "1.4.3";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
@@ -4498,20 +4498,55 @@
     }
     ensureDemoBar(isDemo);
   }
-  // Barra demo FIJA (arriba al centro), no arrastrable → no se puede perder de pantalla.
+  // ── Barra demo: fija arriba, RETRÁCTIL y movible SOLO en horizontal (no se pierde) ──
+  function demoMin(){ try{ return localStorage.getItem("vortex_demo_min")==="1"; }catch(e){ return false; } }
+  function setDemoMin(v){ try{ localStorage.setItem("vortex_demo_min", v?"1":"0"); }catch(e){} renderDemoBar(); }
+  function clampDemoX(){ var b=document.getElementById("vtx-demo"); if(!b||b.style.transform!=="none") return; try{ var maxx=Math.max(4, window.innerWidth-b.offsetWidth-4); var x=parseFloat(b.style.left); if(isNaN(x)) return; x=Math.max(4, Math.min(maxx, x)); b.style.left=x+"px"; }catch(e){} }
+  function renderDemoBar(){
+    var b=document.getElementById("vtx-demo"); if(!b) return;
+    if(demoMin()){
+      b.style.padding="5px 10px";
+      b.innerHTML='<span id="vtx-demo-grip" title="Arrástrame (horizontal)" style="cursor:ew-resize;font-size:14px;opacity:.75;letter-spacing:-2px">⠿</span><button id="vtx-demo-exp" title="Mostrar aviso demo" style="background:transparent;border:none;color:#fff;font-size:15px;cursor:pointer;padding:0 2px;font-family:inherit;line-height:1">🎮</button>';
+    }else{
+      b.style.padding="6px 8px 6px 12px";
+      b.innerHTML='<span id="vtx-demo-grip" title="Arrástrame (horizontal)" style="cursor:ew-resize;font-size:14px;opacity:.7;letter-spacing:-2px">⠿</span><span id="vtx-demo-txt">🎮 MODO DEMO</span><button id="vtx-demo-lic" style="background:#fff;color:#3a46b8;border:none;border-radius:20px;padding:4px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">🔑 Activar Vortex</button><button id="vtx-demo-col" title="Recoger" style="background:transparent;border:none;color:#fff;font-size:14px;cursor:pointer;padding:0 3px;font-family:inherit;line-height:1">▾</button>';
+    }
+    try{ var lic=b.querySelector("#vtx-demo-lic"); if(lic) lic.addEventListener("click", function(){ if(window.__vtxOpenLicense) window.__vtxOpenLicense(); }); }catch(e){}
+    try{ var col=b.querySelector("#vtx-demo-col"); if(col) col.addEventListener("click", function(){ setDemoMin(true); }); }catch(e){}
+    try{ var exp=b.querySelector("#vtx-demo-exp"); if(exp) exp.addEventListener("click", function(){ setDemoMin(false); }); }catch(e){}
+    updateDemoBarText();
+    clampDemoX();
+  }
   function ensureDemoBar(isDemo){
     var b=document.getElementById("vtx-demo");
     if(!isDemo){ if(b) b.style.display="none"; return; }
     if(!b){
-      try{ localStorage.removeItem("vortex_demo_pos"); }catch(e){} // limpia posiciones viejas que la dejaban fuera de pantalla
+      try{ localStorage.removeItem("vortex_demo_pos"); }catch(e){} // limpia posiciones 2D viejas (fuera de pantalla)
       b=document.createElement("div"); b.id="vtx-demo";
-      b.style.cssText="position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483646;display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;padding:6px 8px 6px 14px;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap;pointer-events:auto";
-      b.innerHTML='<span id="vtx-demo-txt">🎮 MODO DEMO · prueba (se bloquea en 2 días)</span><button id="vtx-demo-lic" style="background:#fff;color:#3a46b8;border:none;border-radius:20px;padding:4px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">🔑 Activar Vortex</button>';
+      b.style.cssText="position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483646;display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap;pointer-events:auto";
       document.body.appendChild(b);
-      try{ b.querySelector("#vtx-demo-lic").addEventListener("click", function(){ if(window.__vtxOpenLicense) window.__vtxOpenLicense(); }); }catch(e){}
+      // Restaura solo la posición horizontal (top siempre fijo).
+      try{ var sx=localStorage.getItem("vortex_demo_x"); if(sx!=null&&sx!==""){ b.style.left=(parseFloat(sx)||0)+"px"; b.style.transform="none"; } }catch(e){}
+      // Arrastre SOLO horizontal (top no cambia), con tope en los bordes.
+      (function(){
+        var dragging=false, dsx=0, ox=0;
+        b.addEventListener("pointerdown", function(ev){
+          var t=ev.target; if(t&&(t.id==="vtx-demo-lic"||t.id==="vtx-demo-col"||t.id==="vtx-demo-exp")) return;
+          var r=b.getBoundingClientRect(); b.style.left=r.left+"px"; b.style.transform="none";
+          dragging=true; dsx=ev.clientX; ox=r.left; try{ b.setPointerCapture(ev.pointerId); }catch(e){} ev.preventDefault();
+        });
+        b.addEventListener("pointermove", function(ev){
+          if(!dragging) return;
+          var nx=Math.max(4, Math.min(window.innerWidth-b.offsetWidth-4, ox+(ev.clientX-dsx)));
+          b.style.left=nx+"px";
+        });
+        function end(ev){ if(!dragging) return; dragging=false; try{ b.releasePointerCapture(ev.pointerId); }catch(e){} try{ localStorage.setItem("vortex_demo_x", String(parseFloat(b.style.left)||0)); }catch(e){} }
+        b.addEventListener("pointerup", end); b.addEventListener("pointercancel", end);
+      })();
+      try{ window.addEventListener("resize", clampDemoX); }catch(e){}
     }
     b.style.display="flex";
-    updateDemoBarText();
+    renderDemoBar();
   }
   // Vigilante: si estamos en demo y la barra no está en el DOM, la vuelve a poner.
   try{ setInterval(function(){ if(window.__VTX_DEMO && !document.getElementById("vtx-demo")) ensureDemoBar(true); }, 3000); }catch(e){}
