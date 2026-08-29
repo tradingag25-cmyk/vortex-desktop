@@ -4163,7 +4163,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.1";
+  var CURRENT_FALLBACK = "1.4.2";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
@@ -4496,41 +4496,25 @@
       var _welc=false; try{ _welc = localStorage.getItem("vortex_demo_welcome")==="1"; }catch(e){}
       if(_welc){ try{ localStorage.removeItem("vortex_demo_welcome"); }catch(e){} try{ setTimeout(showDemoWelcome,500); }catch(e){} }
     }
+    ensureDemoBar(isDemo);
+  }
+  // Barra demo FIJA (arriba al centro), no arrastrable → no se puede perder de pantalla.
+  function ensureDemoBar(isDemo){
     var b=document.getElementById("vtx-demo");
-    if(isDemo && !b){
+    if(!isDemo){ if(b) b.style.display="none"; return; }
+    if(!b){
+      try{ localStorage.removeItem("vortex_demo_pos"); }catch(e){} // limpia posiciones viejas que la dejaban fuera de pantalla
       b=document.createElement("div"); b.id="vtx-demo";
-      b.style.cssText="position:fixed;top:9px;left:50%;transform:translateX(-50%);z-index:2147483200;display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;padding:6px 8px 6px 12px;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap;cursor:move;user-select:none";
-      b.innerHTML='<span style="font-size:15px;opacity:.7;letter-spacing:-2px" title="Arrastra para mover">⠿</span><span id="vtx-demo-txt">🎮 MODO DEMO · prueba (se bloquea en 2 días)</span><button id="vtx-demo-lic" style="background:#fff;color:#3a46b8;border:none;border-radius:20px;padding:4px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">🔑 Activar Vortex</button>';
+      b.style.cssText="position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483646;display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,#7b8cff,#5566e0);color:#fff;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12.5px;font-weight:800;padding:6px 8px 6px 14px;border-radius:30px;box-shadow:0 12px 30px -8px rgba(85,102,224,.6);letter-spacing:.02em;white-space:nowrap;pointer-events:auto";
+      b.innerHTML='<span id="vtx-demo-txt">🎮 MODO DEMO · prueba (se bloquea en 2 días)</span><button id="vtx-demo-lic" style="background:#fff;color:#3a46b8;border:none;border-radius:20px;padding:4px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">🔑 Activar Vortex</button>';
       document.body.appendChild(b);
       try{ b.querySelector("#vtx-demo-lic").addEventListener("click", function(){ if(window.__vtxOpenLicense) window.__vtxOpenLicense(); }); }catch(e){}
-      // Restaura la posición guardada, pero la corrige si quedó fuera de la pantalla.
-      try{ var sp=localStorage.getItem("vortex_demo_pos"); if(sp){ var pp=sp.split("|"); if(pp[0]&&pp[1]){ b.style.left=pp[0]; b.style.top=pp[1]; b.style.transform="none"; } } }catch(e){}
-      try{ var rc=b.getBoundingClientRect(); if(rc.right<40||rc.bottom<20||rc.left>window.innerWidth-40||rc.top>window.innerHeight-20){ b.style.left="50%"; b.style.top="9px"; b.style.transform="translateX(-50%)"; try{ localStorage.removeItem("vortex_demo_pos"); }catch(e){} } }catch(e){}
-      // Barra arrastrable (no desde el botón)
-      (function(){
-        var dragging=false, sx=0, sy=0, ox=0, oy=0;
-        b.addEventListener("pointerdown", function(ev){
-          if(ev.target && ev.target.id==="vtx-demo-lic") return;
-          var r=b.getBoundingClientRect();
-          b.style.left=r.left+"px"; b.style.top=r.top+"px"; b.style.transform="none";
-          dragging=true; sx=ev.clientX; sy=ev.clientY; ox=r.left; oy=r.top;
-          try{ b.setPointerCapture(ev.pointerId); }catch(e){} ev.preventDefault();
-        });
-        b.addEventListener("pointermove", function(ev){
-          if(!dragging) return;
-          var nx=ox+(ev.clientX-sx), ny=oy+(ev.clientY-sy);
-          nx=Math.max(0, Math.min(window.innerWidth-b.offsetWidth, nx));
-          ny=Math.max(0, Math.min(window.innerHeight-b.offsetHeight, ny));
-          b.style.left=nx+"px"; b.style.top=ny+"px";
-        });
-        function end(ev){ if(!dragging) return; dragging=false; try{ b.releasePointerCapture(ev.pointerId); }catch(e){} try{ localStorage.setItem("vortex_demo_pos", b.style.left+"|"+b.style.top); }catch(e){} }
-        b.addEventListener("pointerup", end);
-        b.addEventListener("pointercancel", end);
-      })();
     }
-    if(b) b.style.display = isDemo ? "flex" : "none";
-    if(isDemo) updateDemoBarText();
+    b.style.display="flex";
+    updateDemoBarText();
   }
+  // Vigilante: si estamos en demo y la barra no está en el DOM, la vuelve a poner.
+  try{ setInterval(function(){ if(window.__VTX_DEMO && !document.getElementById("vtx-demo")) ensureDemoBar(true); }, 3000); }catch(e){}
   function applyConfig(cfg){
     try{ if(cfg) localStorage.setItem(K_CFG, JSON.stringify(cfg)); }catch(e){}
     try{ if(window.__vtxRefreshCompany) window.__vtxRefreshCompany(); }catch(e){}
