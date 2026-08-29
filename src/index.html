@@ -217,7 +217,7 @@
   .ph .soon2{margin-top:14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);background:var(--accent-soft);padding:5px 12px;border-radius:20px;}
 
   /* Impresión digital (documento fiscal) */
-  .print-overlay{position:fixed;inset:0;background:rgba(8,14,13,.55);backdrop-filter:blur(3px);z-index:80;display:none;justify-content:center;overflow-y:auto;padding:26px 16px 60px;}
+  .print-overlay{position:fixed;inset:0;background:rgba(8,14,13,.55);backdrop-filter:blur(3px);z-index:80;display:none;justify-content:center;align-items:flex-start;overflow-y:auto;padding:26px 16px 60px;}
   .print-overlay.show{display:flex;}
   .print-sheet{width:100%;max-width:720px;display:flex;flex-direction:column;gap:14px;}
   .print-actions{display:flex;gap:10px;justify-content:flex-end;}
@@ -804,7 +804,7 @@
     const provSel=d.newProv
       ? `<div class="g2"><div class="field"><label>Nombre / Razón social</label><input id="cmp-nname" placeholder="Proveedor, C.A." value="${(d.prov||'').replace(/"/g,'&quot;')}" oninput="compraDraft.prov=this.value"></div><div class="field"><label>RIF</label><input id="cmp-nrif" class="mono" placeholder="J-12345678-9" value="${d.rif||''}" oninput="compraDraft.rif=this.value"></div></div><div class="g2"><div class="field"><label>Tipo</label><select id="cmp-ntipo" onchange="compraDraft.tipo=this.value"><option value="ORDINARIO" ${d.tipo==='ORDINARIO'?'selected':''}>Contribuyente ordinario</option><option value="ESPECIAL" ${d.tipo==='ESPECIAL'?'selected':''}>Contribuyente especial</option></select></div><div class="field" style="display:flex;align-items:flex-end"><button class="btn sm" type="button" onclick="compraUseExisting()">← Elegir existente</button></div></div>`
       : `<div class="field"><label>Proveedor</label><select id="cmp-prov" onchange="setCompraProv(this.value)">${PROV.map(p=>`<option value="${p.id}" ${d.prov===p.name?'selected':''}>${p.name} · ${p.rif}</option>`).join('')}<option value="__new__">➕ Nuevo proveedor…</option></select></div>`;
-    const lineRows=d.items.map((it,idx)=>`<tr><td>${it.name}<div style="font-size:11px;color:var(--text-faint)">${it.sku} · IVA ${COMP_IVAL[it.iva]}</div></td><td class="num"><input type="number" min="1" value="${it.qty}" style="width:62px" onchange="setCompraQty(${idx},this.value)"></td><td class="num"><input type="number" min="0" step="0.01" value="${it.cost}" style="width:74px" onchange="setCompraCost(${idx},this.value)"></td><td class="num">${usd(it.qty*it.cost)}</td><td><button class="del" onclick="rmCompraItem(${idx})">${svg(I.trash)}</button></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:14px">Agrega los productos recibidos.</td></tr>`;
+    const lineRows=d.items.map((it,idx)=>`<tr><td>${it.name}<div style="font-size:11px;color:var(--text-faint)">${it.sku} · IVA ${COMP_IVAL[it.iva]}</div></td><td class="num"><input type="number" min="1" value="${it.qty}" style="width:62px" oninput="setCompraQty(${idx},this.value)"></td><td class="num"><input type="number" min="0" step="0.01" value="${it.cost}" style="width:74px" oninput="setCompraCost(${idx},this.value)"></td><td class="num" id="cmp-sub-${idx}">${usd(it.qty*it.cost)}</td><td><button class="del" onclick="rmCompraItem(${idx})">${svg(I.trash)}</button></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text-faint);padding:14px">Agrega los productos recibidos.</td></tr>`;
     formPanel(`
       <div class="modal-head"><div class="modal-title">${d.id?'Editar':'Registrar'} factura de compra</div><button class="modal-x" onclick="go('compras')">✕</button></div>
       <div class="modal-body">
@@ -844,14 +844,7 @@
               <div style="font-size:11px;color:var(--text-faint);margin-top:8px">La cantidad recibida se toma de la línea de la compra (tabla de abajo); aquí defines los datos del producto.</div></div>`
           : `<div class="field"><label>Agregar producto recibido</label><div style="display:flex;gap:8px"><select id="cmp-prod" style="flex:1">${cat.length?cat.map(p=>`<option value="${p.sku}">${p.name} · costo ${usd(p.cost||0)}</option>`).join(''):'<option value="">— Sin productos en inventario —</option>'}</select><button class="btn sm primary" type="button" onclick="addCompraItem()">Agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=true;compraDraft._np={name:'',sku:'',unit:'UND',cat:'',iva:'GENERAL',cost:'',margin:'',price:'',min:''};renderCompraModal()">➕ Nuevo</button></div></div>`}
         <div class="overflow-x"><table style="min-width:440px"><thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Costo $</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:13px">
-          <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>Base imponible</span><span>${usd(t.gr+t.ex)} · ${money((t.gr+t.ex)*RATE)}</span></div>
-          <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>IVA crédito fiscal</span><span>${usd(t.iv)} · ${money(t.iv*RATE)}</span></div>
-          <div style="display:flex;justify-content:space-between"><span>Total factura</span><span style="font-weight:600">${money(t.total*RATE)}</span></div>
-          ${t.retIva>0?`<div style="display:flex;justify-content:space-between;color:var(--violet)"><span>(−) Retención IVA ${d.retIvaPct}%</span><span>${money(t.retIva*RATE)}</span></div>`:''}
-          ${t.retIslr>0?`<div style="display:flex;justify-content:space-between;color:var(--violet)"><span>(−) Retención ISLR ${d.islrPct}%</span><span>${money(t.retIslr*RATE)}</span></div>`:''}
-          <div style="display:flex;justify-content:space-between;font-weight:750;font-size:16px;margin-top:6px"><span>Neto a pagar</span><span>${money(t.neto*RATE)}</span></div>
-        </div>
+        <div id="cmp-totals" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:13px">${compraTotalsHtml(d)}</div>
       </div>
       <div class="modal-foot"><button class="btn" onclick="go('compras')">Cancelar</button><button class="btn primary" onclick="saveCompra()">${d.id?'Guardar cambios':'Registrar compra'}</button></div>`);
   }
@@ -861,8 +854,19 @@
   function setCompraAgente(v){compraDraft.agente=(v==='1');renderCompraModal();}
   function setCompraRiva(v){compraDraft.retIvaPct=parseInt(v,10)||75;renderCompraModal();}
   function setCompraIslr(v){compraDraft.islrPct=parseFloat(v)||0;renderCompraModal();}
-  function setCompraQty(idx,v){if(compraDraft.items[idx]){compraDraft.items[idx].qty=Math.max(1,parseInt(v,10)||1);renderCompraModal();}}
-  function setCompraCost(idx,v){if(compraDraft.items[idx]){compraDraft.items[idx].cost=Math.max(0,parseFloat(v)||0);renderCompraModal();}}
+  function compraTotalsHtml(d){
+    const t=compraTotals(d);
+    return `<div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>Base imponible</span><span>${usd(t.gr+t.ex)} · ${money((t.gr+t.ex)*RATE)}</span></div>
+      <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>IVA crédito fiscal</span><span>${usd(t.iv)} · ${money(t.iv*RATE)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Total factura</span><span style="font-weight:600">${money(t.total*RATE)}</span></div>
+      ${t.retIva>0?`<div style="display:flex;justify-content:space-between;color:var(--violet)"><span>(−) Retención IVA ${d.retIvaPct}%</span><span>${money(t.retIva*RATE)}</span></div>`:''}
+      ${t.retIslr>0?`<div style="display:flex;justify-content:space-between;color:var(--violet)"><span>(−) Retención ISLR ${d.islrPct}%</span><span>${money(t.retIslr*RATE)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;font-weight:750;font-size:16px;margin-top:6px"><span>Neto a pagar</span><span>${money(t.neto*RATE)}</span></div>`;
+  }
+  function refreshCompraTotals(){var el=document.getElementById('cmp-totals');if(el)el.innerHTML=compraTotalsHtml(compraDraft);}
+  // Actualizan cantidad/costo EN VIVO (sin re-render) para no destruir el formulario ni perder el botón Registrar.
+  function setCompraQty(idx,v){const it=compraDraft.items[idx];if(!it)return;it.qty=Math.max(1,parseInt(v,10)||1);const s=document.getElementById('cmp-sub-'+idx);if(s)s.textContent=usd(it.qty*it.cost);refreshCompraTotals();}
+  function setCompraCost(idx,v){const it=compraDraft.items[idx];if(!it)return;it.cost=Math.max(0,parseFloat(v)||0);const s=document.getElementById('cmp-sub-'+idx);if(s)s.textContent=usd(it.qty*it.cost);refreshCompraTotals();}
   function addCompraItem(){const el=document.getElementById('cmp-prod');const sku=el?el.value:'';if(!sku){toast('No hay productos en inventario. Usa “➕ Nuevo”.',false);return;}const p=((window.IN&&IN.catalog)?IN.catalog():[]).find(x=>x.sku===sku);if(!p)return;const ex=compraDraft.items.find(i=>i.sku===sku);if(ex)ex.qty++;else compraDraft.items.push({sku:p.sku,name:p.name,qty:1,cost:p.cost||0,iva:p.iva});renderCompraModal();}
   function createCompraProduct(){
     const np=compraDraft._np||{};const name=(np.name||'').trim();
@@ -3718,7 +3722,7 @@
         const p={id:pUid++,sku,name,unit:o.unit||'UND',iva,cat:(o.cat||'').trim()||'General',p:price,cost,min,img:'',st:{PRIN:stock,SUC:0,DEP:0},kx:stock>0?[{t:'in',d:dd,q:stock,b:stock}]:[]};
         prods.push(p);saveProds();if(container)render(container);
         return {sku:p.sku,name:p.name,cost:p.cost,iva:p.iva,p:p.p,unit:p.unit,cat:p.cat,min:p.min,img:''};},
-      receive(items){(items||[]).forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;const ot=Object.values(p.st).reduce((a,b)=>a+b,0);const cost=(it.cost>0?it.cost:p.cost);p.cost=(ot+it.qty)>0?(ot*p.cost+it.qty*cost)/(ot+it.qty):cost;p.st.PRIN=(p.st.PRIN||0)+it.qty;p.kx.push({t:'in',d:'23/07',q:it.qty,b:ot+it.qty});});saveProds();},
+      receive(items){(items||[]).forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;if(!p.st)p.st={PRIN:0,SUC:0,DEP:0};if(!Array.isArray(p.kx))p.kx=[];const qty=Math.max(0,parseFloat(it.qty)||0);if(qty<=0)return;const ot=Object.values(p.st).reduce((a,b)=>a+(parseFloat(b)||0),0);const ucost=parseFloat(it.cost)>0?parseFloat(it.cost):(parseFloat(p.cost)||0);p.cost=(ot+qty)>0?(ot*(parseFloat(p.cost)||0)+qty*ucost)/(ot+qty):ucost;p.st.PRIN=(parseFloat(p.st.PRIN)||0)+qty;const dd=(function(){const dt=new Date();return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');})();p.kx.push({t:'in',d:dd,q:qty,b:ot+qty});});saveProds();if(container)render(container);},
       summary(){const c=counts();return {val:c.val,low:c.low,out:c.out,ex:c.ex,count:prods.length};},
       // Kardex global: aplana los movimientos de todos los productos (más reciente primero por producto).
       allKardex(){const out=[];prods.forEach(p=>{(p.kx||[]).forEach((m,idx)=>{out.push({sku:p.sku,name:p.name,unit:p.unit,cat:p.cat,t:m.t,d:m.d,q:m.q,b:m.b,idx});});});return out;},
@@ -4199,7 +4203,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.4";
+  var CURRENT_FALLBACK = "1.4.5";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
