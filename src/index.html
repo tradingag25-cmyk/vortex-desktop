@@ -126,6 +126,8 @@
   .cli-av{width:42px;height:42px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:650;font-size:15px;flex-shrink:0;}
   .cli-name{font-size:14.5px;font-weight:600;} .cli-meta{font-size:12px;color:var(--text-faint);margin-top:2px;}
   .additem{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);position:relative;}
+  .fa-scroll{max-height:46vh;overflow:auto;}
+  .fa-scroll thead th{position:sticky;top:0;background:var(--surface);z-index:1;}
   .drop{position:absolute;top:calc(100% - 4px);left:16px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:11px;box-shadow:var(--shadow);z-index:30;overflow:hidden;max-height:300px;overflow-y:auto;}
   .drop-i{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);}
   .drop-i:last-child{border-bottom:none;} .drop-i:hover,.drop-i.hl{background:var(--accent-soft);}
@@ -148,7 +150,7 @@
   .rethd{display:flex;align-items:center;gap:8px;padding:11px 16px;font-size:12.5px;font-weight:600;color:var(--violet);}
   .rethd svg{width:15px;height:15px;}
   .payadd{display:flex;gap:8px;padding:12px 16px;flex-wrap:wrap;} .payadd .selm{flex:1;min-width:140px;}
-  .paylist{padding:4px 16px 12px;display:flex;flex-direction:column;gap:8px;}
+  .paylist{padding:4px 16px 12px;display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow-y:auto;}
   .pay{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:10px;padding:8px 10px;}
   .pay-ic{width:30px;height:30px;border-radius:8px;background:var(--surface);display:grid;place-items:center;color:var(--accent);flex-shrink:0;font-size:15px;}
   .pay-ic svg{width:15px;height:15px;}
@@ -380,7 +382,8 @@
   .tp-qn{min-width:34px;text-align:center;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;}
   .tp-lsub{width:78px;text-align:right;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;}
   .tp-empty{text-align:center;color:var(--text-faint);padding:40px 20px;font-size:14px;}
-  .tp-foot{border-top:1px solid var(--border);padding:14px 18px;background:var(--surface);max-height:72vh;overflow-y:auto;}
+  .tp-foot{border-top:1px solid var(--border);padding:14px 18px;background:var(--surface);max-height:56vh;overflow-y:auto;flex-shrink:0;}
+  .tp-lines{min-height:90px;}
   .tp-tot{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;} .tp-tot .l{font-size:13px;color:var(--text-muted);} .tp-tot .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;}
   .tp-grand{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 12px;} .tp-grand .l{font-size:15px;font-weight:700;} .tp-grand .v{font-size:26px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;} .tp-grand .vu{font-size:13px;color:var(--text-faint);font-weight:600;}
   .tp-cond{display:flex;gap:8px;margin-bottom:10px;}
@@ -796,6 +799,7 @@
   function renderCompraModal(){
     const d=compraDraft;
     const cat=((window.IN&&IN.catalog)?IN.catalog():[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'es'));
+    const npCats=[...new Set(cat.map(p=>p.cat).filter(Boolean))].sort();
     const t=compraTotals(d);
     const provSel=d.newProv
       ? `<div class="g2"><div class="field"><label>Nombre / Razón social</label><input id="cmp-nname" placeholder="Proveedor, C.A." value="${(d.prov||'').replace(/"/g,'&quot;')}" oninput="compraDraft.prov=this.value"></div><div class="field"><label>RIF</label><input id="cmp-nrif" class="mono" placeholder="J-12345678-9" value="${d.rif||''}" oninput="compraDraft.rif=this.value"></div></div><div class="g2"><div class="field"><label>Tipo</label><select id="cmp-ntipo" onchange="compraDraft.tipo=this.value"><option value="ORDINARIO" ${d.tipo==='ORDINARIO'?'selected':''}>Contribuyente ordinario</option><option value="ESPECIAL" ${d.tipo==='ESPECIAL'?'selected':''}>Contribuyente especial</option></select></div><div class="field" style="display:flex;align-items:flex-end"><button class="btn sm" type="button" onclick="compraUseExisting()">← Elegir existente</button></div></div>`
@@ -816,11 +820,29 @@
         ${d.cond==='Crédito'?`<div class="field"><label>Plazo de pago (días)</label><input id="cmp-term" type="number" min="1" value="${d.term||30}" onchange="compraDraft.term=parseInt(this.value,10)||30" style="max-width:200px"></div>`:''}
         ${d.agente?`<div class="g2"><div class="field"><label>Retención IVA</label><select id="cmp-riva" onchange="setCompraRiva(this.value)"><option value="75" ${d.retIvaPct==75?'selected':''}>75% del IVA</option><option value="100" ${d.retIvaPct==100?'selected':''}>100% del IVA</option></select></div><div class="field"><label>Retención ISLR (% sobre base)</label><input id="cmp-islr" type="number" min="0" step="0.1" value="${d.islrPct}" onchange="setCompraIslr(this.value)" placeholder="0"></div></div>`:''}
         ${d.newProd
-          ? `<div class="field" style="border:1px dashed var(--border);border-radius:10px;padding:12px;background:var(--surface-2,transparent)"><label>Producto nuevo — entra al inventario</label>
-              <div class="g2"><input id="cmp-npn" placeholder="Nombre del producto" value="${(d._np&&d._np.name||'').replace(/"/g,'&quot;')}" oninput="compraDraft._np.name=this.value"><input id="cmp-npc" type="number" min="0" step="0.01" placeholder="Costo $" value="${d._np&&d._np.cost||''}" oninput="compraDraft._np.cost=this.value"></div>
-              <div class="g2" style="margin-top:8px"><select id="cmp-npi" onchange="compraDraft._np.iva=this.value">${[['GENERAL','IVA General 16%'],['REDUCIDA','Reducida 8%'],['ADICIONAL','Suntuaria 31%'],['EXENTO','Exento']].map(([k,l])=>`<option value="${k}" ${d._np&&d._np.iva===k?'selected':''}>${l}</option>`).join('')}</select>
-                <div style="display:flex;gap:8px"><button class="btn sm primary" type="button" onclick="createCompraProduct()">Crear y agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=false;renderCompraModal()">Cancelar</button></div></div></div>`
-          : `<div class="field"><label>Agregar producto recibido</label><div style="display:flex;gap:8px"><select id="cmp-prod" style="flex:1">${cat.length?cat.map(p=>`<option value="${p.sku}">${p.name} · costo ${usd(p.cost||0)}</option>`).join(''):'<option value="">— Sin productos en inventario —</option>'}</select><button class="btn sm primary" type="button" onclick="addCompraItem()">Agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=true;compraDraft._np={name:'',cost:'',iva:'GENERAL'};renderCompraModal()">➕ Nuevo</button></div></div>`}
+          ? `<div class="field" style="border:1px dashed var(--border);border-radius:10px;padding:14px;background:var(--surface-2,transparent)"><label style="font-weight:700">Producto nuevo — entra al inventario (mismos datos que en Inventario)</label>
+              <div class="g2">
+                <div class="field" style="margin:0"><label>Nombre *</label><input id="cmp-npn" placeholder="Nombre del producto" value="${(d._np&&d._np.name||'').replace(/"/g,'&quot;')}" oninput="compraDraft._np.name=this.value"></div>
+                <div class="field" style="margin:0"><label>Código / SKU (opcional)</label><input id="cmp-npsku" class="mono" placeholder="Automático si lo dejas vacío" value="${(d._np&&d._np.sku||'').replace(/"/g,'&quot;')}" oninput="compraDraft._np.sku=this.value"></div>
+              </div>
+              <div class="g2" style="margin-top:8px">
+                <div class="field" style="margin:0"><label>Unidad</label><select id="cmp-npu" onchange="compraDraft._np.unit=this.value">${['UND','CAJA','KG','LT','SRV'].map(u=>`<option ${d._np&&d._np.unit===u?'selected':''}>${u}</option>`).join('')}</select></div>
+                <div class="field" style="margin:0"><label>Categoría / Familia</label><input id="cmp-npcat" list="cmp-npcats" placeholder="General" value="${(d._np&&d._np.cat||'').replace(/"/g,'&quot;')}" oninput="compraDraft._np.cat=this.value"><datalist id="cmp-npcats">${npCats.map(c=>`<option value="${c}"></option>`).join('')}</datalist></div>
+              </div>
+              <div class="g2" style="margin-top:8px">
+                <div class="field" style="margin:0"><label>Alícuota IVA</label><select id="cmp-npi" onchange="compraDraft._np.iva=this.value">${[['GENERAL','General 16%'],['REDUCIDA','Reducida 8%'],['ADICIONAL','Suntuaria 31%'],['EXENTO','Exento']].map(([k,l])=>`<option value="${k}" ${d._np&&d._np.iva===k?'selected':''}>${l}</option>`).join('')}</select></div>
+                <div class="field" style="margin:0"><label>Costo ($)</label><input id="cmp-npc" type="number" min="0" step="0.01" placeholder="0,00" value="${d._np&&d._np.cost||''}" oninput="compraDraft._np.cost=this.value"></div>
+              </div>
+              <div class="g2" style="margin-top:8px">
+                <div class="field" style="margin:0"><label>Ganancia (% sobre costo)</label><input id="cmp-npm" type="number" min="0" step="0.1" placeholder="30" value="${d._np&&d._np.margin||''}" oninput="compraDraft._np.margin=this.value"></div>
+                <div class="field" style="margin:0"><label>Precio de venta ($)</label><input id="cmp-npp" type="number" min="0" step="0.01" placeholder="opcional (se calcula con la ganancia)" value="${d._np&&d._np.price||''}" oninput="compraDraft._np.price=this.value"></div>
+              </div>
+              <div class="g2" style="margin-top:8px">
+                <div class="field" style="margin:0"><label>Stock mínimo</label><input id="cmp-npmin" type="number" min="0" placeholder="0" value="${d._np&&d._np.min||''}" oninput="compraDraft._np.min=this.value"></div>
+                <div class="field" style="margin:0;display:flex;align-items:flex-end;gap:8px"><button class="btn sm primary" type="button" onclick="createCompraProduct()">Crear y agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=false;renderCompraModal()">Cancelar</button></div>
+              </div>
+              <div style="font-size:11px;color:var(--text-faint);margin-top:8px">La cantidad recibida se toma de la línea de la compra (tabla de abajo); aquí defines los datos del producto.</div></div>`
+          : `<div class="field"><label>Agregar producto recibido</label><div style="display:flex;gap:8px"><select id="cmp-prod" style="flex:1">${cat.length?cat.map(p=>`<option value="${p.sku}">${p.name} · costo ${usd(p.cost||0)}</option>`).join(''):'<option value="">— Sin productos en inventario —</option>'}</select><button class="btn sm primary" type="button" onclick="addCompraItem()">Agregar</button><button class="btn sm" type="button" onclick="compraDraft.newProd=true;compraDraft._np={name:'',sku:'',unit:'UND',cat:'',iva:'GENERAL',cost:'',margin:'',price:'',min:''};renderCompraModal()">➕ Nuevo</button></div></div>`}
         <div class="overflow-x"><table style="min-width:440px"><thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Costo $</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:13px">
           <div style="display:flex;justify-content:space-between;color:var(--text-muted)"><span>Base imponible</span><span>${usd(t.gr+t.ex)} · ${money((t.gr+t.ex)*RATE)}</span></div>
@@ -845,9 +867,13 @@
   function createCompraProduct(){
     const np=compraDraft._np||{};const name=(np.name||'').trim();
     if(!name){toast('Indica el nombre del producto',false);const f=document.getElementById('cmp-npn');if(f)f.focus();return;}
-    const created=(window.IN&&IN.addQuick)?IN.addQuick({name:name,cost:np.cost,iva:np.iva||'GENERAL'}):null;
-    if(!created){toast('No se pudo crear el producto (¿nombre repetido?)',false);return;}
-    compraDraft.items.push({sku:created.sku,name:created.name,qty:1,cost:created.cost||(parseFloat(np.cost)||0),iva:created.iva});
+    const cost=Math.max(0,parseFloat(np.cost)||0);
+    let price=(np.price!=null&&String(np.price).trim()!=='')?Math.max(0,parseFloat(np.price)||0):0;
+    const margin=parseFloat(np.margin);
+    if(!price&&cost>0&&!isNaN(margin))price=+(cost*(1+margin/100)).toFixed(2);
+    const created=(window.IN&&IN.addQuick)?IN.addQuick({name:name,sku:np.sku,unit:np.unit,cat:np.cat,iva:np.iva||'GENERAL',cost:cost,price:price||undefined,min:np.min}):null;
+    if(!created){toast('No se pudo crear el producto (¿código repetido?)',false);return;}
+    compraDraft.items.push({sku:created.sku,name:created.name,qty:1,cost:created.cost||cost,iva:created.iva});
     compraDraft.newProd=false;compraDraft._np=null;renderCompraModal();
     toast('Producto “'+created.name+'” creado y agregado',true);
   }
@@ -3006,7 +3032,7 @@
           <div class="card">
             <div class="card-head"><div class="card-title">${svg(I.box)} Renglones</div><span class="label" id="fa-count"></span></div>
             <div class="additem"><div class="search" style="flex:1"><span>${svg(I.search)}</span><input id="fa-search" placeholder="Buscar producto y presiona Enter…" autocomplete="off"></div><button class="icon-btn" type="button" id="fa-allbtn" onclick="FA.toggleAll()" title="Ver todos los productos (A–Z)">${svg(I.chev)}</button><div id="fa-drop"></div></div>
-            <div class="overflow-x"><table style="min-width:680px;"><thead><tr><th style="width:30%">Descripción</th><th class="num" style="width:10%">Cant.</th><th class="num" style="width:15%">Precio</th><th class="num" style="width:10%">Desc.%</th><th style="width:12%">IVA</th><th class="num" style="width:17%">Total</th><th style="width:6%"></th></tr></thead><tbody id="fa-items"></tbody></table></div>
+            <div class="overflow-x fa-scroll"><table style="min-width:680px;"><thead><tr><th style="width:30%">Descripción</th><th class="num" style="width:10%">Cant.</th><th class="num" style="width:15%">Precio</th><th class="num" style="width:10%">Desc.%</th><th style="width:12%">IVA</th><th class="num" style="width:17%">Total</th><th style="width:6%"></th></tr></thead><tbody id="fa-items"></tbody></table></div>
           </div>
         </div>
         <div class="fcol ftot">
@@ -3031,6 +3057,8 @@
       if(docMode==='factura' && !autoTouchDone && getPrefs().autoTouch && !touchOn && !window.__guiaActive){autoTouchDone=true;setTimeout(function(){try{FA.enterTouch();}catch(e){}},30);}
     }
     function seed(){[0,1,4].forEach(i=>lines.push({id:uid++,sku:CAT[i].sku,name:CAT[i].name,qty:1,p:CAT[i].p,disc:0,iva:CAT[i].iva}));lines[0].qty=10;lines[1].qty=12;lines[2].qty=5;}
+    // Módulo al que se debe volver según el tipo de documento activo (factura / cotización / nota).
+    function docTarget(){return docMode==='cotizacion'?'cotizaciones':docMode==='nota'?'notas':'facturacion';}
     function renderItems(){
       const tb=document.getElementById('fa-items');if(!tb)return;
       document.getElementById('fa-count').textContent=lines.length+(lines.length===1?' ítem':' ítems');
@@ -3093,8 +3121,8 @@
         // 1) Buscar en la base de clientes por número (ignorando guiones/prefijo)
         const idx=CLI.findIndex(c=>{const cd=(c.rif||'').toUpperCase().replace(/\D/g,'');return cd&&cd===digits;});
         if(idx>=0){ // cliente existente → cargarlo automáticamente
-          ci=idx;lines=[];pays=[];const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');
-          if(touchOn){FA.renderTouch();}else{go('facturacion');}
+          ci=idx;if(docMode==='factura'){lines=[];pays=[];}const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');
+          if(touchOn){FA.renderTouch();}else{go(docTarget());}
           toast('Cliente encontrado · '+(CLI[idx].name||CLI[idx].rif),true);
           return;
         }
@@ -3202,6 +3230,8 @@
       },
       renderTouch(){
         const el=document.getElementById('touchPos');if(!el||!touchOn)return;
+        // Guarda la posición de scroll de las zonas desplazables para no "saltar" arriba al re-renderizar.
+        const _tpScroll={}; try{['.tp-lines','.tp-foot','.tp-paylist','.tp-grid'].forEach(function(s){var n=el.querySelector(s);if(n)_tpScroll[s]=n.scrollTop;});}catch(e){}
         const c=CLI[ci],t=tot();let paid=0;pays.forEach(p=>paid+=pUsd(p));const falta=t.total-paid;
         const cats=['ALL',...new Set(catSrc().map(p=>p.cat).filter(Boolean))];
         const lineHtml=lines.length?lines.map(l=>{const cc=lc(l);return `<div class="tp-line"><div class="tp-lname"><div class="n">${l.name}</div><div class="p">${showN(l.p)} c/u</div></div><div class="tp-qty"><button class="tp-qbtn" onclick="FA.touchQty(${l.id},-1)">−</button><span class="tp-qn">${l.qty}</span><button class="tp-qbtn" onclick="FA.touchQty(${l.id},1)">+</button></div><div class="tp-lsub">${showN(cc.t)}</div></div>`;}).join(''):'<div class="tp-empty">Toca un producto para agregarlo al ticket 👆</div>';
@@ -3236,6 +3266,8 @@
               </div>
             </div>
           </div>`;
+        // Restaura el scroll capturado (evita el salto al agregar/quitar formas de pago o productos).
+        try{Object.keys(_tpScroll).forEach(function(s){var n=el.querySelector(s);if(n)n.scrollTop=_tpScroll[s];});}catch(e){}
       },
       openClientPicker(){
         document.getElementById('modal').innerHTML=`
@@ -3255,7 +3287,7 @@
         const list=CLI.map((c,i)=>({c,i})).filter(({c})=>!q||c.name.toLowerCase().includes(q)||c.rif.toLowerCase().includes(q));
         document.getElementById('cliList').innerHTML=list.map(({c,i})=>`<div class="cli-row" onclick="FA.selectClient(${i})"><div class="a">${c.c}</div><div style="flex:1"><div class="nm">${c.name}</div><div class="rf mono">${c.rif} · ${c.tipo==='ESPECIAL'?'Especial':c.tipo==='ORDINARIO'?'Ordinario':c.tipo==='FORMAL'?'Formal':'Consumidor final'}</div></div><button class="del" onclick="event.stopPropagation();FA.deleteClient(${i})" title="Eliminar cliente">${svg(I.trash)}</button></div>`).join('')||'<div style="padding:22px;text-align:center;color:var(--text-faint);font-size:13px">Sin coincidencias.</div>';
       },
-      selectClient(i){ci=i;lines=[];pays=[];closeModal();const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cliente cambiado · factura en blanco',true);},
+      selectClient(i){ci=i;if(docMode==='factura'){lines=[];pays=[];}closeModal();const cc=CLI[ci];credito=/cr[eé]dito/i.test((cc&&cc.payCond)||'');if(touchOn){FA.renderTouch();}else{go(docTarget());}toast(docMode==='factura'?'Cliente cambiado · factura en blanco':'Cliente cambiado',true);},
       deleteClient(i){if(CLI.length<=1){toast('Debe existir al menos un cliente',false);return;}const wasSel=(i===ci);CLI.splice(i,1);saveCli();if(wasSel)ci=0;else if(i<ci)ci--;this.filterClients(document.getElementById('cliQ').value);toast('Cliente eliminado del sistema',true);},
       openNewClient(prefill){
         prefill=prefill||{};
@@ -3334,12 +3366,12 @@
           payCond:document.getElementById('n-pay').value,limit:parseFloat(document.getElementById('n-limit').value)||0,vendor:document.getElementById('n-vendor').value};
         if(editCliIdx!=null){
           CLI[editCliIdx]=Object.assign(CLI[editCliIdx]||{},data);saveCli();const idx=editCliIdx;editCliIdx=null;closeModal();
-          if(cliOrigin==='clientes'){go('clientes');}else{ci=idx;if(touchOn){FA.renderTouch();}else{go('facturacion');}}
+          if(cliOrigin==='clientes'){go('clientes');}else{ci=idx;if(touchOn){FA.renderTouch();}else{go(docTarget());}}
           toast('Cliente “'+name+'” actualizado',true);return;
         }
         CLI.push(data);saveCli();
         if(cliOrigin==='clientes'){closeModal();go('clientes');toast('Cliente “'+name+'” creado',true);return;}
-        ci=CLI.length-1;lines=[];pays=[];credito=false;closeModal();if(touchOn){FA.renderTouch();}else{go('facturacion');}toast('Cliente “'+name+'” creado · factura en blanco',true);
+        ci=CLI.length-1;credito=false;if(docMode==='factura'){lines=[];pays=[];}closeModal();if(touchOn){FA.renderTouch();}else{go(docTarget());}toast('Cliente “'+name+'” creado'+(docMode==='factura'?' · factura en blanco':''),true);
       },
       // ── Módulo Clientes (tabla con editar/eliminar) ──
       renderClientes(view){
@@ -3609,6 +3641,7 @@
     let editingId=null;
     function newProduct(id){
       editingId=id||null;
+      try{close();}catch(e){} // cierra el cajón de detalle para que el formulario quede visible al frente
       const e=editingId?prods.find(p=>p.id===editingId):null;
       const sl=(v,cur)=>v===cur?'selected':'';
       formPanel(`
@@ -3679,9 +3712,12 @@
         if(prods.some(p=>p.sku.toUpperCase()===sku))return null;
         const cost=Math.max(0,parseFloat(o.cost)||0);const iva=o.iva||'GENERAL';
         const price=(o.price!=null&&o.price!=='')?Math.max(0,parseFloat(o.price)||0):(cost>0?+(cost*1.3).toFixed(2):0);
-        const p={id:pUid++,sku,name,unit:o.unit||'UND',iva,cat:o.cat||'General',p:price,cost,min:0,img:'',st:{PRIN:0,SUC:0,DEP:0},kx:[]};
+        const min=Math.max(0,parseFloat(o.min)||0);
+        const stock=Math.max(0,parseFloat(o.stock)||0);
+        const dd=(function(){const d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');})();
+        const p={id:pUid++,sku,name,unit:o.unit||'UND',iva,cat:(o.cat||'').trim()||'General',p:price,cost,min,img:'',st:{PRIN:stock,SUC:0,DEP:0},kx:stock>0?[{t:'in',d:dd,q:stock,b:stock}]:[]};
         prods.push(p);saveProds();if(container)render(container);
-        return {sku:p.sku,name:p.name,cost:p.cost,iva:p.iva,p:p.p,unit:p.unit,cat:p.cat,img:''};},
+        return {sku:p.sku,name:p.name,cost:p.cost,iva:p.iva,p:p.p,unit:p.unit,cat:p.cat,min:p.min,img:''};},
       receive(items){(items||[]).forEach(it=>{const p=prods.find(x=>x.sku===it.sku);if(!p)return;const ot=Object.values(p.st).reduce((a,b)=>a+b,0);const cost=(it.cost>0?it.cost:p.cost);p.cost=(ot+it.qty)>0?(ot*p.cost+it.qty*cost)/(ot+it.qty):cost;p.st.PRIN=(p.st.PRIN||0)+it.qty;p.kx.push({t:'in',d:'23/07',q:it.qty,b:ot+it.qty});});saveProds();},
       summary(){const c=counts();return {val:c.val,low:c.low,out:c.out,ex:c.ex,count:prods.length};},
       // Kardex global: aplana los movimientos de todos los productos (más reciente primero por producto).
@@ -4163,7 +4199,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.3";
+  var CURRENT_FALLBACK = "1.4.4";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
