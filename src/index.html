@@ -632,17 +632,17 @@
   // ══════════════ CIERRE DE CAJA ══════════════
   let cierreUid=1;
   let CIERRE=[
-    {fac:'F-000479',cli:'Farmacia Vida',m:'EFECTIVO_VES',cur:'VES',ref:'',amt:1540},
-    {fac:'F-000480',cli:'Bodegón La 5ta',m:'PAGO_MOVIL',cur:'VES',ref:'0045213',amt:8890.25},
-    {fac:'F-000481',cli:'Inversiones MPZ',m:'PAGO_MOVIL',cur:'VES',ref:'1188341',amt:3260},
-    {fac:'F-000482',cli:'Comercial El Sol',m:'EFECTIVO_USD',cur:'USD',ref:'',amt:16.50},
-    {fac:'F-000483',cli:'Corporación XYZ',m:'ZELLE',cur:'USD',ref:'ZL9931',amt:42},
-    {fac:'F-000484',cli:'Cliente Contado',m:'PUNTO_VENTA',cur:'VES',ref:'LOTE-77',amt:5400},
-    {fac:'F-000485',cli:'Consumidor Final',m:'TRANSFERENCIA_VES',cur:'VES',ref:'8892011',amt:2100},
-    {fac:'F-000486',cli:'Distribuidora Sur',m:'EFECTIVO_EUR',cur:'EUR',ref:'',amt:20},
-    {fac:'F-000487',cli:'Comercial El Sol',m:'PAGO_MOVIL',cur:'VES',ref:'2201450',amt:1875.60},
-    {fac:'F-000488',cli:'Farmacia Vida',m:'PUNTO_VENTA',cur:'VES',ref:'LOTE-78',amt:3320},
-  ].map(x=>({id:cierreUid++,date:todayISO(),...x}));
+    {fac:'F-000479',cli:'Farmacia Vida',m:'EFECTIVO_VES',cur:'VES',ref:'',amt:1540,caj:'José Márquez',h:8},
+    {fac:'F-000480',cli:'Bodegón La 5ta',m:'PAGO_MOVIL',cur:'VES',ref:'0045213',amt:8890.25,caj:'José Márquez',h:9},
+    {fac:'F-000481',cli:'Inversiones MPZ',m:'PAGO_MOVIL',cur:'VES',ref:'1188341',amt:3260,caj:'José Márquez',h:11},
+    {fac:'F-000482',cli:'Comercial El Sol',m:'EFECTIVO_USD',cur:'USD',ref:'',amt:16.50,caj:'Ana Rodríguez',h:13},
+    {fac:'F-000483',cli:'Corporación XYZ',m:'ZELLE',cur:'USD',ref:'ZL9931',amt:42,caj:'Ana Rodríguez',h:14},
+    {fac:'F-000484',cli:'Cliente Contado',m:'PUNTO_VENTA',cur:'VES',ref:'LOTE-77',amt:5400,caj:'Ana Rodríguez',h:16},
+    {fac:'F-000485',cli:'Consumidor Final',m:'TRANSFERENCIA_VES',cur:'VES',ref:'8892011',amt:2100,caj:'Ana Rodríguez',h:17},
+    {fac:'F-000486',cli:'Distribuidora Sur',m:'EFECTIVO_EUR',cur:'EUR',ref:'',amt:20,caj:'Luis Pérez',h:18},
+    {fac:'F-000487',cli:'Comercial El Sol',m:'PAGO_MOVIL',cur:'VES',ref:'2201450',amt:1875.60,caj:'Luis Pérez',h:19},
+    {fac:'F-000488',cli:'Farmacia Vida',m:'PUNTO_VENTA',cur:'VES',ref:'LOTE-78',amt:3320,caj:'Luis Pérez',h:20},
+  ].map(x=>{const d=new Date();d.setHours(x.h||12,Math.floor(Math.random()*55),0,0);return {id:cierreUid++,date:todayISO(),ts:d.getTime(),...x};});
   try{const s=localStorage.getItem('vortex_cierre');if(s){const a=JSON.parse(s);if(Array.isArray(a)){CIERRE=a;cierreUid=a.reduce((m,x)=>Math.max(m,x.id||0),0)+1;}}}catch(e){}
   const saveCierre=()=>{try{localStorage.setItem('vortex_cierre',JSON.stringify(CIERRE));}catch(e){}};
   function deleteCierre(id){CIERRE=CIERRE.filter(x=>x.id!==id);saveCierre();go('cierre');toast('Operación eliminada del cierre',true);}
@@ -650,11 +650,37 @@
   const ML={EFECTIVO_VES:'Efectivo Bs.',EFECTIVO_USD:'Efectivo USD',EFECTIVO_EUR:'Efectivo EUR',PAGO_MOVIL:'Pago móvil',PUNTO_VENTA:'Punto de venta',TRANSFERENCIA_VES:'Transferencia Bs.',TRANSFERENCIA_USD:'Transferencia USD',TRANSFERENCIA_EUR:'Transferencia EUR',ZELLE:'Zelle'};
   const bsOf=x=>x.cur==='VES'?x.amt:x.cur==='USD'?x.amt*RATE:x.amt*RATE_EUR;
   let cierreFilter='ALL', cierreDate=todayISO();
+  let cierreMode='dia', cierreCajero=loadCajero();
+  // El turno se separa por EVENTO (cambio/cierre de cajero), no por horas.
+  // turnoStart = momento en que empezó el turno del cajero actual.
+  let turnoStart=(function(){try{var v=+localStorage.getItem('vortex_turno_start');if(v)return v;}catch(e){}var d=new Date();d.setHours(0,0,0,0);return d.getTime();})();
+  function saveTurnoStart(){try{localStorage.setItem('vortex_turno_start',String(turnoStart));}catch(e){}}
+  const rowTs=x=>x.ts||(x.date?new Date(x.date+'T12:00:00').getTime():Date.now());
+  const rowHM=x=>{const d=new Date(rowTs(x));return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+  const rowCaj=x=>x.caj||'Sin asignar';
   const cierreDayMatch=x=>((x.date||todayISO())===cierreDate);
+  function inTurnoWindow(x){
+    if(cierreMode!=='turno')return true;
+    if(rowCaj(x)!==cierreCajero)return false;   // solo lo del cajero actual
+    if(rowTs(x)<turnoStart)return false;         // solo desde que abrió su turno
+    return true;
+  }
+  const inScope=x=>cierreDayMatch(x)&&inTurnoWindow(x);
   function setCierreDate(v){cierreDate=v||todayISO();go('cierre');}
-  window.setCierreDate=setCierreDate;
+  function setCierreMode(m){cierreMode=(m==='turno'?'turno':'dia');if(cierreMode==='turno')cierreCajero=loadCajero();go('cierre');}
+  // Cambio de cajero desde el cierre: cierra el turno del actual (genera su reporte) y arranca el nuevo.
+  function handleTurnoChange(next){if(!next||next===cierreCajero){go('cierre');return;}closeTurno(next);}
+  function closeTurno(next){
+    var ops=CIERRE.filter(inScope);
+    if(ops.length)downloadCierre();            // genera el reporte del turno que se cierra
+    turnoStart=Date.now();saveTurnoStart();     // el nuevo turno arranca ahora
+    if(next&&next!==cierreCajero){saveCajero(next);cierreCajero=next;}
+    go('cierre');
+    toast(next?('Cambio de cajero · ahora atiende '+next+(ops.length?' (turno anterior cerrado)':'')):(ops.length?'Turno cerrado · reporte generado':'Turno reiniciado'),true);
+  }
+  window.setCierreDate=setCierreDate;window.setCierreMode=setCierreMode;window.handleTurnoChange=handleTurnoChange;window.closeTurno=closeTurno;
   function cierreMatch(x){
-    if(!cierreDayMatch(x))return false;
+    if(!inScope(x))return false;
     if(cierreFilter==='ALL')return true;
     if(cierreFilter==='DIVISA')return x.cur!=='VES';
     if(cierreFilter==='EFECTIVO')return x.m.startsWith('EFECTIVO');
@@ -665,12 +691,13 @@
   function cierreBody(){
     const el=document.getElementById('cierre-body');if(!el)return;
     const list=CIERRE.filter(cierreMatch);
-    el.innerHTML=list.map(x=>{const amt=x.cur==='VES'?money(x.amt):x.cur==='USD'?usd(x.amt):'€ '+x.amt.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});const div=x.cur!=='VES';return `<tr><td class="mono">${x.fac}</td><td>${x.cli}</td><td><span class="chip ${div?'igtf':''}">${ML[x.m]}</span></td><td class="mono" style="color:var(--text-faint)">${x.ref||'—'}</td><td class="num">${amt}</td><td class="num">${money(bsOf(x))}</td><td><button class="del" onclick="deleteCierre(${x.id})" title="Eliminar operación">${svg(I.trash)}</button></td></tr>`;}).join('')||'<tr><td colspan="7" style="text-align:center;padding:26px;color:var(--text-faint)">Sin operaciones para este filtro.</td></tr>';
+    el.innerHTML=list.map(x=>{const amt=x.cur==='VES'?money(x.amt):x.cur==='USD'?usd(x.amt):'€ '+x.amt.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});const div=x.cur!=='VES';return `<tr><td class="mono">${x.fac}</td><td class="mono" style="color:var(--text-faint)">${rowHM(x)}</td><td>${x.cli}</td><td style="color:var(--text-muted)">${rowCaj(x)}</td><td><span class="chip ${div?'igtf':''}">${ML[x.m]}</span></td><td class="mono" style="color:var(--text-faint)">${x.ref||'—'}</td><td class="num">${amt}</td><td class="num">${money(bsOf(x))}</td><td><button class="del" onclick="deleteCierre(${x.id})" title="Eliminar operación">${svg(I.trash)}</button></td></tr>`;}).join('')||'<tr><td colspan="9" style="text-align:center;padding:26px;color:var(--text-faint)">Sin operaciones para este filtro.</td></tr>';
   }
   function setCierreFilter(f){cierreFilter=f;go('cierre');}
   window.setCierreFilter=setCierreFilter;
   function renderCierre(view){
-    const dayList=CIERRE.filter(cierreDayMatch);
+    const turno=cierreMode==='turno';
+    const dayList=CIERRE.filter(inScope);
     const groups={};
     dayList.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,div:0,cur:x.cur};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur!=='VES')groups[k].div+=x.amt;});
     const totalBs=dayList.reduce((a,x)=>a+bsOf(x),0);
@@ -679,26 +706,35 @@
     const facturasDia=new Set(dayList.map(x=>x.fac)).size;
     const order=['EFECTIVO_VES','EFECTIVO_USD','EFECTIVO_EUR','PAGO_MOVIL','PUNTO_VENTA','TRANSFERENCIA_VES','ZELLE'];
     const cards=Object.keys(groups).sort((a,b)=>order.indexOf(a)-order.indexOf(b)).map(k=>{const g=groups[k];const div=g.cur==='USD'?` · ${usd(g.div)}`:g.cur==='EUR'?` · € ${g.div.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2})}`:'';return `<div class="card" style="padding:13px 15px"><div style="font-size:11.5px;color:var(--text-muted);font-weight:600">${ML[k]}</div><div style="font-size:19px;font-weight:720;margin-top:5px;font-variant-numeric:tabular-nums">${money(g.bs)}</div><div style="font-size:11.5px;color:var(--text-faint);margin-top:2px">${g.n} oper.${div}</div></div>`;}).join('');
+    // Desglose por cajero (solo cierre de día)
+    const byCaj={};dayList.forEach(x=>{const k=rowCaj(x);byCaj[k]=byCaj[k]||{n:0,bs:0};byCaj[k].n++;byCaj[k].bs+=bsOf(x);});
+    const cajCards=Object.keys(byCaj).sort().map(k=>`<div class="card" style="padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-size:12.5px;font-weight:650">${k}</div><div style="font-size:11.5px;color:var(--text-faint);margin-top:2px">${byCaj[k].n} oper.</div></div><div style="font-size:17px;font-weight:720;font-variant-numeric:tabular-nums">${money(byCaj[k].bs)}</div></div>`).join('');
+    let startHM='—';try{startHM=new Date(turnoStart).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});}catch(e){}
     view.innerHTML=`
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div class="field"><label>Tipo de cierre</label><div class="seg"><button class="${turno?'':'on'}" onclick="setCierreMode('dia')">Cierre de día</button><button class="${turno?'on':''}" onclick="setCierreMode('turno')">Cierre de turno</button></div></div>
         <div class="field"><label>Fecha</label><input class="selm" type="date" value="${cierreDate}" onchange="setCierreDate(this.value)"></div>
-        <div class="field"><label>Cajero de turno</label><select class="selm" onchange="saveCajero(this.value)">${CAJEROS.map(v=>`<option value="${v}" ${v===loadCajero()?'selected':''}>${v}</option>`).join('')}</select></div>
+        ${turno?`
+        <div class="field"><label>Cajero de turno (cambiar = cerrar turno)</label><select class="selm" onchange="handleTurnoChange(this.value)">${CAJEROS.map(v=>`<option value="${v}" ${v===cierreCajero?'selected':''}>${v}</option>`).join('')}</select></div>
+        `:''}
         <div style="flex:1"></div>
         <button class="btn" onclick="printCierre()">${svg('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="7"/>')} Imprimir / PDF</button>
-        <button class="btn primary" onclick="downloadCierre()">${svg(I.receipt)} Cerrar caja del día</button>
+        <button class="btn primary" onclick="${turno?'closeTurno(null)':'downloadCierre()'}">${svg(I.receipt)} ${turno?'Cerrar turno':'Cerrar caja del día'}</button>
       </div>
+      ${turno?`<div style="margin:-4px 0 14px;font-size:12.5px;color:var(--text-muted)">Turno de <b style="color:var(--text)">${cierreCajero}</b> abierto desde <b style="color:var(--text)">${startHM}</b> · ${dayList.length} operación${dayList.length===1?'':'es'}. <b>Cerrar turno</b> genera su reporte y arranca uno nuevo; <b>cambiar de cajero</b> también cierra el turno actual. Si el negocio tiene un solo cajero, no hace falta cambiar: al cerrar toma todo su día.</div>`:''}
       <div class="kgrid">
-        ${kpiC('Total del día',money(totalBs),usd(totalBs/RATE)+' equiv.','coin')}
-        ${kpiC('Operaciones',String(dayList.length),facturasDia+' factura'+(facturasDia===1?'':'s')+' del día','invoice')}
+        ${kpiC(turno?'Total del turno':'Total del día',money(totalBs),usd(totalBs/RATE)+' equiv.','coin')}
+        ${kpiC('Operaciones',String(dayList.length),facturasDia+' factura'+(facturasDia===1?'':'s'),'invoice')}
         ${kpiC('Divisas recibidas',usd(totUsd),'€ '+totEur.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2}),'coin')}
         ${kpiC('IGTF ('+igtfPct()+'% divisas)',money((totUsd*RATE+totEur*RATE_EUR)*getIgtf()),'sobre pagos en divisa','receipt')}
       </div>
+      ${(!turno&&cajCards)?`<div style="margin:20px 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:600">Por cajero</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">${cajCards}</div>`:''}
       <div style="margin:20px 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);font-weight:600">Resumen por forma de pago</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px">${cards}</div>
       <div class="chips" style="margin:20px 0 14px">
         ${[['ALL','Todos'],['EFECTIVO','Efectivo'],['DIVISA','Divisas'],['PAGO_MOVIL','Pago móvil'],['PUNTO_VENTA','Punto de venta'],['TRANSFERENCIA','Transferencia'],['ZELLE','Zelle']].map(([k,l])=>`<button class="chipf ${cierreFilter===k?'on':''}" onclick="setCierreFilter('${k}')">${l}</button>`).join('')}
       </div>
-      <div class="panel"><div class="overflow-x"><table style="min-width:680px"><thead><tr><th>Factura</th><th>Cliente</th><th>Forma de pago</th><th>Referencia</th><th class="num">Monto</th><th class="num">Equiv. Bs.</th><th></th></tr></thead><tbody id="cierre-body"></tbody></table></div></div>`;
+      <div class="panel"><div class="overflow-x"><table style="min-width:760px"><thead><tr><th>Factura</th><th>Hora</th><th>Cliente</th><th>Cajero</th><th>Forma de pago</th><th>Referencia</th><th class="num">Monto</th><th class="num">Equiv. Bs.</th><th></th></tr></thead><tbody id="cierre-body"></tbody></table></div></div>`;
     cierreBody();
   }
 
@@ -1887,7 +1923,7 @@
     // Reflejar el abono en el cierre de caja del día
     const cur=m.endsWith('_USD')?'USD':m.endsWith('_EUR')?'EUR':'VES';
     const amtCur=cur==='USD'?amt/RATE:cur==='EUR'?amt/RATE_EUR:amt;
-    CIERRE.unshift({id:cierreUid++,date:todayISO(),fac:x.num,cli:x.cli,m,cur,ref:ref||'Abono CxC',amt:amtCur});saveCierre();
+    CIERRE.unshift({id:cierreUid++,date:todayISO(),ts:Date.now(),caj:loadCajero(),fac:x.num,cli:x.cli,m,cur,ref:ref||'Abono CxC',amt:amtCur});saveCierre();
     // Registrar el cobro y generar el recibo (no fiscal) imprimible
     const rec={seq:reciboSeq,num:'RC-'+String(reciboSeq).padStart(6,'0'),fecha:todayDMY(),doc:x.num,cli:x.cli,m,ref,amt,saldoAntes,saldoDespues};
     reciboSeq++;COBROS.unshift(rec);saveCobros();
@@ -2345,7 +2381,7 @@
     {t:'Devoluciones (NC / ND)',ic:'back',q:'Notas de Crédito (NC) y de Débito (ND): documentos fiscales que modifican una factura ya emitida.',usa:['Elige NC (devolución o descuento) o ND (cargo extra).','Indica la factura afectada y el motivo.','La NC reintegra el inventario devuelto.'],f:[['Nota de crédito','Resta del débito fiscal (Libro de Ventas)'],['Nota de débito','Suma al débito fiscal (Libro de Ventas)']]},
     {t:'Cuentas por cobrar',ic:'coin',q:'Lo que te deben los clientes por ventas a crédito, con vencimientos.',usa:['"Cobrar" registra un abono y genera el recibo de cobro.','La impresora imprime el estado de cuenta (cuánto debe el cliente).','Clic al Nº de documento abre la factura con sus artículos.'],f:[['Saldo','Total − Abonado'],['Vencimiento','Fecha de emisión + días de plazo'],['Vencida','Si hoy es mayor que el vencimiento']]},
     {t:'Facturas emitidas',ic:'invoice',q:'Historial de todas las facturas, filtrable por cliente y fecha.',usa:['Filtra por cliente o rango de fechas.','Clic al número abre la factura tal cual para imprimir.','Exporta a CSV o anula una factura.'],f:[]},
-    {t:'Cierre de caja',ic:'receipt',q:'Resumen del día por forma de pago (Reporte Z). Incluye el cajero de turno.',usa:['Elige el cajero de turno (se toma el de Facturación).','Revisa los cobros del día por método.','Imprime el Reporte Z / Guarda como PDF.','Cierra la caja del día.'],f:[['Total del día','Suma de todos los cobros en Bs.'],['IGTF','Tasa configurada sobre los pagos en divisa']]},
+    {t:'Cierre de caja',ic:'receipt',q:'Dos modos: Cierre de día (todo lo cobrado de 00:00 a 24:00, todos los cajeros, con desglose por cajero) y Cierre de turno (lo de un cajero desde que abrió su turno). Los turnos se separan por el evento de cambio/cierre de cajero, no por horas.',usa:['Elige el tipo: Cierre de día o Cierre de turno.','En turno se muestra el cajero actual y su turno abierto.','Cerrar turno genera su reporte y arranca uno nuevo.','Cambiar de cajero cierra el turno del anterior automáticamente.'],f:[['Cierre de día','Reporte Z de 00:00 a 24:00 (día local completo) con total por cajero.'],['Cierre de turno','Solo el cajero actual, desde que abrió su turno hasta el cierre.'],['Un cajero solo','Puede seguir todo el día; al cerrar toma toda su jornada.'],['IGTF','Tasa configurada sobre los pagos en divisa']]},
     {t:'Facturas de compra',ic:'receipt',q:'Registra las compras a proveedores y entra la mercancía al inventario con su costo.',usa:['Elige o crea el proveedor.','Nº de factura del proveedor y productos recibidos.','Si eres agente de retención, marca la retención de IVA/ISLR.','Registrar (entra al inventario y genera el comprobante de retención).'],f:[['IVA crédito','Base × 16%'],['Retención IVA','IVA de la factura × 75% (o 100%)'],['Costo promedio','(existencia×costo + entrada×costo nuevo) ÷ total'],['Neto a pagar','Total − retenciones']]},
     {t:'Órdenes de compra',ic:'cart',q:'Solicitud de mercancía al proveedor, antes de recibir la factura.',usa:['Crea la orden con proveedor y productos.','Imprímela y envíala al proveedor.','"Recibir" la convierte en factura de compra (entra al inventario).'],f:[['Total estimado','Base + IVA']]},
     {t:'Cuentas por pagar',ic:'coin',q:'Lo que le debes a los proveedores por compras a crédito.',usa:['"Pagar" registra un pago y genera el comprobante de egreso.','La impresora muestra el estado de cuenta del proveedor.'],f:[['Saldo','Total − Abonado'],['Vencimiento','Fecha de emisión + días de plazo']]},
@@ -2832,12 +2868,10 @@
 
   // ── Reporte de Cierre de caja (imprimible / PDF, mismo formato de papel) ──
   function cierreReportInner(){
-    const dEl=document.querySelector('.view input[type="date"]');
-    const fecha=dEl&&dEl.value?dEl.value:todayISO();
-    const cEl=document.querySelector('.view select.selm');
-    const cajero=(cEl&&cEl.value)||loadCajero()||'—';
+    const turno=cierreMode==='turno';
+    const fecha=cierreDate||todayISO();
     const eur=v=>'€ '+v.toLocaleString('es-VE',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const dayList=CIERRE.filter(x=>((x.date||todayISO())===fecha));
+    const dayList=CIERRE.filter(inScope);
     const facturasDia=new Set(dayList.map(x=>x.fac)).size;
     const groups={};
     dayList.forEach(x=>{const k=x.m;groups[k]=groups[k]||{n:0,bs:0,usd:0,eur:0};groups[k].n++;groups[k].bs+=bsOf(x);if(x.cur==='USD')groups[k].usd+=x.amt;if(x.cur==='EUR')groups[k].eur+=x.amt;});
@@ -2848,19 +2882,27 @@
     const totEur=dayList.filter(x=>x.cur==='EUR').reduce((a,x)=>a+x.amt,0);
     const igtf=(totUsd*RATE+totEur*RATE_EUR)*getIgtf();
     const rows=keys.map(k=>{const g=groups[k];const divisa=g.usd?usd(g.usd):g.eur?eur(g.eur):'—';return `<tr><td>${ML[k]}</td><td class="num">${g.n}</td><td class="num">${divisa}</td><td class="num">${money(g.bs)}</td></tr>`;}).join('');
+    const byCaj={};dayList.forEach(x=>{const k=rowCaj(x);byCaj[k]=byCaj[k]||{n:0,bs:0};byCaj[k].n++;byCaj[k].bs+=bsOf(x);});
+    const cajKeys=Object.keys(byCaj).sort();
+    const cajRows=cajKeys.map(k=>`<tr><td>${k}</td><td class="num">${byCaj[k].n}</td><td class="num">${money(byCaj[k].bs)}</td></tr>`).join('');
     let fechaFmt=fecha; try{fechaFmt=new Date(fecha+'T00:00:00').toLocaleDateString('es-VE',{day:'2-digit',month:'long',year:'numeric'});}catch(e){}
-    return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">Cierre de caja · Reporte Z</span><div class="p-num">Z-${fecha.replace(/-/g,'')}</div><div class="p-mut" style="margin-top:6px">${fechaFmt} · ${nowTime()}</div></div></div>
+    const kind=turno?'Cierre de turno':'Cierre de caja · Reporte Z';
+    const docNum=(turno?'T-':'Z-')+fecha.replace(/-/g,'');
+    const cajeroTxt=turno?cierreCajero:(cajKeys.length===1?cajKeys[0]:(cajKeys.length+' cajeros'));
+    let rangoTxt='';if(turno){var thm='—';try{thm=new Date(turnoStart).toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});}catch(e){}rangoTxt=`<div class="p-mut" style="margin-top:4px">Turno abierto desde ${thm}</div>`;}
+    return `<div class="p-top">${EMISOR_INK}<div class="p-doc"><span class="p-kind">${kind}</span><div class="p-num">${docNum}</div><div class="p-mut" style="margin-top:6px">${fechaFmt} · ${nowTime()}</div>${rangoTxt}</div></div>
       <div class="p-body">
-        <div class="p-parts"><div class="p-box"><div class="pk">Cajero</div><div class="pn">${cajero}</div></div><div class="p-box"><div class="pk">Operaciones del día</div><div class="pn">${facturasDia} factura${facturasDia===1?'':'s'} · ${dayList.length} cobros</div></div></div>
+        <div class="p-parts"><div class="p-box"><div class="pk">Cajero</div><div class="pn">${cajeroTxt}</div></div><div class="p-box"><div class="pk">${turno?'Operaciones del turno':'Operaciones del día'}</div><div class="pn">${facturasDia} factura${facturasDia===1?'':'s'} · ${dayList.length} cobros</div></div></div>
         <table><thead><tr><th>Forma de pago</th><th class="num">Oper.</th><th class="num">Divisa</th><th class="num">Equiv. Bs.</th></tr></thead><tbody>${rows}</tbody></table>
+        ${(!turno&&cajKeys.length>1)?`<div style="margin-top:16px;font-weight:700;font-size:13px">Ventas por cajero</div><table style="margin-top:6px"><thead><tr><th>Cajero</th><th class="num">Oper.</th><th class="num">Total Bs.</th></tr></thead><tbody>${cajRows}</tbody></table>`:''}
       </div>
       <div class="p-tt"><table>
         <tr><td class="lab">Divisas recibidas (USD)</td><td class="val">${usd(totUsd)}</td></tr>
         <tr><td class="lab">Divisas recibidas (EUR)</td><td class="val">${eur(totEur)}</td></tr>
         <tr class="rr"><td>IGTF 3% (sobre divisas)</td><td class="val">${money(igtf)}</td></tr>
-        <tr class="gg"><td>Total del día</td><td class="val">${money(totalBs)}</td></tr>
+        <tr class="gg"><td>${turno?'Total del turno':'Total del día'}</td><td class="val">${money(totalBs)}</td></tr>
       </table></div>
-      <div class="p-foot">Tasa BCV del día: USD = ${money(RATE)} · EUR = ${money(RATE_EUR)}.<br>Reporte de cierre de caja diario (control interno). Generado por Vortex — Sistema de Gestión Integral.</div>`;
+      <div class="p-foot">Tasa BCV del día: USD = ${money(RATE)} · EUR = ${money(RATE_EUR)}.<br>Reporte de ${turno?'cierre de turno':'cierre de caja diario'} (control interno). Generado por Vortex — Sistema de Gestión Integral.</div>`;
   }
   function buildCierreDoc(){
     return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja — Vortex</title><style>'+PAPER_CSS+'body{background:#e9edec;}.bar{position:sticky;top:0;display:flex;gap:10px;justify-content:center;padding:14px;background:#fff;border-bottom:1px solid #ddd;box-shadow:0 1px 4px rgba(0,0,0,.06);}.bar button{font-family:system-ui,sans-serif;font-size:14px;font-weight:600;padding:10px 20px;border-radius:9px;border:1px solid #0f6f78;background:#0f6f78;color:#fff;cursor:pointer;}.hint{font-size:12px;color:#777;text-align:center;padding:8px;}.sheet{max-width:760px;margin:18px auto;background:#fff;box-shadow:0 6px 28px rgba(0,0,0,.14);}@media print{.bar,.hint{display:none!important;}body{background:#fff;}.sheet{box-shadow:none;margin:0;max-width:100%;}}</style></head><body onload="setTimeout(function(){window.print();},500)"><div class="bar"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div><div class="hint">Pulsa el botón (o Ctrl+P). En destino elige "Guardar como PDF".</div><div class="sheet"><div class="paper">'+cierreReportInner()+'</div></div></body></html>';
@@ -2871,7 +2913,9 @@
       var fecha=(typeof cierreDate!=='undefined'&&cierreDate)?cierreDate:todayISO();
       var blob=new Blob([buildCierreDoc()],{type:'text/html;charset=utf-8'});
       var url=URL.createObjectURL(blob);
-      var name='cierre-caja-'+fecha+'.html';
+      var name;
+      if(cierreMode==='turno'){var slug=(cierreCajero||'cajero').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');name='cierre-turno-'+slug+'-'+fecha+'.html';}
+      else{name='cierre-caja-'+fecha+'.html';}
       var a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
       setTimeout(function(){try{URL.revokeObjectURL(url);}catch(e){}},20000);
       if(window.__vtxDownloaded)window.__vtxDownloaded(name);else toast('Cierre guardado en Descargas: '+name,true);
@@ -3441,7 +3485,7 @@
         // Contado: exigir pago completo (para dejar saldo pendiente, marca la factura como Crédito)
         if(!credito){const paidU=pays.reduce((s,p)=>s+pUsd(p),0);if(paidU<t.total-0.01){toast('Falta por cobrar '+bothN(t.total-paidU)+'. Marca la venta como “Crédito” o completa el pago.',false);return;}}
         // Registrar la venta en el cierre de caja (una fila por pago recibido)
-        pays.filter(p=>p.a>0).forEach(p=>CIERRE.unshift({id:cierreUid++,date:todayISO(),fac:num,cli:c.name,m:p.m,cur:p.cur,ref:(p.d&&p.d.ref)||'',amt:p.a}));
+        pays.filter(p=>p.a>0).forEach(p=>CIERRE.unshift({id:cierreUid++,date:todayISO(),ts:Date.now(),caj:loadCajero(),fac:num,cli:c.name,m:p.m,cur:p.cur,ref:(p.d&&p.d.ref)||'',amt:p.a}));
         saveCierre();
         // Descontar del inventario los renglones facturados (salida + kardex)
         if(window.IN&&window.IN.sell)window.IN.sell(lines.map(l=>({sku:l.sku,qty:l.qty})));
@@ -4119,7 +4163,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.3.9";
+  var CURRENT_FALLBACK = "1.4.0";
   window.__VTX_VER = CURRENT_FALLBACK;
   try{ var _av=document.getElementById("appVer"); if(_av) _av.textContent="Vortex v"+CURRENT_FALLBACK; }catch(e){}
   var RELEASES = "https://github.com/tradingag25-cmyk/vortex-desktop/releases/latest";
