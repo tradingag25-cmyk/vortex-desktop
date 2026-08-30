@@ -4057,31 +4057,65 @@
       +'.guia-hole{position:fixed;left:0;top:0;width:0;height:0;border-radius:10px;border:2px solid #2fc0ce;box-shadow:0 0 0 9999px rgba(6,14,16,.72),0 0 0 4px rgba(47,192,206,.35);transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:auto}'
       +'.guia-tip{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483300;width:460px;max-width:93vw;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 24px 60px -18px rgba(0,0,0,.7);padding:16px 18px;animation:guiaUp .2s ease}'
       +'.guia-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#e0a83e,#d9644a);color:#2a1600;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em}'
+      +'.vera-panel{width:346px;max-width:calc(100vw - 32px);height:min(560px,76vh);display:none;flex-direction:column;padding:0}'
+      +'.vera-panel.show{display:flex}'
+      +'.vera-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0f2327,#123a3a);color:#eaf6f6}'
+      +'.vera-ava{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#123a3e,#08181b);display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(166,240,247,.25)}'
+      +'.vera-ava svg{animation:guiaSpin 9s linear infinite}'
+      +'.vera-name{font-weight:800;font-size:15px;line-height:1.1}'
+      +'.vera-sub{font-size:11px;opacity:.85;margin-top:2px;display:flex;align-items:center;gap:5px}'
+      +'.vera-dot{width:7px;height:7px;border-radius:50%;background:#3fe0a0;box-shadow:0 0 0 3px rgba(63,224,160,.2)}'
+      +'.vera-x{margin-left:auto;background:none;border:0;color:#cfeef1;opacity:.7;font-size:16px;cursor:pointer;line-height:1}'
+      +'.vera-x:hover{opacity:1}'
+      +'.vera-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}'
+      +'.vera-msg{max-width:86%;font-size:13px;line-height:1.5;padding:9px 12px;border-radius:14px}'
+      +'.vera-msg.v{align-self:flex-start;background:var(--surface);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:5px}'
+      +'.vera-msg.u{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:5px}'
+      +'.vera-msg b{font-weight:700}'
+      +'.vera-act{display:inline-flex;margin-top:9px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);border-radius:9px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;gap:6px;align-items:center}'
+      +'.vera-typing{align-self:flex-start;display:flex;gap:4px;padding:11px 13px;background:var(--surface);border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:5px}'
+      +'.vera-typing span{width:6px;height:6px;border-radius:50%;background:var(--text-faint);animation:veraBlink 1.2s infinite}'
+      +'.vera-typing span:nth-child(2){animation-delay:.2s}.vera-typing span:nth-child(3){animation-delay:.4s}'
+      +'@keyframes veraBlink{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}'
+      +'.vera-sugs{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;background:var(--bg)}'
+      +'.vera-chip{background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:16px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit}'
+      +'.vera-chip:hover{border-color:var(--accent);color:var(--accent)}'
+      +'.vera-actions{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);background:var(--surface)}'
+      +'.vera-actions button{flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:8px 6px;font-size:11px;font-weight:650;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.1}'
+      +'.vera-actions button:hover{border-color:var(--accent);color:var(--accent)}'
+      +'.vera-actions .vi{font-size:16px}'
+      +'.vera-input{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);background:var(--surface)}'
+      +'.vera-input input{flex:1;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;font-family:inherit}'
+      +'.vera-input input:focus{border-color:var(--accent)}'
+      +'.vera-send{width:38px;flex-shrink:0;border:0;background:var(--accent);color:#fff;border-radius:10px;font-size:15px;cursor:pointer}'
       +'</style>';
     function build(){
       if(built)return;built=true;
       const wrap=document.createElement('div');wrap.id='guiaRoot';
       wrap.innerHTML=CSS
-        +'<button class="guia-fab" id="guiaFab" title="Guía Vortex" onclick="Guia.togglePanel()">'
+        +'<button class="guia-fab" id="guiaFab" title="Habla con Vera · Asistente de Vortex" onclick="Guia.togglePanel()">'
           +'<span class="guia-spark s1"></span><span class="guia-spark s2"></span><span class="guia-spark s3"></span><span class="guia-spark s4"></span><span class="guia-spark s5"></span><span class="guia-spark s6"></span><span class="guia-spark s7"></span>'
           +'<svg class="guia-spin" width="34" height="34" viewBox="0 0 48 48" fill="none"><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".82" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".64" transform="rotate(240 24 24)"/></svg>'
         +'</button>'
-        +'<div class="guia-hi" id="guiaHi">¿Nuevo en Vortex? Te muestro cómo funciona 👇 <div style="margin-top:8px;display:flex;gap:6px"><button class="btn sm primary" onclick="Guia.start(\'plus\')">Ver el tour</button><button class="btn sm" onclick="Guia.dismissHi()">Ahora no</button></div></div>'
-        +'<div class="guia-panel" id="guiaPanel"><div class="guia-ph"><div style="font-weight:800;font-size:15px">Guía Vortex</div><div style="font-size:12px;opacity:.85;margin-top:2px">Aprende a usar el software paso a paso.</div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'plus\')"><span style="font-size:18px">⭐</span><div><b>Lo que nos hace diferentes</b><div style="font-size:11.5px;color:var(--text-faint)">Nuestros plus, en 1 minuto</div></div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'completo\')"><span style="font-size:18px">▶️</span><div><b>Tour completo</b><div style="font-size:11.5px;color:var(--text-faint)">Todos los módulos</div></div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'intro\')"><span style="font-size:18px">❓</span><div><b>¿Qué es Vortex?</b><div style="font-size:11.5px;color:var(--text-faint)">Introducción rápida</div></div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'facturacion\')"><span style="font-size:18px">🧾</span><div><b>Tour: Facturación</b></div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'inventario\')"><span style="font-size:18px">📦</span><div><b>Tour: Inventario</b></div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'reportes\')"><span style="font-size:18px">📊</span><div><b>Tour: Reportes</b></div></div>'
-          +'<div class="guia-opt" onclick="Guia.start(\'config\')"><span style="font-size:18px">⚙️</span><div><b>Tour: Configuración</b></div></div>'
-          +'<div class="guia-opt" onclick="Guia.loadSample()" style="background:var(--accent-soft)"><span style="font-size:18px">📋</span><div><b>Cargar datos de ejemplo</b><div style="font-size:11.5px;color:var(--text-faint)">Llena el sistema para probar</div></div></div>'
+        +'<div class="guia-hi" id="guiaHi">👋 Soy <b>Vera</b>, tu asistente de Vortex. ¿Te ayudo a empezar? <div style="margin-top:8px;display:flex;gap:6px"><button class="btn sm primary" onclick="Guia.togglePanel()">Hablar con Vera</button><button class="btn sm" onclick="Guia.dismissHi()">Ahora no</button></div></div>'
+        +'<div class="guia-panel vera-panel" id="guiaPanel">'
+          +'<div class="vera-head"><div class="vera-ava"><svg width="21" height="21" viewBox="0 0 48 48" fill="none"><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".82" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".64" transform="rotate(240 24 24)"/></svg></div>'
+            +'<div><div class="vera-name">Vera</div><div class="vera-sub"><span class="vera-dot"></span>Asistente de Vortex · en línea</div></div>'
+            +'<button class="vera-x" onclick="Guia.closePanel()">✕</button></div>'
+          +'<div class="vera-body" id="veraBody"></div>'
+          +'<div class="vera-sugs" id="veraSugs"></div>'
+          +'<div class="vera-actions">'
+            +'<button onclick="Guia.veraTours()"><span class="vi">🎯</span>Tours</button>'
+            +'<button onclick="Guia.loadSample()"><span class="vi">📊</span>Ver demo</button>'
+            +'<button onclick="Guia.veraHuman()"><span class="vi">👤</span>Un humano</button>'
+          +'</div>'
+          +'<div class="vera-input"><input id="veraInput" placeholder="Pregúntame algo de Vortex…" autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();Guia.veraSend();}"><button class="vera-send" onclick="Guia.veraSend()">➤</button></div>'
         +'</div>'
         +'<div class="guia-ov" id="guiaOv"><div class="guia-hole" id="guiaHole"></div><div class="guia-tip" id="guiaTip"></div></div>';
       document.body.appendChild(wrap);
       window.addEventListener('resize',function(){ if(document.getElementById('guiaOv').classList.contains('show'))render(); });
     }
-    function togglePanel(){build();const p=document.getElementById('guiaPanel');dismissHi();p.classList.toggle('show');}
+    function togglePanel(){build();const p=document.getElementById('guiaPanel');dismissHi();p.classList.toggle('show');if(p.classList.contains('show')){veraInit();const i=document.getElementById('veraInput');if(i)setTimeout(function(){try{i.focus();}catch(e){}},60);}}
     function closePanel(){const p=document.getElementById('guiaPanel');if(p)p.classList.remove('show');}
     function dismissHi(){const h=document.getElementById('guiaHi');if(h)h.classList.remove('show');const f=document.getElementById('guiaFab');if(f)f.classList.remove('pulse');try{localStorage.setItem('vortex_guide_seen','1');}catch(e){}}
     function start(key){build();window.__guiaActive=true;closePanel();dismissHi();steps=T[key]||T.plus;idx=0;document.getElementById('guiaOv').classList.add('show');show();}
@@ -4125,7 +4159,54 @@
     function mount(){build();try{const seen=localStorage.getItem('vortex_guide_seen');const f=document.getElementById('guiaFab');const h=document.getElementById('guiaHi');if(!seen){if(f)f.classList.add('pulse');if(h)setTimeout(function(){h.classList.add('show');},900);}}catch(e){}}
     function setVisible(v){build();const f=document.getElementById('guiaFab');if(f)f.style.display=v?'flex':'none';if(!v){close();closePanel();dismissHi();}}
     function loadSample(){closePanel();dismissHi();if(confirm('Esto llenará el sistema con datos de EJEMPLO para que pruebes (clientes, facturas de varios días, inventario…). ¿Continuar?')){try{if(window.__vtxLoadSample)window.__vtxLoadSample();}catch(e){}}}
-    return {mount:mount,setVisible:setVisible,togglePanel:togglePanel,start:start,next:next,prev:prev,close:close,dismissHi:dismissHi,loadSample:loadSample};
+    // ══════════════ VERA · Asistente (IA simulada, local — sin internet) ══════════════
+    const KB=[
+      {kw:'factura facturar vender venta emitir cobrar fiscal',a:'Para <b>facturar</b>: entra a <b>Facturación</b>, escribe la cédula/RIF del cliente y pulsa Buscar, agrega productos con el buscador, elige la forma de pago y pulsa <b>Emitir factura</b>. Puedes cobrar en Bs., USD o EUR.',s:['¿Cómo cobro en varias monedas?','¿Qué es el Modo Touch?','Cerrar caja del día'],go:'facturacion',gol:'Abrir Facturación'},
+      {kw:'touch pos tactil pantalla completa punto de venta rapido',a:'El <b>Modo Touch</b> es un punto de venta táctil a pantalla completa, ideal para cobrar rápido. Lo abres desde Facturación, o lo activas por defecto en Configuración → Preferencias.',s:['¿Cómo hago una factura?','Formas de pago'],go:'facturacion',gol:'Abrir Facturación'},
+      {kw:'pago pagos forma metodo multimoneda divisa combinar zelle movil transferencia efectivo mixto',a:'En Facturación eliges el método (Efectivo Bs., <b>USD</b>, <b>EUR</b>, Pago móvil, Punto de venta, Transferencia o Zelle) y pulsas <b>Agregar</b>. Puedes <b>combinar varias monedas</b> hasta cubrir el total; el IGTF se aplica solo a las divisas.',s:['¿Qué es el IGTF?','Cerrar caja del día'],go:'facturacion'},
+      {kw:'cliente clientes cedula buscar registrar contribuyente',a:'En <b>Terceros → Clientes</b> registras a tus clientes con su RIF/cédula, tipo de contribuyente, condición de pago y vendedor. En Facturación puedes escribir la cédula y, si no existe, se abre el registro ya prellenado.',s:['¿Cómo hago una factura?','Cuentas por cobrar'],go:'clientes',gol:'Abrir Clientes'},
+      {kw:'cotizacion cotizaciones presupuesto',a:'En <b>Cotizaciones</b> creas presupuestos para tus clientes (con precios) y, cuando aceptan, los conviertes en factura con un clic.',s:['¿Cómo hago una factura?','Notas de entrega'],go:'cotizaciones',gol:'Abrir Cotizaciones'},
+      {kw:'nota notas entrega despacho',a:'Las <b>Notas de entrega</b> documentan la entrega de mercancía; luego las facturas. Se crean como una factura pero sin ser documento fiscal.',s:['Cotizaciones','Devoluciones'],go:'notas',gol:'Abrir Notas de entrega'},
+      {kw:'devolucion devoluciones credito debito',a:'En <b>Devoluciones (NC/ND)</b> emites <b>notas de crédito y débito</b> que ajustan facturas ya emitidas (documentos fiscales).',s:['¿Cómo hago una factura?'],go:'devol',gol:'Abrir Devoluciones'},
+      {kw:'cobrar deuda deben cxc por cobrar credito',a:'En <b>Cuentas por cobrar</b> controlas lo que te deben tus clientes, con vencimientos y abonos. Las ventas a crédito caen aquí automáticamente.',s:['¿Cómo hago una factura?'],go:'cxc',gol:'Abrir Cuentas por cobrar'},
+      {kw:'inventario producto productos stock existencia precio ganancia costo minimo',a:'En <b>Inventario → Productos</b> creas productos con costo y <b>precio por % de ganancia</b>, controlas la existencia por depósito y recibes alertas de bajo mínimo y agotados.',s:['¿Cómo importo productos?','¿Qué es el Kardex?'],go:'inventario',gol:'Abrir Inventario'},
+      {kw:'kardex entradas salidas historial movimientos',a:'El <b>Kardex</b> es el historial de todas las entradas y salidas de cada producto, con el saldo tras cada movimiento.',s:['Inventario','Ajustes y traslados'],go:'kardex',gol:'Abrir Kardex'},
+      {kw:'almacen almacenes deposito depositos sucursal',a:'En <b>Almacenes</b> ves el resumen por depósito: productos con stock, unidades y valor del inventario en cada uno.',s:['Ajustes y traslados','Inventario'],go:'almacenes',gol:'Abrir Almacenes'},
+      {kw:'ajuste ajustes traslado traslados mover mercancia',a:'En <b>Ajustes y traslados</b> corriges existencias o mueves mercancía entre depósitos; todo queda en el Kardex.',s:['Kardex','Almacenes'],go:'ajustes',gol:'Abrir Ajustes'},
+      {kw:'compra compras proveedor proveedores recepcion recibir',a:'En <b>Compras → Facturas de compra</b> registras las facturas de tus proveedores con <b>retenciones de IVA/ISLR</b>; la mercancía entra al inventario automáticamente.',s:['¿Qué es la retención?','Cuentas por pagar'],go:'compras',gol:'Abrir Facturas de compra'},
+      {kw:'retencion retenciones islr comprobante agente',a:'Al registrar una factura de compra generas las retenciones de <b>IVA e ISLR</b> con su comprobante. En <b>Retenciones</b> ves las que practicas y las que te soportan.',s:['Facturas de compra','Libros fiscales'],go:'reten',gol:'Abrir Retenciones'},
+      {kw:'pagar cxp por pagar debo proveedores',a:'En <b>Cuentas por pagar</b> controlas lo que le debes a tus proveedores, con sus vencimientos.',s:['Facturas de compra'],go:'cxp',gol:'Abrir Cuentas por pagar'},
+      {kw:'libro libros seniat declaracion',a:'Los <b>Libros de Ventas y de Compras</b> se arman solos y quedan listos para el SENIAT, exportables e imprimibles.',s:['Retenciones','¿Qué es el IVA?'],go:'lventas',gol:'Abrir Libro de Ventas'},
+      {kw:'tasa bcv dolar euro cambio',a:'La <b>Tasa BCV</b> (dólar y euro oficiales) se toma <b>automáticamente cada día</b>, con su histórico. También la refrescas al instante desde Facturación.',s:['¿Cómo cobro en dólares?'],go:'bcv',gol:'Abrir Tasa BCV'},
+      {kw:'igtf',a:'El <b>IGTF</b> es el impuesto a los pagos en divisa (efectivo USD/EUR, Zelle…). Vortex lo calcula solo sobre esos pagos, con la tasa que configures.',s:['Formas de pago','¿Qué es el IVA?']},
+      {kw:'iva alicuota exento',a:'El <b>IVA</b> se calcula solo en cada factura según la alícuota del producto (General 16%, Reducida 8%, Suntuaria 31% o Exento) y se refleja en el Libro de Ventas.',s:['¿Qué es el IGTF?','Libros fiscales']},
+      {kw:'cierre caja turno reporte cajero arqueo',a:'En <b>Cierre de caja</b> tienes <b>Cierre de día</b> (todo lo cobrado de 00:00 a 24:00, con desglose por cajero) y <b>Cierre de turno</b> (lo de un cajero, que se separa al cambiar de cajero). Genera el Reporte Z imprimible o en PDF.',s:['¿Qué es el cierre de turno?','Formas de pago'],go:'cierre',gol:'Abrir Cierre de caja'},
+      {kw:'reporte reportes grafica graficas estadistica dashboard resumen',a:'En <b>Reportes</b> escribes lo que quieres ver (ventas, IVA, por cobrar, inventario…) y lo miras en <b>barras, líneas, dona o tabla</b>, con métricas al instante, y lo exportas a CSV o PDF.',s:['Cerrar caja del día','Cuentas por cobrar'],go:'reportes',gol:'Abrir Reportes'},
+      {kw:'respaldo backup copia seguridad restaurar',a:'En <b>Configuración → Respaldo</b> descargas una copia de seguridad de todo (.vortex) y activas un recordatorio. Luego la restauras en otro equipo.',s:['¿Cómo activo mi licencia?'],go:'config',gol:'Abrir Configuración'},
+      {kw:'licencia activar demo prueba plan comprar clave renovar',a:'Tu licencia se activa o cambia en <b>Configuración → Licencia</b>, sin reinstalar. El <b>demo</b> gratis dura 2 días con datos de ejemplo. Al activar un plan, Vortex arranca en blanco con tus datos.',s:['Cargar datos de ejemplo'],go:'config',gol:'Abrir Configuración'},
+      {kw:'importar exportar excel csv cargar plantilla',a:'En <b>Importar / Exportar</b> (y dentro de cada módulo) traes productos, clientes o proveedores desde un <b>CSV/Excel</b>, con plantillas descargables, y exportas tus datos.',s:['Inventario','Cargar datos de ejemplo'],go:'datos',gol:'Abrir Importar / Exportar'},
+      {kw:'cajero vendedor turno atiende',a:'El <b>cajero de turno</b> se elige en Facturación (arriba); queda en la factura y en el cierre. Los agregas o quitas en Configuración → Cajeros.',s:['¿Qué es el cierre de turno?'],go:'facturacion'},
+      {kw:'empresa logo nombre direccion personalizar membrete',a:'En <b>Configuración → Tu empresa</b> pones nombre, RIF, dirección, teléfono, correo y <b>logo</b>: aparecen en todas tus facturas y documentos.',s:['¿Cómo activo mi licencia?'],go:'config',gol:'Abrir Configuración'},
+      {kw:'pin seguridad contrasena rol administrador acceso',a:'En <b>Configuración → Seguridad</b> cambias los <b>PIN</b> de Administrador y Cajero. El Administrador entra a todo; el Cajero solo a la parte de facturación.',s:['Datos de la empresa'],go:'config',gol:'Abrir Configuración'},
+      {kw:'datos ejemplo cargar prueba llenar probar sample',a:'Puedo llenar el sistema con <b>datos de ejemplo</b> (clientes, facturas de varios días, inventario y cierre) para que pruebes sin cargar nada. Pulsa el botón <b>📊 Ver demo</b> aquí abajo; cuando quieras arrancar de verdad, lo vacías desde Configuración.',s:['¿Cómo hago una factura?','Ver un tour']},
+      {kw:'hola quien eres vera que es vortex asistente ayuda gracias',a:'Soy <b>Vera</b> 🌀, tu asistente de <b>Vortex</b> — el sistema de gestión integral: facturación, inventario, compras, control fiscal (SENIAT) y reportes, pensado para Venezuela. Pregúntame cómo hacer cualquier cosa.',s:['¿Cómo hago una factura?','Ver un tour','Cargar datos de ejemplo']}
+    ];
+    function veraNorm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+    function veraMatch(q){var n=veraNorm(q);if(!n.trim())return null;var best=null,bs=0;KB.forEach(function(e){var sc=0;e.kw.split(' ').forEach(function(w){if(w&&n.indexOf(w)>=0)sc+=(w.length>=5?2:1);});if(sc>bs){bs=sc;best=e;}});return bs>0?best:null;}
+    function veraBodyEl(){return document.getElementById('veraBody');}
+    function veraScroll(){var b=veraBodyEl();if(b)b.scrollTop=b.scrollHeight;}
+    function veraSay(html,who){var b=veraBodyEl();if(!b)return;var d=document.createElement('div');d.className='vera-msg '+(who==='u'?'u':'v');d.innerHTML=html;b.appendChild(d);veraScroll();}
+    function veraSugList(list){var el=document.getElementById('veraSugs');if(!el)return;el.innerHTML=(list||[]).map(function(t){return '<button class="vera-chip" onclick="Guia.veraAsk(&quot;'+String(t).replace(/"/g,'')+'&quot;)">'+t+'</button>';}).join('');}
+    function veraTyping(on){var b=veraBodyEl();if(!b)return;var ex=document.getElementById('veraTyping');if(on){if(ex)return;var d=document.createElement('div');d.id='veraTyping';d.className='vera-typing';d.innerHTML='<span></span><span></span><span></span>';b.appendChild(d);veraScroll();}else if(ex){ex.remove();}}
+    function veraDefault(){return ['¿Cómo hago una factura?','Cerrar caja del día','Importar productos','¿Qué es el IGTF?'];}
+    function veraAnswer(q){veraTyping(true);setTimeout(function(){veraTyping(false);var nq=veraNorm(q);if(/(tour|recorrido|guiad)/.test(nq)){veraSay('Tengo varios <b>tours guiados</b>. Elige uno 👇','v');var _el=document.getElementById('veraSugs');var _tt=[['completo','▶️ Tour completo'],['plus','⭐ Lo que nos diferencia'],['facturacion','🧾 Facturación'],['inventario','📦 Inventario'],['reportes','📊 Reportes'],['config','⚙️ Configuración']];if(_el)_el.innerHTML=_tt.map(function(p){return '<button class="vera-chip" onclick="Guia.start(&quot;'+p[0]+'&quot;)">'+p[1]+'</button>';}).join('');return;}var e=veraMatch(q);if(e){var extra=e.go?'<div class="vera-act" onclick="Guia.veraGo(&quot;'+e.go+'&quot;)">'+(e.gol||'Abrir módulo')+' →</div>':'';veraSay(e.a+extra,'v');veraSugList(e.s||veraDefault());}else{veraSay('No estoy segura de eso 🤔. Puedo ayudarte con <b>facturación, inventario, compras, cierre de caja, reportes, retenciones</b> y más. Prueba una de estas, mira un <b>tour</b> (🎯) o habla con un <b>humano</b> (👤).','v');veraSugList(veraDefault());}},480+Math.random()*320);}
+    function veraSend(){var i=document.getElementById('veraInput');if(!i)return;var q=(i.value||'').trim();if(!q)return;veraSay(q.replace(/</g,'&lt;').replace(/>/g,'&gt;'),'u');i.value='';veraAnswer(q);}
+    function veraAsk(t){var i=document.getElementById('veraInput');if(i)i.value=t;veraSend();}
+    function veraGo(m){try{go(m);}catch(e){}closePanel();}
+    function veraInit(){var b=veraBodyEl();if(!b||b.getAttribute('data-init'))return;b.setAttribute('data-init','1');veraSay('¡Hola! Soy <b>Vera</b> 🌀, tu asistente de Vortex. Pregúntame cómo hacer cualquier cosa, mira un <b>tour</b> guiado, o pide <b>datos de ejemplo</b> para probar el sistema.','v');veraSugList(veraDefault());}
+    function veraTours(){veraSay('Estos son los <b>tours guiados</b>. Toca el que quieras y te llevo paso a paso 👇','v');var el=document.getElementById('veraSugs');var tt=[['completo','▶️ Tour completo'],['plus','⭐ Lo que nos diferencia'],['facturacion','🧾 Facturación'],['inventario','📦 Inventario'],['reportes','📊 Reportes'],['config','⚙️ Configuración'],['intro','❓ ¿Qué es Vortex?']];if(el)el.innerHTML=tt.map(function(p){return '<button class="vera-chip" onclick="Guia.start(&quot;'+p[0]+'&quot;)">'+p[1]+'</button>';}).join('');}
+    function veraHuman(){veraSay('Con gusto te conecto con una persona del equipo 👤. ¿Por dónde prefieres?','v');var el=document.getElementById('veraSugs');if(el)el.innerHTML='<button class="vera-chip" onclick="if(window.__vtxContactWA)window.__vtxContactWA()">💬 WhatsApp</button><button class="vera-chip" onclick="if(window.__vtxContactMail)window.__vtxContactMail()">✉️ Correo</button>';}
+    return {mount:mount,setVisible:setVisible,togglePanel:togglePanel,closePanel:closePanel,start:start,next:next,prev:prev,close:close,dismissHi:dismissHi,loadSample:loadSample,veraSend:veraSend,veraAsk:veraAsk,veraGo:veraGo,veraTours:veraTours,veraHuman:veraHuman,veraInit:veraInit};
   })();
   window.Guia=Guia;
 
@@ -4203,7 +4284,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.5";
+  var CURRENT_FALLBACK = "1.4.6";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
