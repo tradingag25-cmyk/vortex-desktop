@@ -4036,6 +4036,7 @@
       +'.guia-fab{position:fixed;right:22px;bottom:22px;z-index:2147483000;width:58px;height:58px;border-radius:50%;border:1px solid rgba(166,240,247,.25);cursor:pointer;background:radial-gradient(circle at 50% 42%,#123a3e,#08181b);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 12px 30px -8px rgba(10,60,64,.75);transition:transform .18s}'
       +'.guia-spin{transform-origin:center;animation:guiaSpin 9s linear infinite}'
       +'.guia-fab:hover .guia-spin{animation-duration:2.5s}'
+      +'.vera-face{width:100%;height:100%;object-fit:cover;border-radius:50%;transform:scale(1.28);transform-origin:50% 38%;display:block}'
       +'@keyframes guiaSpin{to{transform:rotate(360deg)}}'
       +'.guia-spark{position:absolute;width:2.5px;height:2.5px;border-radius:50%;background:#eafcff;box-shadow:0 0 4px 1px rgba(234,252,255,.7);opacity:0;animation:guiaTwinkle 2.4s ease-in-out infinite}'
       +'@keyframes guiaTwinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}'
@@ -4060,7 +4061,7 @@
       +'.vera-panel{width:346px;max-width:calc(100vw - 32px);height:min(560px,76vh);display:none;flex-direction:column;padding:0}'
       +'.vera-panel.show{display:flex}'
       +'.vera-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#0f2327,#123a3a);color:#eaf6f6}'
-      +'.vera-ava{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#123a3e,#08181b);display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(166,240,247,.25)}'
+      +'.vera-ava{width:34px;height:34px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 40%,#123a3e,#08181b);display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(166,240,247,.25)}'
       +'.vera-ava svg{animation:guiaSpin 9s linear infinite}'
       +'.vera-name{font-weight:800;font-size:15px;line-height:1.1}'
       +'.vera-sub{font-size:11px;opacity:.85;margin-top:2px;display:flex;align-items:center;gap:5px}'
@@ -4094,12 +4095,11 @@
       const wrap=document.createElement('div');wrap.id='guiaRoot';
       wrap.innerHTML=CSS
         +'<button class="guia-fab" id="guiaFab" title="Habla con Vera · Asistente de Vortex" onclick="Guia.togglePanel()">'
-          +'<span class="guia-spark s1"></span><span class="guia-spark s2"></span><span class="guia-spark s3"></span><span class="guia-spark s4"></span><span class="guia-spark s5"></span><span class="guia-spark s6"></span><span class="guia-spark s7"></span>'
-          +'<svg class="guia-spin" width="34" height="34" viewBox="0 0 48 48" fill="none"><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".82" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".64" transform="rotate(240 24 24)"/></svg>'
+          +'<img class="vera-face" src="vera.png" alt="Vera">'
         +'</button>'
         +'<div class="guia-hi" id="guiaHi">👋 Soy <b>Vera</b>, tu asistente de Vortex. ¿Te ayudo a empezar? <div style="margin-top:8px;display:flex;gap:6px"><button class="btn sm primary" onclick="Guia.togglePanel()">Hablar con Vera</button><button class="btn sm" onclick="Guia.dismissHi()">Ahora no</button></div></div>'
         +'<div class="guia-panel vera-panel" id="guiaPanel">'
-          +'<div class="vera-head"><div class="vera-ava"><svg width="21" height="21" viewBox="0 0 48 48" fill="none"><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".82" transform="rotate(120 24 24)"/><path d="M24 24 C24 12.5 31.5 6.5 41 8.5 C33.5 12.5 31.5 18.5 24 24Z" fill="#eafcff" opacity=".64" transform="rotate(240 24 24)"/></svg></div>'
+          +'<div class="vera-head"><div class="vera-ava"><img class="vera-face" src="vera.png" alt="Vera"></div>'
             +'<div><div class="vera-name">Vera</div><div class="vera-sub"><span class="vera-dot"></span>Asistente de Vortex · en línea</div></div>'
             +'<button class="vera-x" onclick="Guia.closePanel()">✕</button></div>'
           +'<div class="vera-body" id="veraBody"></div>'
@@ -4330,7 +4330,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.8";
+  var CURRENT_FALLBACK = "1.4.9";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
