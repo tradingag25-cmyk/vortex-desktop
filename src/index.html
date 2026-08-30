@@ -4238,7 +4238,25 @@
     // Sinónimos → término del sistema (amplía la comprensión).
     var VERA_SYN={recibo:'factura',facturar:'factura',facturas:'factura',vender:'venta',ventas:'venta',cobrar:'cobrar',cobro:'cobrar',cobros:'cobrar',pagar:'pago',pagos:'pago',clientes:'cliente',comprador:'cliente',compradores:'cliente',proveedores:'proveedor',suplidor:'proveedor',articulo:'producto',articulos:'producto',mercancia:'producto',mercancias:'producto',item:'producto',items:'producto',productos:'producto',existencia:'stock',existencias:'stock',bodega:'almacen',galpon:'almacen',almacenes:'almacen',depositos:'deposito',dolares:'dolar',usd:'dolar',divisas:'divisa',euros:'euro',bolivares:'bolivar',bolos:'bolivar',bs:'bolivar',informe:'reporte',informes:'reporte',reportes:'reporte',estadistica:'reporte',estadisticas:'reporte',cuadre:'cierre',arqueo:'cierre',cierres:'cierre',utilidad:'ganancia',margen:'ganancia',respaldar:'respaldo',backup:'respaldo',copia:'respaldo',clave:'pin',contrasena:'pin',contrasenas:'pin',password:'pin',impuestos:'impuesto',tributo:'impuesto',descuentos:'descuento',rebaja:'descuento',cotizaciones:'cotizacion',presupuesto:'cotizacion',devoluciones:'devolucion',ordenes:'orden',pedido:'orden',suscripcion:'licencia',mensualidad:'licencia'};
     function veraToks(q){var raw=veraNorm(q).split(/[^a-z0-9]+/),out=[];for(var i=0;i<raw.length;i++){var t=raw[i];if(!t||t.length<2||VERA_STOP[t])continue;if(out.indexOf(t)<0)out.push(t);var sy=VERA_SYN[t];if(sy&&sy!==t&&out.indexOf(sy)<0)out.push(sy);}return out;}
-    function veraMatch(q){var toks=veraToks(q);if(!toks.length)return null;var best=null,bs=0;KB.forEach(function(e){var sc=0;e.kw.split(' ').forEach(function(w){if(!w||VERA_STOP[w])return;var hit=false,i;for(i=0;i<toks.length;i++){if(toks[i]===w){sc+=(w.length>=5?3:2);hit=true;break;}}if(!hit){for(i=0;i<toks.length;i++){var t=toks[i];if((t.length>=4&&w.indexOf(t)===0)||(w.length>=4&&t.indexOf(w)===0)){sc+=(w.length>=5?2:1);hit=true;break;}}}});if(sc>bs){bs=sc;best=e;}});return bs>0?best:null;}
+    function veraPref(a,b){var n=a.length<b.length?a.length:b.length,i=0;while(i<n&&a.charAt(i)===b.charAt(i))i++;return i;}
+    function veraMatch(q){var toks=veraToks(q);if(!toks.length)return null;var best=null,bs=0;KB.forEach(function(e){var sc=0;e.kw.split(' ').forEach(function(w){if(!w||VERA_STOP[w])return;var hit=false,i;for(i=0;i<toks.length;i++){if(toks[i]===w){sc+=(w.length>=5?3:2);hit=true;break;}}if(!hit){for(i=0;i<toks.length;i++){var t=toks[i];if((t.length>=4&&w.indexOf(t)===0)||(w.length>=4&&t.indexOf(w)===0)||(t.length>=4&&w.length>=4&&veraPref(t,w)>=5)){sc+=(w.length>=5?2:1);hit=true;break;}}}});if(sc>bs){bs=sc;best=e;}});return bs>0?best:null;}
+    // Nutre a Vera con TODO el módulo Ayuda (descripción, pasos y fórmulas) y las fórmulas fiscales.
+    var veraSeeded=false;
+    function veraKwFromTerm(s){return veraNorm(s).replace(/[^a-z0-9]+/g,' ').split(' ').filter(function(w){return w.length>1&&!VERA_STOP[w];}).join(' ');}
+    function veraSeedFromAyuda(){
+      if(veraSeeded)return; veraSeeded=true;
+      try{
+        var GO={'Facturación':'facturacion','Cotizaciones':'cotizaciones','Notas de entrega':'notas','Devoluciones (NC / ND)':'devol','Cuentas por cobrar':'cxc','Facturas emitidas':'facturas','Cierre de caja':'cierre','Facturas de compra':'compras','Órdenes de compra':'ordenes','Cuentas por pagar':'cxp','Clientes':'clientes','Proveedores':'proveedores','Inventario / Productos':'inventario','Kardex':'kardex','Almacenes':'almacenes','Ajustes y traslados':'ajustes','Libro de Ventas':'lventas','Libro de Compras':'lcompras','Retenciones':'reten','Reportes':'reportes','Tasa BCV':'bcv','Bancos y caja':'tesoreria','Configuración':'config'};
+        if(typeof FISCAL!=='undefined'&&FISCAL.forEach){FISCAL.forEach(function(p){KB.push({kw:veraKwFromTerm(p[0])+' formula calcula calculo',a:'<b>'+p[0]+'</b> se calcula así: '+p[1]+'.',s:['¿Qué es el IVA?','¿Qué es el IGTF?','Precio de venta']});});}
+        if(typeof AYUDA!=='undefined'&&AYUDA.forEach){AYUDA.forEach(function(m){
+          var body='<b>'+m.t+'</b> — '+m.q;
+          if(m.usa&&m.usa.length)body+='<br><b>Cómo:</b> '+m.usa.map(function(s,i){return (i+1)+') '+s;}).join(' ');
+          if(m.f&&m.f.length)body+='<br><b>Fórmulas:</b> '+m.f.map(function(x){return x[0]+' = '+x[1];}).join(' · ');
+          var e={kw:veraKwFromTerm(m.t),a:body};var g=GO[m.t];if(g){e.go=g;e.gol='Abrir '+m.t;}KB.push(e);
+          if(m.f)m.f.forEach(function(x){KB.push({kw:veraKwFromTerm(x[0])+' formula calcula calculo',a:'<b>'+x[0]+'</b>: '+x[1]+'.'});});
+        });}
+      }catch(e){}
+    }
     function veraBodyEl(){return document.getElementById('veraBody');}
     function veraScroll(){var b=veraBodyEl();if(b)b.scrollTop=b.scrollHeight;}
     function veraSay(html,who){var b=veraBodyEl();if(!b)return;var d=document.createElement('div');d.className='vera-msg '+(who==='u'?'u':'v');d.innerHTML=html;b.appendChild(d);veraScroll();}
@@ -4249,7 +4267,7 @@
     function veraSend(){var i=document.getElementById('veraInput');if(!i)return;var q=(i.value||'').trim();if(!q)return;veraSay(q.replace(/</g,'&lt;').replace(/>/g,'&gt;'),'u');i.value='';veraAnswer(q);}
     function veraAsk(t){var i=document.getElementById('veraInput');if(i)i.value=t;veraSend();}
     function veraGo(m){try{go(m);}catch(e){}closePanel();}
-    function veraInit(){var b=veraBodyEl();if(!b||b.getAttribute('data-init'))return;b.setAttribute('data-init','1');veraSay('¡Hola! Soy <b>Vera</b> 🌀, tu asistente de Vortex. Pregúntame cómo hacer cualquier cosa, mira un <b>tour</b> guiado, o pide <b>datos de ejemplo</b> para probar el sistema.','v');veraSugList(veraDefault());}
+    function veraInit(){veraSeedFromAyuda();var b=veraBodyEl();if(!b||b.getAttribute('data-init'))return;b.setAttribute('data-init','1');veraSay('¡Hola! Soy <b>Vera</b> 🌀, tu asistente de Vortex. Pregúntame cómo hacer cualquier cosa, mira un <b>tour</b> guiado, o pide <b>datos de ejemplo</b> para probar el sistema.','v');veraSugList(veraDefault());}
     function veraTours(){veraSay('Estos son los <b>tours guiados</b>. Toca el que quieras y te llevo paso a paso 👇','v');var el=document.getElementById('veraSugs');var tt=[['completo','▶️ Tour completo'],['plus','⭐ Lo que nos diferencia'],['facturacion','🧾 Facturación'],['inventario','📦 Inventario'],['reportes','📊 Reportes'],['config','⚙️ Configuración'],['intro','❓ ¿Qué es Vortex?']];if(el)el.innerHTML=tt.map(function(p){return '<button class="vera-chip" onclick="Guia.start(&quot;'+p[0]+'&quot;)">'+p[1]+'</button>';}).join('');}
     function veraHuman(){veraSay('Con gusto te conecto con una persona del equipo 👤. ¿Por dónde prefieres?','v');var el=document.getElementById('veraSugs');if(el)el.innerHTML='<button class="vera-chip" onclick="if(window.__vtxContactWA)window.__vtxContactWA()">💬 WhatsApp</button><button class="vera-chip" onclick="if(window.__vtxContactMail)window.__vtxContactMail()">✉️ Correo</button>';}
     return {mount:mount,setVisible:setVisible,togglePanel:togglePanel,closePanel:closePanel,start:start,next:next,prev:prev,close:close,dismissHi:dismissHi,loadSample:loadSample,veraSend:veraSend,veraAsk:veraAsk,veraGo:veraGo,veraTours:veraTours,veraHuman:veraHuman,veraInit:veraInit};
@@ -4330,7 +4348,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.4.9";
+  var CURRENT_FALLBACK = "1.5.0";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
