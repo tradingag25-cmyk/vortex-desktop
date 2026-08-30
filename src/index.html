@@ -4229,6 +4229,23 @@
       {kw:'buscar producto encontrar agregar renglon linea',a:'En Facturación escribe el nombre o código del producto y presiona <b>Enter</b>, o abre la lista completa con la flecha ▾. Ajusta cantidad y descuento en cada renglón.',s:['¿Cómo pongo un descuento?','¿Cómo hago una factura?'],go:'facturacion',gol:'Abrir Facturación'},
       {kw:'vencimiento vencido vencer antiguedad cartera pendiente',a:'En <b>Cuentas por cobrar</b> (y por pagar) ves los <b>vencimientos</b> y la antigüedad de cada deuda, para saber qué está por vencer o vencido.',s:['Cuentas por cobrar','Reportes'],go:'cxc',gol:'Abrir Cuentas por cobrar'},
       {kw:'dinero efectivo cuanto vendi hoy total dia entro ingreso',a:'Lo que entró en el día lo ves en el <b>Resumen</b> (Ventas de hoy) y en <b>Cierre de caja</b> (Reporte Z por forma de pago y por cajero).',s:['Cerrar caja del día','Reportes'],go:'cierre',gol:'Abrir Cierre de caja'},
+      {kw:'moneda monedas multimoneda divisa bolivar dolar euro cuantas maneja',a:'Vortex maneja <b>3 monedas</b>: <b>Bolívares (Bs.), Dólares (USD) y Euros (EUR)</b>. Facturas y cobras en cualquiera y puedes <b>combinar varias</b> en una misma factura. El IGTF aplica solo a las divisas (USD/EUR/Zelle).',s:['Formas de pago','¿Qué es el IGTF?','Tasa BCV'],go:'facturacion',gol:'Abrir Facturación'},
+      {kw:'usuario usuarios equipo equipos cuantos computadora seats',a:'Depende del plan: <b>Mensual y Anual = 1 equipo</b>, <b>Empresarial = hasta 3 equipos</b>. Cada equipo se activa con la misma clave, hasta el límite del plan.',s:['¿Cómo activo mi licencia?','Roles y acceso'],go:'config',gol:'Abrir Configuración'},
+      {kw:'impresora imprimir formato fiscal papel ticket',a:'Vortex genera la factura con <b>formato fiscal</b> (RIF, número de control, IVA/IGTF) y la imprimes en tu <b>impresora normal</b> o la guardas en <b>PDF</b>. Igual con cierres, libros y reportes.',s:['Numeración fiscal','Facturas emitidas']},
+      {kw:'movil celular telefono android aplicacion tablet',a:'Vortex es una <b>app de escritorio para Windows</b>. No hay versión para celular; funciona instalada en tu PC y sin internet.',s:['Requisitos e instalación','¿Funciona sin internet?']},
+      {kw:'ganancia utilidad gane rentabilidad',a:'La ganancia por producto sale de <b>precio − costo</b> (defines el precio por costo + % de ganancia). En <b>Reportes</b> ves tus ventas por período, producto y cliente, y el valor del inventario.',s:['Precio de venta','Reportes'],go:'reportes',gol:'Abrir Reportes'},
+      {kw:'egreso gasto gastos servicio salida',a:'Registra tus <b>egresos/gastos</b> en <b>Bancos y caja → Registrar movimiento</b> (resta del saldo). Los pagos a proveedores van en <b>Cuentas por pagar</b>.',s:['Bancos y caja','Cuentas por pagar'],go:'tesoreria',gol:'Abrir Bancos y caja'},
+      {kw:'contribuyente especial ordinario formal tipo retiene',a:'El <b>tipo de contribuyente</b> define lo fiscal: el <b>especial</b> te retiene IVA (baja el neto a cobrar), el <b>ordinario</b> cobra IVA normal, el <b>formal</b> es régimen simplificado y el <b>consumidor final</b> no exige RIF.',s:['¿Qué es el IVA?','Clientes'],go:'clientes'},
+      {kw:'debito credito fiscal',a:'El <b>IVA débito fiscal</b> es el IVA de tus <b>ventas</b>; el <b>IVA crédito fiscal</b> es el IVA de tus <b>compras</b>. Lo que declaras al SENIAT = <b>débito − crédito</b>.',s:['IVA a declarar','Libros fiscales']},
+      {kw:'reporte z',a:'El <b>Reporte Z</b> es el resumen del <b>cierre de caja del día</b>: total por forma de pago, divisas, IGTF y total del día, listo para imprimir o PDF.',s:['Cerrar caja del día'],go:'cierre',gol:'Abrir Cierre de caja'},
+      {kw:'numero factura control diferencia correlativo',a:'El <b>número de factura</b> es tu correlativo (con su prefijo); el <b>número de control</b> es un correlativo fiscal aparte que exige el SENIAT. Ambos en <b>Configuración → Numeración fiscal</b>.',s:['Numeración fiscal'],go:'config',gol:'Abrir Configuración'},
+      {kw:'seniat debo deuda declarar tributo cuanto',a:'Al SENIAT le declaras el <b>IVA a pagar</b> (IVA de ventas − IVA de compras) y le enteras las <b>retenciones practicadas</b>. Todo sale de los <b>Libros</b> y del módulo <b>Retenciones</b>.',s:['IVA a declarar','Retenciones','Libros fiscales'],go:'reten',gol:'Abrir Retenciones'},
+      {kw:'persona natural cedula consumidor',a:'Sí puedes facturar a <b>persona natural</b>: registra el cliente con su <b>cédula (V/E)</b>, o usa <b>Consumidor Final</b> para ventas sin datos.',s:['Clientes','¿Cómo hago una factura?'],go:'facturacion'},
+      {kw:'cambiar moneda factura convertir boton',a:'En Facturación, arriba, cambias la moneda con el botón <b>USD / Bs.</b>: todo el resumen se muestra en esa moneda al instante (con la tasa BCV).',s:['¿Cuántas monedas maneja Vortex?','Tasa BCV'],go:'facturacion',gol:'Abrir Facturación'},
+      {kw:'activar igtf poner tributaria',a:'El <b>IGTF arranca en 0</b>. Para cobrarlo, ponlo en <b>Configuración tributaria</b> (el SENIAT lo fija en 3% sobre divisas). Desde ahí alimenta todos los cálculos.',s:['¿Qué es el IGTF?','Formas de pago'],go:'config',gol:'Abrir Configuración'},
+      {kw:'referencia confirmacion numero operacion',a:'Al elegir <b>Pago móvil, Punto de venta o Transferencia</b> puedes escribir la <b>referencia/confirmación</b>; queda guardada en la factura y en el cierre de caja.',s:['Formas de pago','Cerrar caja del día'],go:'facturacion'},
+      {kw:'antiguedad aging mora atraso',a:'La <b>antigüedad (aging)</b> se mide desde el <b>vencimiento</b> (fecha de emisión + días de plazo): si hoy pasó esa fecha, la deuda está <b>vencida</b>. Lo ves en Cuentas por cobrar/pagar y en Reportes.',s:['Cuentas por cobrar','Cuentas por pagar'],go:'cxc'},
+      {kw:'gracias adios chao perfecto excelente genial buenisimo',a:'¡Con gusto! 😊 Aquí estaré cuando me necesites. Pregúntame lo que quieras de Vortex o abre un <b>tour</b> (🎯) cuando gustes.',s:['¿Cómo hago una factura?','Ver un tour']},
       {kw:'datos ejemplo cargar prueba llenar probar sample',a:'Puedo llenar el sistema con <b>datos de ejemplo</b> (clientes, facturas de varios días, inventario y cierre) para que pruebes sin cargar nada. Pulsa el botón <b>📊 Ver demo</b> aquí abajo; cuando quieras arrancar de verdad, lo vacías desde Configuración.',s:['¿Cómo hago una factura?','Ver un tour']},
       {kw:'hola quien eres vera que es vortex asistente ayuda gracias',a:'Soy <b>Vera</b> 🌀, tu asistente de <b>Vortex</b> — el sistema de gestión integral: facturación, inventario, compras, control fiscal (SENIAT) y reportes, pensado para Venezuela. Pregúntame cómo hacer cualquier cosa.',s:['¿Cómo hago una factura?','Ver un tour','Cargar datos de ejemplo']}
     ];
@@ -4247,13 +4264,13 @@
       if(veraSeeded)return; veraSeeded=true;
       try{
         var GO={'Facturación':'facturacion','Cotizaciones':'cotizaciones','Notas de entrega':'notas','Devoluciones (NC / ND)':'devol','Cuentas por cobrar':'cxc','Facturas emitidas':'facturas','Cierre de caja':'cierre','Facturas de compra':'compras','Órdenes de compra':'ordenes','Cuentas por pagar':'cxp','Clientes':'clientes','Proveedores':'proveedores','Inventario / Productos':'inventario','Kardex':'kardex','Almacenes':'almacenes','Ajustes y traslados':'ajustes','Libro de Ventas':'lventas','Libro de Compras':'lcompras','Retenciones':'reten','Reportes':'reportes','Tasa BCV':'bcv','Bancos y caja':'tesoreria','Configuración':'config'};
-        if(typeof FISCAL!=='undefined'&&FISCAL.forEach){FISCAL.forEach(function(p){KB.push({kw:veraKwFromTerm(p[0])+' formula calcula calculo',a:'<b>'+p[0]+'</b> se calcula así: '+p[1]+'.',s:['¿Qué es el IVA?','¿Qué es el IGTF?','Precio de venta']});});}
+        if(typeof FISCAL!=='undefined'&&FISCAL.forEach){FISCAL.forEach(function(p){KB.push({kw:veraKwFromTerm(p[0]),a:'<b>'+p[0]+'</b> se calcula así: '+p[1]+'.',s:['¿Qué es el IVA?','¿Qué es el IGTF?','Precio de venta']});});}
         if(typeof AYUDA!=='undefined'&&AYUDA.forEach){AYUDA.forEach(function(m){
           var body='<b>'+m.t+'</b> — '+m.q;
           if(m.usa&&m.usa.length)body+='<br><b>Cómo:</b> '+m.usa.map(function(s,i){return (i+1)+') '+s;}).join(' ');
           if(m.f&&m.f.length)body+='<br><b>Fórmulas:</b> '+m.f.map(function(x){return x[0]+' = '+x[1];}).join(' · ');
           var e={kw:veraKwFromTerm(m.t),a:body};var g=GO[m.t];if(g){e.go=g;e.gol='Abrir '+m.t;}KB.push(e);
-          if(m.f)m.f.forEach(function(x){KB.push({kw:veraKwFromTerm(x[0])+' formula calcula calculo',a:'<b>'+x[0]+'</b>: '+x[1]+'.'});});
+          if(m.f)m.f.forEach(function(x){KB.push({kw:veraKwFromTerm(x[0]),a:'<b>'+x[0]+'</b>: '+x[1]+'.'});});
         });}
       }catch(e){}
     }
@@ -4348,7 +4365,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.5.0";
+  var CURRENT_FALLBACK = "1.5.1";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
