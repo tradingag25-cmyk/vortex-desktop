@@ -4036,7 +4036,8 @@
       +'.guia-fab{position:fixed;right:22px;bottom:22px;z-index:2147483000;width:58px;height:58px;border-radius:50%;border:1px solid rgba(166,240,247,.25);cursor:pointer;background:radial-gradient(circle at 50% 42%,#123a3e,#08181b);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 12px 30px -8px rgba(10,60,64,.75);transition:transform .18s}'
       +'.guia-spin{transform-origin:center;animation:guiaSpin 9s linear infinite}'
       +'.guia-fab:hover .guia-spin{animation-duration:2.5s}'
-      +'.vera-face{width:100%;height:100%;object-fit:cover;border-radius:50%;transform:scale(1.28);transform-origin:50% 38%;display:block}'
+      +'.vera-face{width:100%;height:100%;object-fit:cover;border-radius:50%;transform:scale(1.28);transform-origin:50% 38%;display:block;pointer-events:none}'
+      +'.guia-fab{touch-action:none}'
       +'@keyframes guiaSpin{to{transform:rotate(360deg)}}'
       +'.guia-spark{position:absolute;width:2.5px;height:2.5px;border-radius:50%;background:#eafcff;box-shadow:0 0 4px 1px rgba(234,252,255,.7);opacity:0;animation:guiaTwinkle 2.4s ease-in-out infinite}'
       +'@keyframes guiaTwinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1)}}'
@@ -4094,7 +4095,7 @@
       if(built)return;built=true;
       const wrap=document.createElement('div');wrap.id='guiaRoot';
       wrap.innerHTML=CSS
-        +'<button class="guia-fab" id="guiaFab" title="Habla con Vera · Asistente de Vortex" onclick="Guia.togglePanel()">'
+        +'<button class="guia-fab" id="guiaFab" title="Habla con Vera · Asistente de Vortex">'
           +'<img class="vera-face" src="vera.png" alt="Vera">'
         +'</button>'
         +'<div class="guia-hi" id="guiaHi">👋 Soy <b>Vera</b>, tu asistente de Vortex. ¿Te ayudo a empezar? <div style="margin-top:8px;display:flex;gap:6px"><button class="btn sm primary" onclick="Guia.togglePanel()">Hablar con Vera</button><button class="btn sm" onclick="Guia.dismissHi()">Ahora no</button></div></div>'
@@ -4114,6 +4115,21 @@
         +'<div class="guia-ov" id="guiaOv"><div class="guia-hole" id="guiaHole"></div><div class="guia-tip" id="guiaTip"></div></div>';
       document.body.appendChild(wrap);
       window.addEventListener('resize',function(){ if(document.getElementById('guiaOv').classList.contains('show'))render(); });
+      setupFabDrag();
+      window.addEventListener('resize',clampFab);
+    }
+    // El orbe de Vera se puede arrastrar en HORIZONTAL (para que no tape el trabajo, p. ej. el Modo Touch).
+    function clampFab(){var f=document.getElementById('guiaFab');if(!f)return;if(f.style.left&&f.style.left!=='auto'){var maxx=Math.max(6,window.innerWidth-f.offsetWidth-6);var x=parseFloat(f.style.left);if(isNaN(x))return;x=Math.max(6,Math.min(maxx,x));f.style.left=x+'px';f.style.right='auto';}}
+    function setupFabDrag(){
+      var f=document.getElementById('guiaFab');if(!f||f._drag)return;f._drag=true;
+      try{var sx=localStorage.getItem('vortex_vera_x');if(sx!=null&&sx!==''){f.style.left=(parseFloat(sx)||0)+'px';f.style.right='auto';}}catch(e){}
+      clampFab();
+      var dragging=false,moved=false,startX=0,ox=0;
+      f.addEventListener('pointerdown',function(ev){dragging=true;moved=false;startX=ev.clientX;var r=f.getBoundingClientRect();ox=r.left;f.style.left=r.left+'px';f.style.right='auto';f.style.bottom=(window.innerHeight-r.bottom)+'px';try{f.setPointerCapture(ev.pointerId);}catch(e){}});
+      f.addEventListener('pointermove',function(ev){if(!dragging)return;var dx=ev.clientX-startX;if(Math.abs(dx)>4)moved=true;var nx=Math.max(6,Math.min(window.innerWidth-f.offsetWidth-6,ox+dx));f.style.left=nx+'px';});
+      function end(ev){if(!dragging)return;dragging=false;try{f.releasePointerCapture(ev.pointerId);}catch(e){}if(moved){try{localStorage.setItem('vortex_vera_x',String(parseFloat(f.style.left)||0));}catch(e){}}else{togglePanel();}}
+      f.addEventListener('pointerup',end);
+      f.addEventListener('pointercancel',end);
     }
     function togglePanel(){build();const p=document.getElementById('guiaPanel');dismissHi();p.classList.toggle('show');if(p.classList.contains('show')){veraInit();const i=document.getElementById('veraInput');if(i)setTimeout(function(){try{i.focus();}catch(e){}},60);}}
     function closePanel(){const p=document.getElementById('guiaPanel');if(p)p.classList.remove('show');}
@@ -4365,7 +4381,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.5.1";
+  var CURRENT_FALLBACK = "1.5.2";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){
