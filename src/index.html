@@ -4,7 +4,7 @@
 <title>Vortex — Sistema de Gestión Integral</title>
 <style>
   :root{
-    --bg:#f4f7f6;--surface:#fff;--surface-2:#e9efee;--surface-3:#dfe7e5;
+    --bg:#f4f7f6;--surface:#f4f8f6;--surface-2:#e9efee;--surface-3:#dfe7e5;
     --border:#dde4e3;--border-strong:#c8d2d1;--on-accent:#fff;
     --text:#101a19;--text-muted:#5b6b6a;--text-faint:#8a9897;
     --accent:#0f6f78;--accent-ink:#0a4a51;--accent-soft:rgba(15,111,120,.10);
@@ -17,7 +17,7 @@
     --radius:12px;--radius-sm:8px;
     --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     --mono:"SFMono-Regular",ui-monospace,"Cascadia Mono",Consolas,monospace;
-    --app-bg:linear-gradient(155deg,#e2ecea 0%,#d9e5e2 55%,#d1dedb 100%);
+    --app-bg:linear-gradient(155deg,#e9efec 0%,#e4ebe7 55%,#e0e8e4 100%);
     --shadow-float:0 1px 2px rgba(70,55,25,.06),0 12px 36px rgba(70,55,25,.15);
     --logo-glow:0 3px 12px rgba(15,111,120,.22);
     --canvas:radial-gradient(130% 90% at 50% 0%,#fbf8f1 0%,#f2ecdf 100%);
@@ -39,7 +39,7 @@
     --logo-glow:0 0 20px rgba(34,211,238,.45);
     --canvas:#0f1a19;--canvas-solid:#0f1a19;--canvas-inset:inset 0 0 0 rgba(0,0,0,0);
   }}
-  :root[data-theme="light"]{--bg:#f4f7f6;--surface:#fff;--surface-2:#e9efee;--surface-3:#dfe7e5;--border:#dde4e3;--border-strong:#c8d2d1;--on-accent:#fff;--text:#101a19;--text-muted:#5b6b6a;--text-faint:#8a9897;--accent:#0f6f78;--accent-ink:#0a4a51;--accent-soft:rgba(15,111,120,.10);--gold:#9a7422;--gold-soft:rgba(154,116,34,.12);--good:#1c8f52;--good-soft:rgba(28,143,82,.12);--warn:#b1791a;--warn-soft:rgba(177,121,26,.14);--crit:#c0403a;--crit-soft:rgba(192,64,58,.12);--violet:#6b4fa0;--violet-soft:rgba(107,79,160,.12);--shadow:0 1px 2px rgba(70,55,25,.05),0 5px 18px rgba(70,55,25,.08);--app-bg:linear-gradient(155deg,#e2ecea 0%,#d9e5e2 55%,#d1dedb 100%);--shadow-float:0 1px 2px rgba(70,55,25,.06),0 12px 36px rgba(70,55,25,.15);--logo-glow:0 3px 12px rgba(15,111,120,.22);--canvas:radial-gradient(130% 90% at 50% 0%,#fbf8f1 0%,#f2ecdf 100%);--canvas-solid:#f4eee1;--canvas-inset:inset 0 0 34px rgba(84,64,26,.06);}
+  :root[data-theme="light"]{--bg:#f4f7f6;--surface:#f4f8f6;--surface-2:#e9efee;--surface-3:#dfe7e5;--border:#dde4e3;--border-strong:#c8d2d1;--on-accent:#fff;--text:#101a19;--text-muted:#5b6b6a;--text-faint:#8a9897;--accent:#0f6f78;--accent-ink:#0a4a51;--accent-soft:rgba(15,111,120,.10);--gold:#9a7422;--gold-soft:rgba(154,116,34,.12);--good:#1c8f52;--good-soft:rgba(28,143,82,.12);--warn:#b1791a;--warn-soft:rgba(177,121,26,.14);--crit:#c0403a;--crit-soft:rgba(192,64,58,.12);--violet:#6b4fa0;--violet-soft:rgba(107,79,160,.12);--shadow:0 1px 2px rgba(70,55,25,.05),0 5px 18px rgba(70,55,25,.08);--app-bg:linear-gradient(155deg,#e9efec 0%,#e4ebe7 55%,#e0e8e4 100%);--shadow-float:0 1px 2px rgba(70,55,25,.06),0 12px 36px rgba(70,55,25,.15);--logo-glow:0 3px 12px rgba(15,111,120,.22);--canvas:radial-gradient(130% 90% at 50% 0%,#fbf8f1 0%,#f2ecdf 100%);--canvas-solid:#f4eee1;--canvas-inset:inset 0 0 34px rgba(84,64,26,.06);}
   :root[data-theme="dark"]{--bg:#070f0e;--surface:#0f1a19;--surface-2:#15211e;--surface-3:#1e2c29;--border:#1d2d2b;--border-strong:#294039;--on-accent:#04181b;--text:#e8f5f4;--text-muted:#8ca6a3;--text-faint:#627a77;--accent:#22d3ee;--accent-ink:#0891b2;--accent-soft:rgba(34,211,238,.13);--gold:#d4a94a;--gold-soft:rgba(212,169,74,.14);--good:#34c77b;--good-soft:rgba(52,199,123,.14);--warn:#e0a93f;--warn-soft:rgba(224,169,63,.14);--crit:#e46a63;--crit-soft:rgba(228,106,99,.14);--violet:#a98fd6;--violet-soft:rgba(169,143,214,.14);--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);--app-bg:linear-gradient(155deg,#070f0e 0%,#091413 55%,#0a1615 100%);--shadow-float:0 1px 2px rgba(0,0,0,.4),0 14px 42px rgba(0,0,0,.58);--logo-glow:0 0 20px rgba(34,211,238,.45);--canvas:#0f1a19;--canvas-solid:#0f1a19;--canvas-inset:inset 0 0 0 rgba(0,0,0,0);}
 
   *{box-sizing:border-box;} body{margin:0;color:var(--text);}
@@ -4415,7 +4415,7 @@
   var T = window.__TAURI__;
   if(!T) return; // solo corre dentro de la app de escritorio
   var API = "https://vortexsgi.com/api/updates/latest";
-  var CURRENT_FALLBACK = "1.5.7";
+  var CURRENT_FALLBACK = "1.5.8";
   window.__VTX_VER = CURRENT_FALLBACK;
   // Pie de la barra lateral: versión + licencia (tipo y vigencia) para TODOS los planes.
   window.__vtxRenderFooter = function(){

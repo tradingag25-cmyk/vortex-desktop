@@ -1,7 +1,7 @@
 {
   "name": "vortex-desktop",
   "private": true,
-  "version": "1.5.7",
+  "version": "1.5.8",
   "description": "Vortex — Sistema de Gestión Integral (app de escritorio)",
   "scripts": {
     "tauri": "tauri"
